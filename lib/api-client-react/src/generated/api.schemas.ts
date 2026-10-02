@@ -78,6 +78,162 @@ export const SchoolStatus = {
   suspended: 'suspended',
 } as const;
 
+export type SchoolSubscriptionStatus = typeof SchoolSubscriptionStatus[keyof typeof SchoolSubscriptionStatus];
+
+
+export const SchoolSubscriptionStatus = {
+  trial: 'trial',
+  active: 'active',
+  expired: 'expired',
+  cancelled: 'cancelled',
+} as const;
+
+/**
+ * Private App Storage objectPath, never an external URL; server verifies same-school ownership.
+ * @maxLength 500
+ * @nullable
+ * @pattern ^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+ */
+export type AssetReference = string | null;
+
+export type SchoolSettingsMessageTemplatesTransport = typeof SchoolSettingsMessageTemplatesTransport[keyof typeof SchoolSettingsMessageTemplatesTransport];
+
+
+export const SchoolSettingsMessageTemplatesTransport = {
+  template: 'template',
+  text: 'text',
+} as const;
+
+export type SchoolSettingsKnecColumnsItem = typeof SchoolSettingsKnecColumnsItem[keyof typeof SchoolSettingsKnecColumnsItem];
+
+
+export const SchoolSettingsKnecColumnsItem = {
+  admissionNo: 'admissionNo',
+  upi: 'upi',
+  studentName: 'studentName',
+  learningArea: 'learningArea',
+  percent: 'percent',
+  level: 'level',
+  term: 'term',
+} as const;
+
+export type SchoolSettingsSiblingSplitRule = typeof SchoolSettingsSiblingSplitRule[keyof typeof SchoolSettingsSiblingSplitRule];
+
+
+export const SchoolSettingsSiblingSplitRule = {
+  ask_parent: 'ask_parent',
+  proportional_to_balance: 'proportional_to_balance',
+  oldest_arrears_first: 'oldest_arrears_first',
+} as const;
+
+export type SchoolSettingsSiblingFallbackRule = typeof SchoolSettingsSiblingFallbackRule[keyof typeof SchoolSettingsSiblingFallbackRule];
+
+
+export const SchoolSettingsSiblingFallbackRule = {
+  proportional_to_balance: 'proportional_to_balance',
+  oldest_arrears_first: 'oldest_arrears_first',
+  leave_in_queue: 'leave_in_queue',
+} as const;
+
+export type SchoolSettingsMatchingScores = {
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  exact?: number;
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  normalized?: number;
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  alias?: number;
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  guardian?: number;
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  name?: number;
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  typo?: number;
+  /**
+     * @minimum 0
+     * @maximum 30
+     */
+  bonus?: number;
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  inactive?: number;
+};
+
+export type SchoolSettingsMessageTemplatesComponentsItem = { [key: string]: unknown };
+
+export type SchoolSettingsMessageTemplates = {[key: string]: {
+  transport?: SchoolSettingsMessageTemplatesTransport;
+  name?: string;
+  language?: string;
+  components?: SchoolSettingsMessageTemplatesComponentsItem[];
+}};
+
+/**
+ * Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.
+ */
+export interface SchoolSettings {
+  /**
+     * @minimum 0
+     * @maximum 150
+     */
+  autoPostThreshold?: number;
+  /**
+     * @minimum 0.8
+     * @maximum 1
+     */
+  fuzzyNameThreshold?: number;
+  matchingScores?: SchoolSettingsMatchingScores;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  autoApprovePlanLimit?: string;
+  messageTemplates?: SchoolSettingsMessageTemplates;
+  knecColumns?: SchoolSettingsKnecColumnsItem[];
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  chronicAbsencePercent?: number;
+  siblingSplitRule?: SchoolSettingsSiblingSplitRule;
+  siblingFallbackRule?: SchoolSettingsSiblingFallbackRule;
+  /**
+     * @minimum 1
+     * @maximum 168
+     */
+  siblingReplyHours?: number;
+  /**
+     * @maxItems 20
+     * @items.minimum -365
+     * @items.maximum 365
+     */
+  reminderDays?: number[];
+  /**
+     * @minimum 1
+     * @maximum 24
+     */
+  defaultAfterMissedInstallments?: number;
+  absenceAlertsEnabled?: boolean;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  absenceAlertTime?: string;
+}
+
 export interface School {
   id: string;
   name: string;
@@ -92,14 +248,25 @@ export interface School {
   /** @nullable */
   email?: string | null;
   status: SchoolStatus;
+  logoUrl?: AssetReference | null;
+  settings?: SchoolSettings;
+  subscriptionPlan?: string;
+  subscriptionStatus?: SchoolSubscriptionStatus;
+  /** @nullable */
+  subscriptionStartDate?: string | null;
+  /** @nullable */
+  subscriptionEndDate?: string | null;
   createdAt: string;
 }
 
 export interface SetupStatus {
   needsSetup: boolean;
+  requiresSetupToken: boolean;
 }
 
 export interface InitialSetupInput {
+  /** @maxLength 256 */
+  setupToken?: string;
   /**
      * @minLength 2
      * @maxLength 180
@@ -146,7 +313,10 @@ export interface LoginInput {
 
 export interface User {
   id: string;
-  schoolId: string;
+  /** @nullable */
+  schoolId: string | null;
+  /** @nullable */
+  lastLoginAt?: string | null;
   name: string;
   /** @nullable */
   email?: string | null;
@@ -163,6 +333,8 @@ export interface AuthSession {
 }
 
 export interface SchoolUpdate {
+  logoUrl?: AssetReference | null;
+  settings?: SchoolSettings;
   /**
      * @minLength 2
      * @maxLength 180
@@ -228,7 +400,25 @@ export interface UserUpdate {
   isActive?: boolean;
 }
 
+/**
+ * @nullable
+ */
+export type AuditLogBefore = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type AuditLogAfter = { [key: string]: unknown } | null;
+
 export interface AuditLog {
+  /** @nullable */
+  before?: AuditLogBefore;
+  /** @nullable */
+  after?: AuditLogAfter;
+  /** @nullable */
+  ip?: string | null;
+  /** @nullable */
+  userAgent?: string | null;
   id: string;
   /** @nullable */
   userName?: string | null;
@@ -360,6 +550,11 @@ export interface StreamInput {
 
 export interface GuardianLinkInput {
   /**
+     * @maxLength 40
+     * @nullable
+     */
+  idNumber?: string | null;
+  /**
      * @minLength 2
      * @maxLength 160
      */
@@ -386,6 +581,10 @@ export interface GuardianLinkInput {
 }
 
 export interface Guardian {
+  /** @nullable */
+  idNumber?: string | null;
+  /** @nullable */
+  anonymizedAt?: string | null;
   id: string;
   name: string;
   phone: string;
@@ -400,6 +599,11 @@ export interface Guardian {
 }
 
 export interface GuardianInput {
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  idNumber?: string | null;
   /**
      * @minLength 2
      * @maxLength 160
@@ -452,6 +656,11 @@ export const StudentGender = {
 } as const;
 
 export interface Student {
+  /** @nullable */
+  pathway?: string | null;
+  photoUrl?: AssetReference | null;
+  /** @nullable */
+  transportRouteId?: string | null;
   id: string;
   admissionNo: string;
   firstName: string;
@@ -498,6 +707,17 @@ export const StudentInputGender = {
 } as const;
 
 export interface StudentInput {
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  pathway?: string | null;
+  photoUrl?: AssetReference | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  transportRouteId?: string | null;
   /**
      * @minLength 1
      * @maxLength 60
@@ -551,6 +771,17 @@ export const StudentUpdateGender = {
 } as const;
 
 export interface StudentUpdate {
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  pathway?: string | null;
+  photoUrl?: AssetReference | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  transportRouteId?: string | null;
   /**
      * @minLength 1
      * @maxLength 60
@@ -659,6 +890,1303 @@ export interface StudentImportResult {
   siblingGroupsCreated: number;
   skippedRows: number;
 }
+
+export type PlatformSchoolUpdateStatus = typeof PlatformSchoolUpdateStatus[keyof typeof PlatformSchoolUpdateStatus];
+
+
+export const PlatformSchoolUpdateStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export type PlatformSchoolUpdateSubscriptionStatus = typeof PlatformSchoolUpdateSubscriptionStatus[keyof typeof PlatformSchoolUpdateSubscriptionStatus];
+
+
+export const PlatformSchoolUpdateSubscriptionStatus = {
+  trial: 'trial',
+  active: 'active',
+  expired: 'expired',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PlatformSchoolUpdate {
+  status?: PlatformSchoolUpdateStatus;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  subscriptionPlan?: string;
+  subscriptionStatus?: PlatformSchoolUpdateSubscriptionStatus;
+  /** @nullable */
+  subscriptionStartDate?: string | null;
+  /** @nullable */
+  subscriptionEndDate?: string | null;
+}
+
+export interface PasswordChangeInput {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  currentPassword: string;
+  /**
+     * @minLength 10
+     * @maxLength 128
+     */
+  newPassword: string;
+}
+
+export interface TeacherAssignmentInput {
+  userId: string;
+  streamId: string;
+}
+
+export interface TeacherAssignment {
+  id: string;
+  userId: string;
+  streamId: string;
+  userName: string;
+  streamName: string;
+  gradeName: string;
+}
+
+export type PrivacyConfirmationConfirmation = typeof PrivacyConfirmationConfirmation[keyof typeof PrivacyConfirmationConfirmation];
+
+
+export const PrivacyConfirmationConfirmation = {
+  ANONYMIZE: 'ANONYMIZE',
+} as const;
+
+export interface PrivacyConfirmation {
+  confirmation: PrivacyConfirmationConfirmation;
+}
+
+export interface GuardianExportLink {
+  studentId: string;
+  relationship: string;
+  isPrimary: boolean;
+  receivesNotifications: boolean;
+}
+
+export interface GuardianExport {
+  guardian: Guardian;
+  exportedAt: string;
+  links: GuardianExportLink[];
+}
+
+export type PromotionInputAction = typeof PromotionInputAction[keyof typeof PromotionInputAction];
+
+
+export const PromotionInputAction = {
+  promote: 'promote',
+  graduate: 'graduate',
+} as const;
+
+export interface PromotionInput {
+  sourceYearId: string;
+  targetYearId: string;
+  sourceStreamId: string;
+  /** @nullable */
+  targetStreamId?: string | null;
+  action: PromotionInputAction;
+}
+
+export type PromotionConfirmationConfirmation = typeof PromotionConfirmationConfirmation[keyof typeof PromotionConfirmationConfirmation];
+
+
+export const PromotionConfirmationConfirmation = {
+  PROMOTE: 'PROMOTE',
+} as const;
+
+export interface PromotionConfirmation {
+  /** @maxLength 10000 */
+  previewToken: string;
+  confirmation: PromotionConfirmationConfirmation;
+}
+
+export interface PromotionPreview {
+  previewToken: string;
+  count: number;
+  students: FamilyStudent[];
+}
+
+export interface PromotionResult {
+  updatedStudents: number;
+}
+
+export type FileUploadInputContentType = typeof FileUploadInputContentType[keyof typeof FileUploadInputContentType];
+
+
+export const FileUploadInputContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export type FileUploadInputPurpose = typeof FileUploadInputPurpose[keyof typeof FileUploadInputPurpose];
+
+
+export const FileUploadInputPurpose = {
+  school_logo: 'school_logo',
+  student_photo: 'student_photo',
+} as const;
+
+export interface FileUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 5242880
+     */
+  size: number;
+  contentType: FileUploadInputContentType;
+  purpose: FileUploadInputPurpose;
+  entityId: string;
+}
+
+export interface FileUpload {
+  id: string;
+  uploadUrl: string;
+  objectPath: string;
+}
+
+export interface StoredFileReference {
+  id: string;
+  objectPath: string;
+}
+
+export type IntegrationInputProvider = typeof IntegrationInputProvider[keyof typeof IntegrationInputProvider];
+
+
+export const IntegrationInputProvider = {
+  daraja: 'daraja',
+  leadsintel: 'leadsintel',
+  africastalking: 'africastalking',
+  bot: 'bot',
+  bank: 'bank',
+} as const;
+
+export type IntegrationInputEnvironment = typeof IntegrationInputEnvironment[keyof typeof IntegrationInputEnvironment];
+
+
+export const IntegrationInputEnvironment = {
+  sandbox: 'sandbox',
+  production: 'production',
+} as const;
+
+/**
+ * Write-only encrypted values. ENCRYPTION_KEY required; never returned.
+ */
+export type IntegrationInputCredentials = {[key: string]: string};
+
+export interface IntegrationInput {
+  provider: IntegrationInputProvider;
+  environment: IntegrationInputEnvironment;
+  enabled: boolean;
+  /** Write-only encrypted values. ENCRYPTION_KEY required; never returned. */
+  credentials: IntegrationInputCredentials;
+  shortcode?: string;
+  accountNumber?: string;
+  connectionId?: string;
+}
+
+export interface IntegrationStatus {
+  provider: string;
+  environment?: string;
+  enabled: boolean;
+  configured: boolean;
+  status: string;
+  reason?: string;
+}
+
+export type IncomingInputChannel = typeof IncomingInputChannel[keyof typeof IncomingInputChannel];
+
+
+export const IncomingInputChannel = {
+  mpesa_c2b: 'mpesa_c2b',
+  mpesa_stk: 'mpesa_stk',
+  bank: 'bank',
+} as const;
+
+export interface IncomingInput {
+  provider: string;
+  providerTxnId: string;
+  channel: IncomingInputChannel;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+  transactionTime: string;
+  payerPhone?: string;
+  payerName?: string;
+  accountReference?: string;
+  bankAccountFrom?: string;
+  knownStudentId?: string;
+}
+
+export interface IncomingPaymentView {
+  id: string;
+  provider: string;
+  providerTxnId: string;
+  channel: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+  transactionTime?: string;
+  payerPhone?: string;
+  payerName?: string;
+  accountReference?: string;
+  status: string;
+  duplicateOfId?: string;
+}
+
+export interface MatchCandidate {
+  studentId: string;
+  score: number;
+  reasons: string[];
+}
+
+export interface ExceptionView {
+  id: string;
+  paymentId: string;
+  reason: string;
+  status: string;
+  candidates: MatchCandidate[];
+  createdAt: string;
+  expiresAt?: string;
+}
+
+export interface StudentSplit {
+  studentId: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+}
+
+export type ResolutionInputAction = typeof ResolutionInputAction[keyof typeof ResolutionInputAction];
+
+
+export const ResolutionInputAction = {
+  assign: 'assign',
+  split: 'split',
+  suspense: 'suspense',
+  refund: 'refund',
+} as const;
+
+export interface ResolutionInput {
+  action: ResolutionInputAction;
+  allocations?: StudentSplit[];
+  reason: string;
+  learnAlias?: boolean;
+}
+
+export interface StkInput {
+  studentId: string;
+  phone: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+  idempotencyKey: string;
+}
+
+export interface StkView {
+  id: string;
+  studentId: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+  status: string;
+  checkoutRequestId?: string;
+  resultCode?: string;
+}
+
+export interface StatementInput {
+  provider: string;
+  fromDate: string;
+  toDate: string;
+  rows: IncomingInput[];
+  completeStatement: boolean;
+}
+
+export type StatementFileInputFormat = typeof StatementFileInputFormat[keyof typeof StatementFileInputFormat];
+
+
+export const StatementFileInputFormat = {
+  csv: 'csv',
+  xlsx: 'xlsx',
+  mt940: 'mt940',
+} as const;
+
+export type StatementFileInputMapping = {
+  providerTxnId: string;
+  amount: string;
+  transactionTime: string;
+  accountReference?: string;
+  payerPhone?: string;
+  payerName?: string;
+};
+
+export interface StatementFileInput {
+  provider: string;
+  format: StatementFileInputFormat;
+  content: string;
+  mapping?: StatementFileInputMapping;
+}
+
+export type StatementPreviewErrorsItem = {
+  row: number;
+  message: string;
+};
+
+export interface StatementPreview {
+  rows: IncomingInput[];
+  errors: StatementPreviewErrorsItem[];
+}
+
+export type ReconViewDiscrepanciesItem = {
+  type: string;
+  providerTxnId: string;
+  detail?: string;
+};
+
+export interface ReconView {
+  id: string;
+  provider: string;
+  status: string;
+  statementCount: number;
+  systemCount: number;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  statementTotal: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  systemTotal: string;
+  discrepancies: ReconViewDiscrepanciesItem[];
+  createdAt?: string;
+}
+
+export type SponsorInputType = typeof SponsorInputType[keyof typeof SponsorInputType];
+
+
+export const SponsorInputType = {
+  bursary: 'bursary',
+  sponsorship: 'sponsorship',
+} as const;
+
+export interface SponsorInput {
+  paymentId: string;
+  sponsorId: string;
+  type: SponsorInputType;
+  allocations: StudentSplit[];
+  remainderReason?: string;
+  reason: string;
+}
+
+export interface PlanInstallmentInput {
+  dueDate: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+}
+
+export interface PlanInput {
+  studentId: string;
+  termId: string;
+  installments: PlanInstallmentInput[];
+}
+
+export type PlanViewInstallmentsItem = {
+  id: string;
+  dueDate: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amountPaid: string;
+  status: string;
+};
+
+export interface PlanView {
+  id: string;
+  studentId: string;
+  termId: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  totalAmount: string;
+  status: string;
+  requestedVia?: string;
+  installments: PlanViewInstallmentsItem[];
+}
+
+export type DecisionInputDecision = typeof DecisionInputDecision[keyof typeof DecisionInputDecision];
+
+
+export const DecisionInputDecision = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface DecisionInput {
+  decision: DecisionInputDecision;
+  reason: string;
+}
+
+export interface ActionResult {
+  id?: string;
+  status: string;
+  message?: string;
+}
+
+export interface BotIdentityInput {
+  phone: string;
+}
+
+export interface BotOtpInput {
+  phone: string;
+  /** @pattern ^\d{6}$ */
+  code: string;
+}
+
+export type BotIdentityViewChildrenItem = {
+  id: string;
+  name: string;
+  admissionNo: string;
+  grade?: string;
+};
+
+export interface BotIdentityView {
+  guardianId: string;
+  children: BotIdentityViewChildrenItem[];
+}
+
+export type MessageInputChannel = typeof MessageInputChannel[keyof typeof MessageInputChannel];
+
+
+export const MessageInputChannel = {
+  whatsapp: 'whatsapp',
+  sms: 'sms',
+} as const;
+
+export interface MessageInput {
+  guardianId: string;
+  template: string;
+  content: string;
+  idempotencyKey: string;
+  channel: MessageInputChannel;
+}
+
+export interface MessageView {
+  id: string;
+  guardianId?: string;
+  channel: string;
+  template: string;
+  status: string;
+  attempts: number;
+  error?: string;
+  providerMessageId?: string;
+}
+
+export type CurriculumInputKind = typeof CurriculumInputKind[keyof typeof CurriculumInputKind];
+
+
+export const CurriculumInputKind = {
+  learning_area: 'learning_area',
+  strand: 'strand',
+  sub_strand: 'sub_strand',
+  scale: 'scale',
+  grade_scale: 'grade_scale',
+  assignment: 'assignment',
+} as const;
+
+export type CurriculumInputLevelsItem = {
+  code: string;
+  label: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  points: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  minPercent: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  maxPercent: string;
+  order: number;
+};
+
+export interface CurriculumInput {
+  kind: CurriculumInputKind;
+  name?: string;
+  code?: string;
+  gradeId?: string;
+  learningAreaId?: string;
+  parentId?: string;
+  order?: number;
+  scaleId?: string;
+  userId?: string;
+  streamId?: string;
+  termId?: string;
+  levels?: CurriculumInputLevelsItem[];
+}
+
+export type CurriculumViewLearningAreasItem = {
+  id: string;
+  gradeId: string;
+  name: string;
+  code: string;
+};
+
+export type CurriculumViewStrandsItem = {
+  id: string;
+  learningAreaId: string;
+  parentId?: string;
+  name: string;
+  order: number;
+};
+
+export type CurriculumViewScalesItemLevelsItem = {
+  id: string;
+  code: string;
+  label: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  points: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  minPercent: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  maxPercent: string;
+  order: number;
+};
+
+export type CurriculumViewScalesItem = {
+  id: string;
+  name: string;
+  levels: CurriculumViewScalesItemLevelsItem[];
+};
+
+export type CurriculumViewGradeScalesItem = {
+  gradeId: string;
+  scaleId: string;
+};
+
+export type CurriculumViewAssignmentsItem = {
+  id: string;
+  userId: string;
+  streamId: string;
+  learningAreaId: string;
+  termId: string;
+};
+
+export interface CurriculumView {
+  learningAreas: CurriculumViewLearningAreasItem[];
+  strands: CurriculumViewStrandsItem[];
+  scales: CurriculumViewScalesItem[];
+  gradeScales: CurriculumViewGradeScalesItem[];
+  assignments: CurriculumViewAssignmentsItem[];
+}
+
+export type AssessmentInputType = typeof AssessmentInputType[keyof typeof AssessmentInputType];
+
+
+export const AssessmentInputType = {
+  formative: 'formative',
+  summative: 'summative',
+  project: 'project',
+  sba: 'sba',
+} as const;
+
+export interface AssessmentInput {
+  termId: string;
+  gradeId: string;
+  learningAreaId: string;
+  name: string;
+  type: AssessmentInputType;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  maxMarks?: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  weight: string;
+  date: string;
+}
+
+export interface AssessmentView {
+  id: string;
+  termId: string;
+  gradeId: string;
+  learningAreaId: string;
+  name: string;
+  type: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  maxMarks?: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  weight: string;
+  date: string;
+  status: string;
+}
+
+export interface ResultInput {
+  studentId: string;
+  subStrandId?: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  marks?: string;
+  performanceLevelId?: string;
+  overrideReason?: string;
+  comment?: string;
+  /** @minimum 0 */
+  expectedRevision: number;
+}
+
+export interface ResultView {
+  id: string;
+  assessmentId: string;
+  studentId: string;
+  subStrandId?: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  marks?: string;
+  performanceLevelId: string;
+  comment?: string;
+  revision: number;
+}
+
+export interface LockInput {
+  locked: boolean;
+  reason: string;
+}
+
+export type RatingInputCategory = typeof RatingInputCategory[keyof typeof RatingInputCategory];
+
+
+export const RatingInputCategory = {
+  competency: 'competency',
+  value: 'value',
+} as const;
+
+export interface RatingInput {
+  studentId: string;
+  termId: string;
+  category: RatingInputCategory;
+  code: string;
+  performanceLevelId: string;
+}
+
+export interface ReportCardInput {
+  studentId: string;
+  termId: string;
+  classTeacherComment?: string;
+  headTeacherComment?: string;
+  nextTermOpeningDate?: string;
+  publish?: boolean;
+}
+
+export interface ReportCardView {
+  id: string;
+  studentId: string;
+  termId: string;
+  status: string;
+  classTeacherComment?: string;
+  headTeacherComment?: string;
+  fileId?: string;
+  publishedAt?: string;
+  /** @nullable */
+  nextTermOpeningDate?: string | null;
+}
+
+export type AttendanceInputEntriesItemStatus = typeof AttendanceInputEntriesItemStatus[keyof typeof AttendanceInputEntriesItemStatus];
+
+
+export const AttendanceInputEntriesItemStatus = {
+  present: 'present',
+  absent: 'absent',
+  late: 'late',
+  excused: 'excused',
+} as const;
+
+export type AttendanceInputEntriesItem = {
+  studentId: string;
+  status: AttendanceInputEntriesItemStatus;
+};
+
+export interface AttendanceInput {
+  streamId: string;
+  date: string;
+  entries: AttendanceInputEntriesItem[];
+}
+
+export interface AttendanceView {
+  id: string;
+  studentId: string;
+  streamId: string;
+  date: string;
+  status: string;
+}
+
+export type ReportViewColumnsItem = {
+  key: string;
+  label: string;
+};
+
+export type ReportViewRowsItem = {[key: string]: string | number | boolean | null};
+
+export interface ReportView {
+  title: string;
+  columns: ReportViewColumnsItem[];
+  rows: ReportViewRowsItem[];
+  generatedAt: string;
+}
+
+export interface DocumentView {
+  id: string;
+  downloadUrl: string;
+  expiresAt: string;
+}
+
+export type ReportFilterInputFormat = typeof ReportFilterInputFormat[keyof typeof ReportFilterInputFormat];
+
+
+export const ReportFilterInputFormat = {
+  json: 'json',
+  xlsx: 'xlsx',
+  pdf: 'pdf',
+  csv: 'csv',
+} as const;
+
+export interface ReportFilterInput {
+  from?: string;
+  to?: string;
+  termId?: string;
+  gradeId?: string;
+  studentId?: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  minimumBalance?: string;
+  activePlan?: boolean;
+  format?: ReportFilterInputFormat;
+}
+
+export type ModuleDecisionInputDecision = typeof ModuleDecisionInputDecision[keyof typeof ModuleDecisionInputDecision];
+
+
+export const ModuleDecisionInputDecision = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ModuleDecisionInput {
+  decision: ModuleDecisionInputDecision;
+  reason: string;
+}
+
+export interface RefundPaidInput {
+  reference: string;
+}
+
+export interface CollectionRefundView {
+  id: string;
+  paymentId: string;
+  exceptionId?: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+  status: string;
+  reason?: string;
+  requestedBy?: string;
+  decidedBy?: string;
+  paidReference?: string;
+}
+
+export interface SponsorBatchView {
+  id: string;
+  paymentId: string;
+  sponsorId: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  allocatedAmount: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  heldAmount: string;
+  remainderReason?: string;
+  status: string;
+}
+
+export interface LevelInput {
+  code: string;
+  label: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  points: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  minPercent: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  maxPercent: string;
+  order: number;
+}
+
+export interface CurriculumEditInput {
+  name?: string;
+  code?: string;
+  order?: number;
+  isCore?: boolean;
+  /** @nullable */
+  pathway?: string | null;
+  levels?: LevelInput[];
+  userId?: string;
+  streamId?: string;
+  learningAreaId?: string;
+  termId?: string;
+}
+
+export interface LearnerRatingView {
+  id: string;
+  studentId: string;
+  termId: string;
+  category: string;
+  code: string;
+  performanceLevelId: string;
+}
+
+export interface BatchCardsInput {
+  termId: string;
+  studentIds: string[];
+}
+
+export type KnecExportInputFormat = typeof KnecExportInputFormat[keyof typeof KnecExportInputFormat];
+
+
+export const KnecExportInputFormat = {
+  csv: 'csv',
+  xlsx: 'xlsx',
+} as const;
+
+export interface KnecExportInput {
+  termId: string;
+  gradeId?: string;
+  format: KnecExportInputFormat;
+}
+
+export interface BotTermInput {
+  termId: string;
+}
+
+export interface BotMonthInput {
+  /** @pattern ^\d{4}-(0[1-9]|1[0-2])$ */
+  month: string;
+}
+
+export interface BotTermResultView {
+  learningAreaId: string;
+  learningArea: string;
+  /** @nullable */
+  percent: string | null;
+  /** @nullable */
+  level: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type BotBalanceViewLastPayment = {
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount?: string;
+  createdAt?: string;
+  status?: string;
+} | null;
+
+export interface BotBalanceView {
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  balance: string;
+  /** @nullable */
+  lastPayment?: BotBalanceViewLastPayment;
+}
+
+export type BotDocumentListViewInvoicesItem = {
+  id: string;
+  createdAt: string;
+};
+
+export type BotDocumentListViewReceiptsItem = {
+  id: string;
+  createdAt: string;
+};
+
+export type BotDocumentListViewReportCardsItem = {
+  id: string;
+  termId: string;
+};
+
+export interface BotDocumentListView {
+  invoices: BotDocumentListViewInvoicesItem[];
+  receipts: BotDocumentListViewReceiptsItem[];
+  reportCards: BotDocumentListViewReportCardsItem[];
+}
+
+export type BotSchoolViewTermsItem = {
+  name: string;
+  startDate: string;
+  endDate: string;
+};
+
+export interface BotSchoolView {
+  name: string;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  paybill?: string | null;
+  terms: BotSchoolViewTermsItem[];
+}
+
+export type FailedJobsViewJobsItem = {
+  id?: string;
+  name?: string;
+  state?: string;
+  retryCount?: number;
+  completedAt?: string;
+};
+
+export type FailedJobsViewMessagesItem = {
+  id?: string;
+  template?: string;
+  status?: string;
+  error?: string;
+  attempts?: number;
+};
+
+export type FailedJobsViewIntegrationsItem = {
+  id?: string;
+  provider?: string;
+  event?: string;
+  status?: string;
+  createdAt?: string;
+};
+
+export interface FailedJobsView {
+  jobs: FailedJobsViewJobsItem[];
+  messages: FailedJobsViewMessagesItem[];
+  integrations: FailedJobsViewIntegrationsItem[];
+}
+
+export interface ApprovalInboxItem {
+  id: string;
+  type: string;
+  /** @nullable */
+  studentId?: string | null;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  amount: string;
+  requestedBy: string;
+  createdAt: string;
+  canApprove: boolean;
+}
+
+export type ModuleDashboardViewFinanceChannels = {[key: string]: string};
+
+/**
+ * @nullable
+ */
+export type ModuleDashboardViewFinanceReconciliation = {
+  id?: string;
+  status?: string;
+  provider?: string;
+  createdAt?: string;
+} | null;
+
+/**
+ * @nullable
+ */
+export type ModuleDashboardViewFinance = {
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  todayCollected?: string;
+  channels?: ModuleDashboardViewFinanceChannels;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  termBilled?: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  termCollected?: string;
+  unmatchedCount?: number;
+  defaulterCount?: number;
+  /** @nullable */
+  reconciliation?: ModuleDashboardViewFinanceReconciliation;
+} | null;
+
+export type ModuleDashboardViewAcademics = {
+  assessments: number;
+  locked: number;
+  results: number;
+  publishedReportCards: number;
+};
+
+export type ModuleDashboardViewAttendanceItem = {
+  status: string;
+  count: number;
+};
+
+export interface ModuleDashboardView {
+  date: string;
+  /** @nullable */
+  termId: string | null;
+  /** @nullable */
+  finance: ModuleDashboardViewFinance;
+  academics: ModuleDashboardViewAcademics;
+  attendance: ModuleDashboardViewAttendanceItem[];
+}
+
+export interface FinanceUpdateInput {
+  /** @minLength 1 */
+  name?: string;
+  /** @minimum 1 */
+  priority?: number;
+  contact?: string;
+  endDate?: string;
+  /** @minLength 1 */
+  reason: string;
+}
+
+/**
+ * Exact KES decimal, never a JSON number.
+ * @pattern ^-?\d{1,12}(\.\d{1,2})?$
+ */
+export type Money = string;
+
+export interface FinanceLineInput {
+  feeItemId: string;
+  amount: Money;
+  description?: string;
+}
+
+export type FinanceInputKind = typeof FinanceInputKind[keyof typeof FinanceInputKind];
+
+
+export const FinanceInputKind = {
+  fee_item: 'fee_item',
+  fee_structure: 'fee_structure',
+  optional_charge: 'optional_charge',
+  sponsor: 'sponsor',
+  invoice: 'invoice',
+  payment: 'payment',
+  adjustment: 'adjustment',
+  refund: 'refund',
+  refund_paid: 'refund_paid',
+  reversal: 'reversal',
+  cheque_status: 'cheque_status',
+} as const;
+
+export type FinanceInputBoardingStatus = typeof FinanceInputBoardingStatus[keyof typeof FinanceInputBoardingStatus];
+
+
+export const FinanceInputBoardingStatus = {
+  day: 'day',
+  boarder: 'boarder',
+} as const;
+
+export type FinanceInputSponsorType = typeof FinanceInputSponsorType[keyof typeof FinanceInputSponsorType];
+
+
+export const FinanceInputSponsorType = {
+  ngcdf: 'ngcdf',
+  county: 'county',
+  ngo: 'ngo',
+  church: 'church',
+  individual: 'individual',
+  company: 'company',
+  other: 'other',
+} as const;
+
+export type FinanceInputAdjustmentType = typeof FinanceInputAdjustmentType[keyof typeof FinanceInputAdjustmentType];
+
+
+export const FinanceInputAdjustmentType = {
+  discount: 'discount',
+  sibling_discount: 'sibling_discount',
+  waiver: 'waiver',
+  bursary: 'bursary',
+  sponsorship: 'sponsorship',
+  write_off: 'write_off',
+  correction: 'correction',
+} as const;
+
+export type FinanceInputChannel = typeof FinanceInputChannel[keyof typeof FinanceInputChannel];
+
+
+export const FinanceInputChannel = {
+  cash: 'cash',
+  cheque: 'cheque',
+} as const;
+
+export type FinanceInputChequeStatus = typeof FinanceInputChequeStatus[keyof typeof FinanceInputChequeStatus];
+
+
+export const FinanceInputChequeStatus = {
+  banked: 'banked',
+  cleared: 'cleared',
+  bounced: 'bounced',
+} as const;
+
+export interface FinanceInput {
+  kind: FinanceInputKind;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  idempotencyKey: string;
+  studentId?: string;
+  termId?: string;
+  parentId?: string;
+  amount?: Money;
+  /** @minLength 1 */
+  name?: string;
+  /** @minLength 1 */
+  code?: string;
+  /** @minimum 1 */
+  priority?: number;
+  isOptional?: boolean;
+  academicYearId?: string;
+  gradeId?: string;
+  boardingStatus?: FinanceInputBoardingStatus;
+  /** @minItems 1 */
+  lines?: FinanceLineInput[];
+  feeItemId?: string;
+  startDate?: string;
+  endDate?: string;
+  dueDate?: string;
+  /** @minLength 1 */
+  reason?: string;
+  reference?: string;
+  sponsorId?: string;
+  sponsorType?: FinanceInputSponsorType;
+  contact?: string;
+  adjustmentType?: FinanceInputAdjustmentType;
+  recurring?: boolean;
+  channel?: FinanceInputChannel;
+  /** @minLength 1 */
+  providerTxnId?: string;
+  transactionTime?: string;
+  payerName?: string;
+  payerPhone?: string;
+  chequeNo?: string;
+  bank?: string;
+  drawer?: string;
+  chequeStatus?: FinanceInputChequeStatus;
+  method?: string;
+}
+
+export type FinanceRecordData = { [key: string]: unknown };
+
+export interface FinanceRecord {
+  id: string;
+  kind: string;
+  /** @nullable */
+  studentId?: string | null;
+  /** @nullable */
+  termId?: string | null;
+  /** @nullable */
+  parentId?: string | null;
+  status: string;
+  amount: Money;
+  data: FinanceRecordData;
+  uniqueKey: string;
+  requestedBy: string;
+  /** @nullable */
+  approvedBy?: string | null;
+  /** @nullable */
+  approvedAt?: string | null;
+  createdAt: string;
+}
+
+export type FinanceDecisionDecision = typeof FinanceDecisionDecision[keyof typeof FinanceDecisionDecision];
+
+
+export const FinanceDecisionDecision = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface FinanceDecision {
+  decision: FinanceDecisionDecision;
+  /** @minLength 1 */
+  reason: string;
+}
+
+export interface InvoiceBatchInput {
+  termId: string;
+  gradeId?: string;
+  dueDate: string;
+}
+
+export interface InvoiceProposal {
+  studentId: string;
+  amount: Money;
+  lines: FinanceLineInput[];
+  existing: boolean;
+  invoiceId?: string;
+}
+
+export interface InvoiceBatchResult {
+  invoices: InvoiceProposal[];
+}
+
+export interface FinanceOverview {
+  invoiced: Money;
+  collected: Money;
+  outstanding: Money;
+  credit: Money;
+  pendingApprovals: number;
+}
+
+export type FinanceHistoryLedgerItem = { [key: string]: unknown };
+
+export type FinanceHistoryAllocationsItem = { [key: string]: unknown };
+
+export interface FinanceHistory {
+  balance: Money;
+  records: FinanceRecord[];
+  ledger: FinanceHistoryLedgerItem[];
+  allocations: FinanceHistoryAllocationsItem[];
+}
+
+export type FinanceDocumentInputType = typeof FinanceDocumentInputType[keyof typeof FinanceDocumentInputType];
+
+
+export const FinanceDocumentInputType = {
+  receipt: 'receipt',
+  statement: 'statement',
+} as const;
+
+export interface FinanceDocumentInput {
+  type: FinanceDocumentInputType;
+  referenceId: string;
+}
+
+export interface FinanceDocument {
+  id: string;
+  downloadUrl: string;
+  expiresAt: string;
+}
+
+export type ListIncomingPaymentsParams = {
+status?: string;
+};
+
+export type ListAssessmentsParams = {
+termId?: string;
+gradeId?: string;
+};
+
+export type ListLearnerRatingsParams = {
+studentId?: string;
+termId?: string;
+};
+
+export type ListReportCardsParams = {
+studentId?: string;
+termId?: string;
+};
+
+export type GetAttendanceRegisterParams = {
+streamId?: string;
+date?: string;
+studentId?: string;
+};
+
+export type GenerateBatchReportCards200Item = {
+  studentId: string;
+  id: string;
+  downloadUrl: string;
+  expiresAt: string;
+};
+
+export type GetBotAttendance200Item = {
+  date: string;
+  status: string;
+};
+
+export type ListFinanceRecordsParams = {
+kind?: string;
+studentId?: string;
+};
+
+export type ListFailedFinanceJobs200Item = { [key: string]: unknown };
 
 export type ListTermsParams = {
 academicYearId?: string;

@@ -8,7 +8,7 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export type Tx = Prisma.TransactionClient;
-export type Actor = { user: User; school: School };
+export type Actor = { user: User; school: School; ip?: string; userAgent?: string };
 declare global {
   namespace Express { interface Request { actor: Actor } }
 }
@@ -19,6 +19,10 @@ const cookieName = "school_session";
 export const admin = ["super_admin", "school_admin"];
 export const writers = [...admin, "bursar"];
 export const readers = [...writers, "principal"];
+export const auditors = [...admin, "principal"];
+export const streamAccess = (userId: string): Prisma.StreamWhereInput => ({
+  OR: [{ classTeacherUserId: userId }, { assignments: { some: { userId } } }],
+});
 export const teacher = (req: Request) => ["teacher", "class_teacher"].includes(req.actor.user.role);
 export function allow(req: Request, roles: string[]) {
   if (!roles.includes(req.actor.user.role)) throw new ApiError(403, "You do not have permission for this action");
@@ -27,7 +31,7 @@ export function phone(value: string) {
   const clean = value.replace(/[\s()-]/g, "");
   const local = clean.replace(/^(?:\+254|254|0)/, "");
   if (!/^[71]\d{8}$/.test(local)) throw new ApiError(400, "Phone must be a valid Kenyan mobile number (07, 01, +254, 7 or 1)");
-  return `+254${local}`;
+  return `254${local}`;
 }
 export function contacts<T extends { email?: string | null; phone?: string | null }>(data: T): T {
   return { ...data, ...(data.email !== undefined ? { email: data.email?.trim().toLowerCase() || null } : {}),
@@ -47,7 +51,7 @@ export function send(res: Response, operation: string, data: unknown, status = 2
   res.status(status).json(serialize(schema.parse(data)));
 }
 function serialize(value: any, key = ""): any {
-  if (value instanceof Date) return ["startDate", "endDate", "dateOfBirth", "admissionDate"].includes(key) ? dateView(value) : value.toISOString();
+  if (value instanceof Date) return ["startDate", "endDate", "dateOfBirth", "admissionDate", "subscriptionStartDate", "subscriptionEndDate"].includes(key) ? dateView(value) : value.toISOString();
   if (Array.isArray(value)) return value.map(v => serialize(v));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, serialize(v, k)]));
   return value;
@@ -57,7 +61,7 @@ export function body<T extends ZodTypeAny>(schema: T, data: unknown): T["_output
   // Generated schemas coerce date strings; reject overflow dates before coercion.
   if (cleaned && typeof cleaned === "object" && !Array.isArray(cleaned)) {
     for (const [key, value] of Object.entries(cleaned)) {
-      if (["startDate", "endDate", "dateOfBirth", "admissionDate"].includes(key) && value !== null && value !== undefined && (typeof value !== "string" || !validDate(value))) {
+      if (["startDate", "endDate", "dueDate", "dateOfBirth", "admissionDate", "subscriptionStartDate", "subscriptionEndDate"].includes(key) && value !== null && value !== undefined && (typeof value !== "string" || !validDate(value))) {
         throw new ApiError(400, `${key} must be a real date (YYYY-MM-DD)`);
       }
     }
@@ -65,7 +69,7 @@ export function body<T extends ZodTypeAny>(schema: T, data: unknown): T["_output
   return parse(schema, cleaned);
 }
 export function session(req: Request, res: Response, user: User) {
-  const token = jwt.sign({}, jwtSecret, { subject: user.id, expiresIn: "8h", issuer: "school-api", audience: "school-web" });
+  const token = jwt.sign({ version: user.sessionVersion }, jwtSecret, { subject: user.id, expiresIn: "8h", issuer: "school-api", audience: "school-web" });
   res.cookie(cookieName, token, { httpOnly: true, secure: req.secure, sameSite: "lax", maxAge: 8 * 3600000, path: "/api" });
 }
 export function clearSession(req: Request, res: Response) {
@@ -74,14 +78,17 @@ export function clearSession(req: Request, res: Response) {
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   try {
     let id: string;
+    let version = 0;
     try {
       const payload = jwt.verify(req.cookies?.[cookieName] || "", jwtSecret, { algorithms: ["HS256"], issuer: "school-api", audience: "school-web" });
       if (typeof payload === "string" || !payload.sub) throw new Error();
       id = payload.sub;
+      version = typeof payload.version === "number" ? payload.version : 0;
     } catch { throw new ApiError(401, "Not signed in"); }
     const user = await db.user.findUnique({ where: { id }, include: { school: true } });
-    if (!user?.isActive || user.school.status !== "active") throw new ApiError(401, "Account is inactive or session is invalid");
-    req.actor = { user, school: user.school };
+    const school = user?.school ?? (user?.role === "super_admin" && user.sessionSchoolId ? await db.school.findUnique({ where: { id: user.sessionSchoolId } }) : null);
+    if (!user?.isActive || ![...readers, "teacher", "class_teacher"].includes(user.role) || user.sessionVersion !== version || !school || school.status !== "active") throw new ApiError(401, "Account is inactive or session is invalid");
+    req.actor = { user, school, ip: req.ip, userAgent: req.get("user-agent")?.slice(0, 500) };
     next();
   } catch (e) { next(e); }
 }
@@ -100,8 +107,28 @@ export function csrf(req: Request, _res: Response, next: NextFunction) {
 export async function lock(tx: Tx, schoolId: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${schoolId}, 0))`;
 }
-export async function audit(tx: Tx, actor: Actor, action: string, entityType: string, entityId?: string) {
-  await tx.auditLog.create({ data: { schoolId: actor.school.id, userId: actor.user.id, action, entityType, entityId } });
+const snapshots = new WeakMap<object, Map<string, unknown>>();
+const auditModels: Record<string, string> = { school: "school", user: "user", student: "student", guardian: "guardian", family: "family", stream: "stream", grade: "grade", academic_year: "academicYear", term: "term", student_guardian: "studentGuardian", teacher_assignment: "teacherAssignment" };
+export function redactSnapshot(value: unknown): Prisma.InputJsonValue {
+  const sensitive = /password|secret|token|credential|phone|email|idnumber|^name$|firstname|middlename|lastname|dateofbirth|address|upi|photourl|logourl|filename|objectkey/i;
+  const walk = (v: any): any => {
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).filter(([, item]) => item !== undefined).map(([key, item]) => [key, sensitive.test(key) ? "[REDACTED]" : walk(item)]));
+    return v;
+  };
+  return walk(value) as Prisma.InputJsonValue;
+}
+export async function audit(tx: Tx, actor: Actor, action: string, entityType: string, entityId?: string, before?: unknown, after?: unknown) {
+  const model = auditModels[entityType];
+  const prior = before ?? (action !== "created" && model && entityId ? snapshots.get(tx)?.get(`${model}:${entityId}`) : undefined);
+  const current = after ?? (model && entityId ? await (tx as any)[model].findFirst({ where: { id: entityId, ...(model === "school" ? {} : { schoolId: actor.school.id }) } }) : undefined);
+  await tx.auditLog.create({ data: {
+    schoolId: actor.school.id, userId: actor.user.id, action, entityType, entityId,
+    before: prior == null ? Prisma.DbNull : redactSnapshot(prior),
+    after: current == null ? Prisma.DbNull : redactSnapshot(current),
+    ip: actor.ip ?? null, userAgent: actor.userAgent ?? null,
+  } });
 }
 export const logInclude = { user: true } as const;
 export function logView(log: { user?: { name: string } | null; id: string; action: string; entityType: string; entityId: string | null; createdAt: Date }) {
@@ -110,7 +137,18 @@ export function logView(log: { user?: { name: string } | null; id: string; actio
 export async function owned(tx: Tx, model: "student" | "guardian" | "user" | "grade" | "stream" | "academicYear" | "term", id: string, schoolId: string) {
   const record = await (tx[model] as unknown as { findFirst(a: unknown): Promise<any> }).findFirst({ where: { id, schoolId } });
   if (!record) throw new ApiError(404, "Record not found");
+  if (tx !== db) {
+    if (!snapshots.has(tx)) snapshots.set(tx, new Map());
+    snapshots.get(tx)!.set(`${model}:${id}`, record);
+  }
   return record;
+}
+export async function validateAsset(tx: Tx, schoolId: string, entityId: string, entityType: string, reference: string | null | undefined) {
+  if (reference == null) return;
+  const match = /^\/api\/storage\/files\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(reference);
+  if (!match || !await tx.storedFile.findFirst({ where: { id: match[1], schoolId, entityId, entityType, status: "ready" } })) {
+    throw new ApiError(400, "Image must reference a completed upload for this school and record");
+  }
 }
 export function dates<T extends Record<string, any>>(data: T): T {
   const result = { ...data };
@@ -129,6 +167,6 @@ export const dateView = (date: Date | null) => date?.toISOString().slice(0, 10) 
 export function cleanStrings<T>(value: T): T {
   if (typeof value === "string") return value.trim() as T;
   if (Array.isArray(value)) return value.map(cleanStrings) as T;
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, k === "password" ? v : cleanStrings(v)])) as T;
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, /password|setupToken/i.test(k) ? v : cleanStrings(v)])) as T;
   return value;
 }

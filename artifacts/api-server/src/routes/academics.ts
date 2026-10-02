@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, Prisma } from "@workspace/db";
 import * as z from "@workspace/api-zod";
-import { allow, admin, send, body, parse, audit, lock, owned, ApiError, teacher, type Tx } from "../lib/core";
+import { allow, admin, send, body, parse, audit, lock, owned, ApiError, teacher, streamAccess, type Tx, type Actor } from "../lib/core";
 const router = Router();
 const yearView = (record: any) => record;
 const termView = (record: any) => ({ ...record, academicYearName: record.academicYear.name });
@@ -18,6 +18,14 @@ async function checkTerm(tx: Tx, data: any, schoolId: string) {
   const year = await owned(tx, "academicYear", data.academicYearId, schoolId);
   if (data.startDate < year.startDate || data.endDate > year.endDate) throw new ApiError(400, "Term dates must be within its academic year");
 }
+async function clearCurrent(tx: Tx, actor: Actor, model: "academicYear" | "term") {
+  const records = model === "academicYear"
+    ? await tx.academicYear.findMany({ where: { schoolId: actor.school.id, isCurrent: true } })
+    : await tx.term.findMany({ where: { schoolId: actor.school.id, isCurrent: true } });
+  if (model === "academicYear") await tx.academicYear.updateMany({ where: { schoolId: actor.school.id, isCurrent: true }, data: { isCurrent: false } });
+  else await tx.term.updateMany({ where: { schoolId: actor.school.id, isCurrent: true }, data: { isCurrent: false } });
+  for (const record of records) await audit(tx, actor, "current_cleared", model === "academicYear" ? "academic_year" : "term", record.id, { isCurrent: true }, { isCurrent: false });
+}
 router.get("/academic-years", async (req, res) => {
   send(res, "ListAcademicYears", await db.academicYear.findMany({ where: { schoolId: req.actor.school.id }, orderBy: { startDate: "desc" }, take: 1000 }));
 });
@@ -26,7 +34,7 @@ router.post("/academic-years", async (req, res) => {
   range(data.startDate, data.endDate);
   const record = await db.$transaction(async tx => {
     await lock(tx, req.actor.school.id);
-    if (data.isCurrent) await tx.academicYear.updateMany({ where: { schoolId: req.actor.school.id, isCurrent: true }, data: { isCurrent: false } });
+    if (data.isCurrent) await clearCurrent(tx, req.actor, "academicYear");
     const record = await tx.academicYear.create({ data: { ...data, schoolId: req.actor.school.id } });
     await audit(tx, req.actor, "created", "academic_year", record.id); return record;
   });
@@ -39,7 +47,7 @@ router.patch("/academic-years/:yearId", async (req, res) => {
     const old = await owned(tx, "academicYear", yearId, req.actor.school.id); const effective = { ...old, ...data };
     range(effective.startDate, effective.endDate);
     if (await tx.term.count({ where: { schoolId: req.actor.school.id, academicYearId: yearId, OR: [{ startDate: { lt: effective.startDate } }, { endDate: { gt: effective.endDate } }] } })) throw new ApiError(400, "Existing terms must remain within the year");
-    if (data.isCurrent) await tx.academicYear.updateMany({ where: { schoolId: req.actor.school.id, isCurrent: true }, data: { isCurrent: false } });
+    if (data.isCurrent) await clearCurrent(tx, req.actor, "academicYear");
     const record = await tx.academicYear.update({ where: { id: yearId }, data }); await audit(tx, req.actor, "updated", "academic_year", yearId); return record;
   });
   send(res, "UpdateAcademicYear", record);
@@ -53,7 +61,7 @@ router.post("/terms", async (req, res) => {
   allow(req, admin); const data = body(z.CreateTermBody, req.body);
   const record = await db.$transaction(async tx => {
     await lock(tx, req.actor.school.id); await checkTerm(tx, data, req.actor.school.id);
-    if (data.isCurrent) await tx.term.updateMany({ where: { schoolId: req.actor.school.id, isCurrent: true }, data: { isCurrent: false } });
+    if (data.isCurrent) await clearCurrent(tx, req.actor, "term");
     const record = await tx.term.create({ data: { ...data, schoolId: req.actor.school.id }, include: termInclude });
     await audit(tx, req.actor, "created", "term", record.id); return record;
   });
@@ -64,15 +72,15 @@ router.patch("/terms/:termId", async (req, res) => {
   const record = await db.$transaction(async tx => {
     await lock(tx, req.actor.school.id); const old = await owned(tx, "term", termId, req.actor.school.id);
     await checkTerm(tx, { ...old, ...data }, req.actor.school.id);
-    if (data.isCurrent) await tx.term.updateMany({ where: { schoolId: req.actor.school.id, isCurrent: true }, data: { isCurrent: false } });
+    if (data.isCurrent) await clearCurrent(tx, req.actor, "term");
     const record = await tx.term.update({ where: { id: termId }, data, include: termInclude });
     await audit(tx, req.actor, "updated", "term", termId); return record;
   });
   send(res, "UpdateTerm", termView(record));
 });
 router.get("/grades", async (req, res) => {
-  const scope: Prisma.StudentWhereInput = teacher(req) ? { stream: { classTeacherUserId: req.actor.user.id } } : {};
-  const where: Prisma.GradeWhereInput = { schoolId: req.actor.school.id, ...(teacher(req) ? { streams: { some: { classTeacherUserId: req.actor.user.id } } } : {}) };
+  const scope: Prisma.StudentWhereInput = teacher(req) ? { stream: streamAccess(req.actor.user.id) } : {};
+  const where: Prisma.GradeWhereInput = { schoolId: req.actor.school.id, ...(teacher(req) ? { streams: { some: streamAccess(req.actor.user.id) } } : {}) };
   const records = await db.grade.findMany({ where, include: { _count: { select: { students: { where: scope } } } }, orderBy: { order: "asc" }, take: 1000 });
   send(res, "ListGrades", records.map(gradeView));
 });
@@ -96,7 +104,7 @@ router.patch("/grades/:gradeId", async (req, res) => {
 router.get("/streams", async (req, res) => {
   const query = parse(z.ListStreamsQueryParams, req.query);
   if (query.gradeId) await owned(db, "grade", query.gradeId, req.actor.school.id);
-  send(res, "ListStreams", (await db.stream.findMany({ where: { schoolId: req.actor.school.id, ...query, ...(teacher(req) ? { classTeacherUserId: req.actor.user.id } : {}) }, include: streamInclude, orderBy: { name: "asc" }, take: 1000 })).map(streamView));
+  send(res, "ListStreams", (await db.stream.findMany({ where: { schoolId: req.actor.school.id, ...query, ...(teacher(req) ? streamAccess(req.actor.user.id) : {}) }, include: streamInclude, orderBy: { name: "asc" }, take: 1000 })).map(streamView));
 });
 async function checkStream(tx: Tx, data: any, schoolId: string) {
   await owned(tx, "grade", data.gradeId, schoolId);

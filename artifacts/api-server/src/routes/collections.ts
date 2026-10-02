@@ -1,0 +1,110 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import * as schemas from "@workspace/api-zod";
+import { allow, admin, readers, writers, auditors, body, ApiError, audit } from "../lib/core";
+import { saveIntegration } from "../lib/integrations/security";
+import { registerCallbacks, startStk } from "../lib/integrations/daraja";
+import { ingest, resolveException } from "../lib/payments/pipeline";
+import { previewStatement, reconcileStatement } from "../lib/integrations/banks";
+import { financeTransaction, record, view } from "../lib/finance/posting";
+import { createRecord } from "../lib/finance/service";
+import { sum, money } from "../lib/finance/money";
+import { createPlan, decidePlan, planView } from "../lib/payments/plans";
+import { queueMessage, messageReadiness } from "../lib/integrations/messages";
+import { decideUnmatchedRefund, payUnmatchedRefund, sponsorAcknowledgement } from "../lib/payments/settlements";
+import { z } from "zod";
+
+const router = Router();
+router.get("/reconciliation/refunds", async (req, res) => { allow(req, readers); res.json(view(await db.collectionRefund.findMany({ where: { schoolId: req.actor.school.id }, orderBy: { createdAt: "desc" } }))); });
+router.post("/reconciliation/refunds/:id/decision", async (req, res) => {
+  const input = body(z.object({ decision: z.enum(["approved", "rejected"]), reason: z.string().trim().min(1) }), req.body);
+  res.json(view(await decideUnmatchedRefund(req.actor, String(req.params.id), input.decision, input.reason)));
+});
+router.post("/reconciliation/refunds/:id/paid", async (req, res) => {
+  const input = body(z.object({ reference: z.string().trim().min(1).max(200) }), req.body);
+  res.json(view(await payUnmatchedRefund(req.actor, String(req.params.id), input.reference)));
+});
+router.get("/reconciliation/sponsors/batches", async (req, res) => { allow(req, readers); res.json(view(await db.sponsorBatch.findMany({ where: { schoolId: req.actor.school.id }, orderBy: { createdAt: "desc" } }))); });
+router.post("/reconciliation/sponsors/:id/acknowledgement", async (req, res) => { allow(req, readers); res.json(await sponsorAcknowledgement(req.actor, String(req.params.id))); });
+router.get("/integrations/config", async (req, res) => {
+  allow(req, admin);
+  const configs = await db.integrationConfig.findMany({ where: { schoolId: req.actor.school.id }, select: { provider: true, enabled: true, environment: true } });
+  res.json(["daraja", "leadsintel", "africastalking", "bot", "bank"].map(provider => {
+    const config = configs.find(c => c.provider === provider);
+    return { provider, enabled: config?.enabled ?? false, environment: config?.environment ?? "sandbox", configured: !!config, status: provider === "bank" ? "contract_required" : !process.env.ENCRYPTION_KEY ? "encryption_key_missing" : config?.enabled ? "unverified" : "not_configured", reason: provider === "bank" ? "Pilot bank and official API contract required" : provider === "daraja" ? "Sandbox adapter available; live acceptance and Pull query contract unverified" : "No live delivery or connectivity verified" };
+  }));
+});
+router.put("/integrations/config", async (req, res) => { allow(req, admin); res.json(await saveIntegration(req.actor, body(schemas.ConfigureIntegrationBody, req.body))); });
+router.post("/integrations/daraja/register", async (req, res) => { allow(req, admin); res.json(await registerCallbacks(req.actor)); });
+router.get("/payments/incoming", async (req, res) => {
+  allow(req, readers);
+  res.json(view(await db.incomingPayment.findMany({ where: { schoolId: req.actor.school.id, ...(typeof req.query.status === "string" ? { status: req.query.status } : {}) }, orderBy: { createdAt: "desc" }, take: 500, omit: { rawPayload: true } })));
+});
+router.post("/payments/incoming", async (req, res) => {
+  allow(req, ["bursar"]);
+  const input = body(schemas.IngestIncomingPaymentBody, req.body);
+  // This is a staff statement import, not a claim that a provider callback was verified.
+  res.json(view(await ingest(req.actor, input)));
+});
+router.get("/reconciliation/queue", async (req, res) => { allow(req, readers); res.json(view(await db.matchException.findMany({ where: { schoolId: req.actor.school.id, status: "open" }, orderBy: { createdAt: "asc" } }))); });
+router.post("/reconciliation/queue/:id/resolve", async (req, res) => { allow(req, ["bursar"]); res.json(await resolveException(req.actor, String(req.params.id), body(schemas.ResolvePaymentExceptionBody, req.body))); });
+router.post("/payments/stk", async (req, res) => { allow(req, writers); res.json(view(await startStk(req.actor, body(schemas.StartStkPaymentBody, req.body)))); });
+router.get("/payments/stk/:id", async (req, res) => {
+  allow(req, readers);
+  const request = await db.stkRequest.findFirst({ where: { schoolId: req.actor.school.id, id: String(req.params.id) } });
+  if (!request) throw new ApiError(404, "STK request not found");
+  res.json(view(request));
+});
+router.post("/reconciliation/statements/preview", async (req, res) => { allow(req, writers); res.json(view(await previewStatement(body(schemas.PreviewBankStatementBody, req.body)))); });
+router.post("/reconciliation/statements", async (req, res) => { allow(req, ["bursar"]); res.json(view(await reconcileStatement(req.actor, body(schemas.ReconcileStatementBody, req.body)))); });
+router.get("/reconciliation/statements", async (req, res) => { allow(req, readers); res.json(view(await db.reconciliationRun.findMany({ where: { schoolId: req.actor.school.id }, orderBy: { createdAt: "desc" }, take: 100 }))); });
+router.post("/reconciliation/sponsors", async (req, res) => {
+  allow(req, ["bursar"]);
+  const input = body(schemas.AllocateSponsorPaymentBody, req.body);
+  const result = await financeTransaction(req.actor, async tx => {
+    const payment = await tx.incomingPayment.findFirst({ where: { schoolId: req.actor.school.id, id: input.paymentId } });
+    if (!payment) throw new ApiError(404, "Payment not found");
+    await record(tx, req.actor.school.id, input.sponsorId, "sponsor");
+    if (!["received", "unmatched", "suspended"].includes(payment.status)) throw new ApiError(409, "Payment already allocated or awaiting sponsor approval");
+    const total = sum(input.allocations.map(a => money(a.amount)));
+    if (total.gt(payment.amount) || !total.gt(0) || new Set(input.allocations.map(a => a.studentId)).size !== input.allocations.length) throw new ApiError(400, "Invalid sponsor allocations");
+    if (!total.equals(payment.amount) && !input.remainderReason) throw new ApiError(400, "Unallocated remainder requires a reason");
+    const batch = await tx.sponsorBatch.create({ data: { schoolId: req.actor.school.id, paymentId: payment.id, sponsorId: input.sponsorId, allocatedAmount: total, heldAmount: payment.amount, remainderReason: input.remainderReason, requestedBy: req.actor.user.id } });
+    for (const split of input.allocations) {
+      const credit = await createRecord(tx, req.actor, {
+      kind: "adjustment", idempotencyKey: `sponsor:${payment.id}:${split.studentId}`, studentId: split.studentId,
+      amount: split.amount, reason: input.reason, adjustmentType: input.type, sponsorId: input.sponsorId, reference: payment.id,
+      });
+      await tx.sponsorAllocation.create({ data: { schoolId: req.actor.school.id, batchId: batch.id, studentId: split.studentId, financeRecordId: credit.id, amount: money(split.amount) } });
+    }
+    await tx.incomingPayment.update({ where: { id: payment.id }, data: { status: "sponsor_pending" } });
+    await tx.matchException.updateMany({ where: { schoolId: req.actor.school.id, paymentId: payment.id }, data: { status: "sponsor_pending", expiresAt: null, resolution: "sponsor_batch" } });
+    await audit(tx, req.actor, "sponsor_allocation_requested", "incoming_payment", payment.id, undefined, { sponsorId: input.sponsorId, remainder: payment.amount.minus(total).toFixed(2), remainderReason: input.remainderReason });
+    return { id: batch.id, status: "pending", message: "Sponsor credits require independent approval in the finance inbox; unallocated/rejected amounts remain held" };
+  });
+  res.json(result);
+});
+router.get("/payment-plans", async (req, res) => {
+  allow(req, readers);
+  const plans = await db.paymentPlan.findMany({ where: { schoolId: req.actor.school.id }, orderBy: { createdAt: "desc" }, take: 500 });
+  res.json(view(await Promise.all(plans.map(p => planView(db, req.actor.school.id, p.id)))));
+});
+router.post("/payment-plans", async (req, res) => { allow(req, ["bursar"]); res.json(view(await createPlan(req.actor, body(schemas.CreatePaymentPlanBody, req.body)))); });
+router.post("/payment-plans/:id/decision", async (req, res) => {
+  allow(req, auditors);
+  const input = body(schemas.DecidePaymentPlanBody, req.body);
+  res.json(view(await decidePlan(req.actor, String(req.params.id), input.decision, input.reason)));
+});
+router.get("/notifications", async (req, res) => {
+  allow(req, readers);
+  res.json(view(await db.messageDelivery.findMany({ where: { schoolId: req.actor.school.id, template: { not: "otp" } }, select: { id: true, guardianId: true, channel: true, template: true, status: true, attempts: true, error: true, providerMessageId: true }, orderBy: { createdAt: "desc" }, take: 500 })));
+});
+router.post("/notifications", async (req, res) => {
+  allow(req, admin);
+  const input = body(schemas.SendSchoolMessageBody, req.body);
+  const guardian = await db.guardian.findFirst({ where: { id: input.guardianId, schoolId: req.actor.school.id, anonymizedAt: null } });
+  if (!guardian) throw new ApiError(404, "Guardian not found");
+  await messageReadiness(req.actor.school.id, input.channel, input.template, guardian.id);
+  res.json(view(await queueMessage(db, req.actor.school.id, { ...input, phone: guardian.phone })));
+});
+export default router;

@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreateInitialSchool, useLogin, getGetCurrentUserQueryKey, getGetSetupStatusQueryKey, SchoolType, type AuthSession } from "@workspace/api-client-react";
+import { useCreateInitialSchool, useLogin, useGetSetupStatus, getGetCurrentUserQueryKey, getGetSetupStatusQueryKey, SchoolType, type AuthSession } from "@workspace/api-client-react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Field, TextInput, NativeSelect, FormError, Btn } from "@/components/kit";
 import { errMsg } from "@/lib/session";
@@ -30,7 +30,7 @@ function Frame({ children, side }: { children: ReactNode; side: ReactNode }) {
 function useAuthDone() {
   const qc = useQueryClient();
   return (s: AuthSession) => {
-    qc.setQueryData(getGetSetupStatusQueryKey(), { needsSetup: false });
+    qc.setQueryData(getGetSetupStatusQueryKey(), { needsSetup: false, requiresSetupToken: false });
     qc.setQueryData(getGetCurrentUserQueryKey(), s);
   };
 }
@@ -38,7 +38,9 @@ function useAuthDone() {
 export function SetupPage() {
   const done = useAuthDone();
   const m = useCreateInitialSchool({ mutation: { onSuccess: done } });
-  const [f, setF] = useState({ schoolName: "", schoolCode: "", county: "", schoolType: "primary" as SchoolType, adminName: "", email: "", phone: "", password: "", confirm: "" });
+  const status = useGetSetupStatus();
+  const needsToken = status.data?.requiresSetupToken === true;
+  const [f, setF] = useState({ setupToken: "", schoolName: "", schoolCode: "", county: "", schoolType: "primary" as SchoolType, adminName: "", email: "", phone: "", password: "", confirm: "" });
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
 
@@ -48,7 +50,8 @@ export function SetupPage() {
     if (!f.email.trim() && !f.phone.trim()) return setErr("Add an email or phone number so the administrator can sign in.");
     if (f.password.length < 10) return setErr("Password must be at least 10 characters.");
     if (f.password !== f.confirm) return setErr("Passwords do not match.");
-    m.mutate({ data: { schoolName: f.schoolName.trim(), schoolCode: f.schoolCode.trim().toUpperCase(), county: f.county || undefined, schoolType: f.schoolType, adminName: f.adminName.trim(), email: f.email.trim() || undefined, phone: f.phone.trim() || undefined, password: f.password } }, { onError: (x) => setErr(errMsg(x)) });
+    if (needsToken && !f.setupToken.trim()) return setErr("Enter the setup token provided by your platform operator.");
+    m.mutate({ data: { ...(needsToken ? { setupToken: f.setupToken.trim() } : {}), schoolName: f.schoolName.trim(), schoolCode: f.schoolCode.trim().toUpperCase(), county: f.county || undefined, schoolType: f.schoolType, adminName: f.adminName.trim(), email: f.email.trim() || undefined, phone: f.phone.trim() || undefined, password: f.password } }, { onError: (x) => setErr(errMsg(x)) });
   };
 
   return (
@@ -61,6 +64,7 @@ export function SetupPage() {
         <h1 className="mt-1 font-display text-4xl font-semibold">Register your school</h1>
       </div>
       <form onSubmit={submit} className="space-y-6">
+        {needsToken && <Field label="Setup token" required hint="Issued by whoever deployed Rejista. Not stored in this browser."><TextInput data-testid="input-setup-token" type="password" autoComplete="off" required maxLength={256} value={f.setupToken} onChange={set("setupToken")} /></Field>}
         <div className="grid gap-4 sm:grid-cols-6">
           <Field label="School name" required className="sm:col-span-4"><TextInput data-testid="input-school-name" required minLength={2} value={f.schoolName} onChange={set("schoolName")} placeholder="Kitengela Hills Academy" /></Field>
           <Field label="School code" required className="sm:col-span-2"><TextInput data-testid="input-school-code" required minLength={2} className="font-mono uppercase" value={f.schoolCode} onChange={set("schoolCode")} placeholder="KHA-01" /></Field>

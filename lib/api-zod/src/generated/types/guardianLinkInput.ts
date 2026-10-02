@@ -8,6 +8,11 @@
 
 export interface GuardianLinkInput {
   /**
+     * @maxLength 40
+     * @nullable
+     */
+  idNumber?: string | null;
+  /**
      * @minLength 2
      * @maxLength 160
      */

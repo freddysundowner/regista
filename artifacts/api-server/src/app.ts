@@ -19,7 +19,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0],
+          url: req.url?.split("?")[0]?.replace(/(\/payments\/(?:validation|confirmation|prompt)\/|\/integrations\/leadsintel\/events\/)[^/]+/, "$1[REDACTED]"),
         };
       },
       res(res) {
@@ -37,7 +37,7 @@ app.use((_req, res, next) => {
 });
 app.use(cookieParser());
 app.use(csrf);
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "2mb", verify: (req, _res, bytes) => { (req as Request).rawBody = Buffer.from(bytes); } }));
 
 app.use("/api", router);
 app.use((_req, res) => { res.status(404).json({ error: "Route not found" }); });

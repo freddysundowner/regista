@@ -2,12 +2,12 @@ import { useState, type FormEvent } from "react";
 import { useListGrades, useListStreams, getListGradesQueryKey, getListStreamsQueryKey, StudentStatus, BoardingStatus, type Student, type StudentInputGender } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 import { Field, TextInput, NativeSelect, FormError, Btn, FormActions } from "@/components/kit";
-import { blank } from "@/lib/session";
+import { blank, nairobiToday } from "@/lib/session";
 
 export type StudentFormValues = {
   admissionNo: string; firstName: string; middleName: string; lastName: string; gender: string; dateOfBirth: string;
   gradeId: string; streamId: string; status: StudentStatus; boardingStatus: BoardingStatus; admissionDate: string; upi: string;
-  gName: string; gPhone: string; gRelationship: string;
+  pathway: string; transportRouteId: string; gName: string; gPhone: string; gRelationship: string;
 };
 
 export function toPayload(v: StudentFormValues) {
@@ -15,6 +15,7 @@ export function toPayload(v: StudentFormValues) {
     admissionNo: v.admissionNo.trim(), firstName: v.firstName.trim(), middleName: blank(v.middleName), lastName: v.lastName.trim(),
     gender: (v.gender || null) as StudentInputGender, dateOfBirth: blank(v.dateOfBirth), gradeId: blank(v.gradeId), streamId: blank(v.streamId),
     status: v.status, boardingStatus: v.boardingStatus, admissionDate: blank(v.admissionDate), upi: blank(v.upi),
+    pathway: blank(v.pathway), transportRouteId: blank(v.transportRouteId),
   };
 }
 
@@ -22,8 +23,8 @@ export function fromStudent(s?: Student): StudentFormValues {
   return {
     admissionNo: s?.admissionNo ?? "", firstName: s?.firstName ?? "", middleName: s?.middleName ?? "", lastName: s?.lastName ?? "",
     gender: s?.gender ?? "", dateOfBirth: s?.dateOfBirth?.slice(0, 10) ?? "", gradeId: s?.gradeId ?? "", streamId: s?.streamId ?? "",
-    status: s?.status ?? "active", boardingStatus: s?.boardingStatus ?? "day", admissionDate: s?.admissionDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-    upi: s?.upi ?? "", gName: "", gPhone: "", gRelationship: "Mother",
+    status: s?.status ?? "active", boardingStatus: s?.boardingStatus ?? "day", admissionDate: s?.admissionDate?.slice(0, 10) ?? nairobiToday(),
+    upi: s?.upi ?? "", pathway: s?.pathway ?? "", transportRouteId: s?.transportRouteId ?? "", gName: "", gPhone: "", gRelationship: "Mother",
   };
 }
 
@@ -52,6 +53,8 @@ export function StudentForm({ initial, withGuardian, submitLabel, pending, error
         <Field label="Status"><NativeSelect data-testid="select-status" value={v.status} onChange={set("status")}>{Object.values(StudentStatus).map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}</NativeSelect></Field>
         <Field label="Admission date"><TextInput data-testid="input-admission-date" type="date" value={v.admissionDate} onChange={set("admissionDate")} /></Field>
         <Field label="UPI" hint="NEMIS unique personal identifier"><TextInput data-testid="input-upi" className="font-mono" value={v.upi} onChange={set("upi")} /></Field>
+        <Field label="Pathway" hint="Senior school CBC pathway, if any"><TextInput data-testid="input-pathway" maxLength={100} value={v.pathway} onChange={set("pathway")} placeholder="STEM" /></Field>
+        <Field label="Transport route ref." hint="Optional route code"><TextInput data-testid="input-transport-route" maxLength={100} className="font-mono" value={v.transportRouteId} onChange={set("transportRouteId")} /></Field>
       </div>
       {withGuardian && (
         <>

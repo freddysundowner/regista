@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import * as z from "@workspace/api-zod";
-import { allow, writers, send, body, parse, audit, lock, owned, ApiError } from "../lib/core";
+import { allow, writers, send, body, parse, audit, lock, owned, ApiError, validateAsset } from "../lib/core";
 import { studentInclude, studentView, scope, checkPlacement, createStudentRecord, linkGuardian, mergeFamily } from "../lib/students";
 const router = Router();
 router.get("/students", async (req, res) => {
@@ -36,6 +36,7 @@ router.patch("/students/:studentId", async (req, res) => {
     const old = await owned(tx, "student", studentId, req.actor.school.id);
     const effective = { ...old, ...data };
     await checkPlacement(tx, req.actor.school.id, effective.gradeId, effective.streamId);
+    await validateAsset(tx, req.actor.school.id, studentId, "student_photo", data.photoUrl);
     const record = await tx.student.update({ where: { id: studentId }, data, include: studentInclude });
     await audit(tx, req.actor, "updated", "student", studentId); return record;
   });

@@ -21,7 +21,7 @@ router.post("/imports/students/commit", async (req, res) => {
       createdStudents++; linkedGuardians += record.linkedGuardians;
       if (record.groupCreated) siblingGroupsCreated++;
     }
-    await audit(tx, req.actor, "committed", "student_import");
+    await audit(tx, req.actor, "committed", "student_import", undefined, undefined, { createdStudents, linkedGuardians, siblingGroupsCreated, skippedRows: preview.totalRows - createdStudents });
     return { createdStudents, linkedGuardians, siblingGroupsCreated, skippedRows: preview.totalRows - createdStudents };
   }, { timeout: 180000, maxWait: 20000 });
   send(res, "CommitStudentImport", result);

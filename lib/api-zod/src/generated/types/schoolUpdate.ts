@@ -5,9 +5,13 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AssetReference } from './assetReference';
+import type { SchoolSettings } from './schoolSettings';
 import type { SchoolType } from './schoolType';
 
 export interface SchoolUpdate {
+  logoUrl?: AssetReference | null;
+  settings?: SchoolSettings;
   /**
      * @minLength 2
      * @maxLength 180

@@ -5,11 +5,17 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AssetReference } from './assetReference';
 import type { BoardingStatus } from './boardingStatus';
 import type { StudentGender } from './studentGender';
 import type { StudentStatus } from './studentStatus';
 
 export interface Student {
+  /** @nullable */
+  pathway?: string | null;
+  photoUrl?: AssetReference | null;
+  /** @nullable */
+  transportRouteId?: string | null;
   id: string;
   admissionNo: string;
   firstName: string;

@@ -1,19 +1,19 @@
 import { Prisma } from "@workspace/db";
 import type { Request } from "express";
 import * as z from "@workspace/api-zod";
-import { ApiError, owned, phone, contacts, body, audit, teacher, type Tx, type Actor } from "./core";
+import { ApiError, owned, phone, contacts, body, audit, teacher, streamAccess, validateAsset, type Tx, type Actor } from "./core";
 
 export const studentInclude = {
   grade: true, stream: true, guardians: { include: { guardian: true } },
-  family: { include: { students: { select: { id: true, stream: { select: { classTeacherUserId: true } } } } } },
+  family: { include: { students: { select: { id: true, stream: { select: { classTeacherUserId: true, assignments: { select: { userId: true } } } } } } } },
 } as const;
 export const fullName = (student: { firstName: string; middleName?: string | null; lastName: string }) =>
   [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" ");
 export const scope = (req: Request): Prisma.StudentWhereInput => ({
-  schoolId: req.actor.school.id, ...(teacher(req) ? { stream: { classTeacherUserId: req.actor.user.id } } : {}),
+  schoolId: req.actor.school.id, ...(teacher(req) ? { stream: streamAccess(req.actor.user.id) } : {}),
 });
 export function studentView(student: any, req?: Request) {
-  const siblings = student.family?.students.filter((s: any) => !req || !teacher(req) || s.stream?.classTeacherUserId === req.actor.user.id) ?? [];
+  const siblings = student.family?.students.filter((s: any) => !req || !teacher(req) || s.stream?.classTeacherUserId === req.actor.user.id || s.stream?.assignments?.some((a: any) => a.userId === req.actor.user.id)) ?? [];
   return { ...student, fullName: fullName(student), gradeName: student.grade?.name ?? null, streamName: student.stream?.name ?? null,
     guardianNames: student.guardians.map((l: any) => l.guardian.name),
     guardianPhones: student.guardians.map((l: any) => l.guardian.phone), siblingCount: Math.max(0, siblings.length - 1) };
@@ -27,19 +27,22 @@ export async function checkPlacement(tx: Tx, schoolId: string, gradeId: string |
 }
 export function guardianData(input: any) {
   const { isPrimary, receivesNotifications, ...data } = contacts(input);
-  return { ...data, ...(data.altPhone !== undefined ? { altPhone: data.altPhone ? phone(data.altPhone) : null } : {}) };
+  return { ...data, ...(data.idNumber !== undefined ? { idNumber: data.idNumber || null } : {}), ...(data.altPhone !== undefined ? { altPhone: data.altPhone ? phone(data.altPhone) : null } : {}) };
 }
 export async function linkGuardian(tx: Tx, actor: Actor, studentId: string, input: any) {
   const data = guardianData(input);
+  const beforeGuardian = await tx.guardian.findUnique({ where: { schoolId_phone: { schoolId: actor.school.id, phone: data.phone } } });
   const guardian = await tx.guardian.upsert({
     where: { schoolId_phone: { schoolId: actor.school.id, phone: data.phone } },
     create: { ...data, schoolId: actor.school.id }, update: {},
   });
-  await tx.studentGuardian.upsert({ where: { studentId_guardianId: { studentId, guardianId: guardian.id } },
-    create: { studentId, guardianId: guardian.id, relationship: input.relationship, isPrimary: input.isPrimary ?? false, receivesNotifications: input.receivesNotifications ?? true },
+  if (!beforeGuardian) await audit(tx, actor, "created", "guardian", guardian.id, undefined, guardian);
+  const before = await tx.studentGuardian.findUnique({ where: { studentId_guardianId: { studentId, guardianId: guardian.id } } });
+  const link = await tx.studentGuardian.upsert({ where: { studentId_guardianId: { studentId, guardianId: guardian.id } },
+    create: { schoolId: actor.school.id, studentId, guardianId: guardian.id, relationship: input.relationship, isPrimary: input.isPrimary ?? false, receivesNotifications: input.receivesNotifications ?? true },
     update: { relationship: input.relationship, isPrimary: input.isPrimary ?? false, receivesNotifications: input.receivesNotifications ?? true },
   });
-  await audit(tx, actor, "linked", "student_guardian", studentId);
+  await audit(tx, actor, "linked", "student_guardian", link.id, before, link);
   return guardian;
 }
 // Caller must hold the school-level advisory transaction lock.
@@ -52,6 +55,7 @@ export async function mergeFamily(tx: Tx, actor: Actor, studentId: string) {
     select: { id: true, familyId: true },
   });
   const familyIds = [...new Set(connected.map(s => s.familyId).filter((id): id is string => !!id))].sort();
+  if (connected.length < 2 && !familyIds.length) return false;
   const priorMembers = familyIds.length ? await tx.student.count({ where: { schoolId, familyId: { in: familyIds }, id: { not: studentId } } }) : 0;
   const student = await owned(tx, "student", studentId, schoolId);
   let familyId = familyIds[0];
@@ -59,10 +63,16 @@ export async function mergeFamily(tx: Tx, actor: Actor, studentId: string) {
     const family = await tx.family.create({ data: { schoolId, name: `${student.lastName} family` } });
     familyId = family.id; await audit(tx, actor, "created", "family", familyId);
   }
-  await tx.student.updateMany({ where: { schoolId, OR: [{ id: { in: connected.map(s => s.id) } }, { familyId: { in: familyIds } }] }, data: { familyId } });
+  const changed = await tx.student.findMany({ where: { schoolId, OR: [{ id: { in: connected.map(s => s.id) } }, { familyId: { in: familyIds } }], NOT: { familyId } }, select: { id: true, familyId: true } });
+  // Include ungrouped students explicitly: SQL NOT excludes NULL values.
+  const ungrouped = connected.filter(s => s.familyId === null);
+  const affected = [...new Map([...changed, ...ungrouped].map(s => [s.id, s])).values()];
+  await tx.student.updateMany({ where: { schoolId, id: { in: affected.map(s => s.id) } }, data: { familyId } });
+  for (const student of affected) await audit(tx, actor, "family_linked", "student", student.id, { familyId: student.familyId }, { familyId });
   for (const obsolete of familyIds.filter(id => id !== familyId)) {
+    const old = await tx.family.findFirst({ where: { id: obsolete, schoolId } });
     await tx.family.deleteMany({ where: { id: obsolete, schoolId } });
-    await audit(tx, actor, "merged", "family", obsolete);
+    await audit(tx, actor, "merged", "family", obsolete, old, { mergedIntoFamilyId: familyId });
   }
   return connected.length > 1 && priorMembers < 2;
 }
@@ -73,6 +83,7 @@ export async function createStudentRecord(tx: Tx, actor: Actor, input: any) {
   // Validate before any writes, including normalization of all guardian phones.
   for (const g of guardians) guardianData(g);
   const student = await tx.student.create({ data: { ...data, schoolId: actor.school.id } });
+  await validateAsset(tx, actor.school.id, student.id, "student_photo", data.photoUrl);
   for (const guardian of guardians) await linkGuardian(tx, actor, student.id, guardian);
   const groupCreated = await mergeFamily(tx, actor, student.id);
   await audit(tx, actor, "created", "student", student.id);

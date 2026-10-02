@@ -8,4 +8,5 @@
 
 export interface SetupStatus {
   needsSetup: boolean;
+  requiresSetupToken: boolean;
 }

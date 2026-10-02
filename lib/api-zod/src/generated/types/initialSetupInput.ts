@@ -8,6 +8,8 @@
 import type { SchoolType } from './schoolType';
 
 export interface InitialSetupInput {
+  /** @maxLength 256 */
+  setupToken?: string;
   /**
      * @minLength 2
      * @maxLength 180

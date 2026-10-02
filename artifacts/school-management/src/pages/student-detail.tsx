@@ -7,6 +7,9 @@ import { Panel, ErrorState, Pill, Btn, Field, TextInput, NativeSelect, FormError
 import { StudentForm, fromStudent, toPayload } from "@/components/student-form";
 import { usePerms, errMsg, fmtDate, initials, blank } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { StoredImage, ImageUploadButton } from "@/components/stored-image";
+import { StudentFinancePanel } from "@/components/student-finance";
+import { StudentAcademicPanels } from "@/components/student-academic";
 
 const RELS = ["Mother", "Father", "Guardian", "Grandparent", "Sibling", "Other"];
 
@@ -15,16 +18,17 @@ function LinkGuardianForm({ student, canSearch, onDone }: { student: Student; ca
   const { toast } = useToast();
   const m = useLinkStudentGuardian();
   const existing = useListGuardians(undefined, { query: { queryKey: getListGuardiansQueryKey(), enabled: canSearch } });
-  const [f, setF] = useState({ name: "", phone: "", altPhone: "", email: "", relationship: "Mother", isPrimary: student.guardianNames.length === 0, receivesNotifications: true });
+  const [showId, setShowId] = useState(false);
+  const [f, setF] = useState({ idNumber: "", name: "", phone: "", altPhone: "", email: "", relationship: "Mother", isPrimary: student.guardianNames.length === 0, receivesNotifications: true });
   const [err, setErr] = useState<string | null>(null);
-  const set = (k: "name" | "phone" | "altPhone" | "email" | "relationship") => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const set = (k: "name" | "phone" | "altPhone" | "email" | "relationship" | "idNumber") => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const pick = (id: string) => {
     const g = existing.data?.find((x) => x.id === id);
     if (g) setF({ ...f, name: g.name, phone: g.phone, altPhone: g.altPhone ?? "", email: g.email ?? "", relationship: g.relationship || f.relationship });
   };
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
-    m.mutate({ studentId: student.id, data: { name: f.name.trim(), phone: f.phone.trim(), altPhone: blank(f.altPhone), email: blank(f.email), relationship: f.relationship, isPrimary: f.isPrimary, receivesNotifications: f.receivesNotifications } }, {
+    m.mutate({ studentId: student.id, data: { name: f.name.trim(), phone: f.phone.trim(), altPhone: blank(f.altPhone), email: blank(f.email), ...(showId ? { idNumber: blank(f.idNumber) } : {}), relationship: f.relationship, isPrimary: f.isPrimary, receivesNotifications: f.receivesNotifications } }, {
       onSuccess: (n) => {
         qc.setQueryData(getGetStudentQueryKey(student.id), n);
         [getListStudentsQueryKey(), getListGuardiansQueryKey(), getListFamiliesQueryKey(), getGetDashboardSummaryQueryKey()].forEach((k) => qc.invalidateQueries({ queryKey: k }));
@@ -37,7 +41,7 @@ function LinkGuardianForm({ student, canSearch, onDone }: { student: Student; ca
   return (
     <form onSubmit={submit} className="space-y-4 border-b border-border/70 bg-accent/20 p-5">
       {canSearch && !!existing.data?.length && (
-        <Field label="Existing guardian" hint="Prefills details; matching phone links siblings"><NativeSelect data-testid="select-existing-guardian" defaultValue="" onChange={(e) => pick(e.target.value)}><option value="">New guardian…</option>{existing.data.map((g) => <option key={g.id} value={g.id}>{g.name} · {g.phone}</option>)}</NativeSelect></Field>
+        <Field label="Existing guardian" hint="Prefills details; matching phone links siblings"><NativeSelect data-testid="select-existing-guardian" defaultValue="" onChange={(e) => pick(e.target.value)}><option value="">New guardian…</option>{existing.data.filter((g) => !g.anonymizedAt).map((g) => <option key={g.id} value={g.id}>{g.name} · {g.phone}</option>)}</NativeSelect></Field>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Full name" required><TextInput data-testid="input-link-name" required minLength={2} value={f.name} onChange={set("name")} /></Field>
@@ -45,9 +49,11 @@ function LinkGuardianForm({ student, canSearch, onDone }: { student: Student; ca
         <Field label="Relationship" required><NativeSelect data-testid="select-link-rel" value={f.relationship} onChange={set("relationship")}>{RELS.map((r) => <option key={r}>{r}</option>)}{!RELS.includes(f.relationship) && <option>{f.relationship}</option>}</NativeSelect></Field>
         <Field label="Alt. phone"><TextInput data-testid="input-link-alt" type="tel" value={f.altPhone} onChange={set("altPhone")} /></Field>
         <Field label="Email" className="sm:col-span-2"><TextInput data-testid="input-link-email" type="email" value={f.email} onChange={set("email")} /></Field>
+        {showId && <Field label="National ID / passport no." hint="Collect only when the school needs it" className="sm:col-span-2"><TextInput data-testid="input-link-id-number" maxLength={40} autoComplete="off" value={f.idNumber} onChange={set("idNumber")} /></Field>}
       </div>
       <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2"><input data-testid="check-primary" type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={f.isPrimary} onChange={(e) => setF({ ...f, isPrimary: e.target.checked })} /> Primary contact</label>
+        <label className="flex items-center gap-2"><input data-testid="check-link-id" type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={showId} onChange={(e) => setShowId(e.target.checked)} /> Record ID number (only if needed)</label>
         <label className="flex items-center gap-2"><input data-testid="check-notify" type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={f.receivesNotifications} onChange={(e) => setF({ ...f, receivesNotifications: e.target.checked })} /> Receives notifications</label>
       </div>
       <FormError msg={err} />
@@ -77,14 +83,18 @@ export default function StudentDetail() {
   const facts: [string, string][] = [
     ["Admission no.", s.admissionNo], ["UPI", s.upi ?? "—"], ["Gender", s.gender ? s.gender[0].toUpperCase() + s.gender.slice(1) : "—"],
     ["Date of birth", fmtDate(s.dateOfBirth)], ["Class", s.gradeName ? `${s.gradeName}${s.streamName ? " · " + s.streamName : ""}` : "Unassigned"],
-    ["Boarding", s.boardingStatus === "boarder" ? "Boarder" : "Day scholar"], ["Admitted", fmtDate(s.admissionDate)], ["On register since", fmtDate(s.createdAt)],
+    ["Boarding", s.boardingStatus === "boarder" ? "Boarder" : "Day scholar"], ["Admitted", fmtDate(s.admissionDate)], ["Pathway", s.pathway ?? "\u2014"], ["Transport route ref.", s.transportRouteId ?? "\u2014"], ["On register since", fmtDate(s.createdAt)],
   ];
 
   return (
     <div className="space-y-6">
       <Link href="/students" data-testid="link-back" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> All students</Link>
       <header className="rise flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary font-display text-2xl font-semibold text-primary-foreground">{initials(s.fullName)}</div>
+        <div className="flex items-end gap-3">
+          <StoredImage refPath={s.photoUrl} alt={`Photo of ${s.fullName}`} className="h-16 w-16 rounded-md" fallback={<div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary font-display text-2xl font-semibold text-primary-foreground">{initials(s.fullName)}</div>} />
+          {p.writeStudents && <ImageUploadButton purpose="student_photo" entityId={s.id} label={s.photoUrl ? "Replace photo" : "Add photo"} testid="upload-student-photo"
+            onSaved={(ref) => upd.mutateAsync({ studentId: s.id, data: { photoUrl: ref } }).then((n) => { qc.setQueryData(getGetStudentQueryKey(s.id), n); qc.invalidateQueries({ queryKey: getListStudentsQueryKey() }); toast({ title: "Photo saved" }); })} />}
+        </div>
         <div className="flex-1">
           <div className="font-mono text-xs text-amber-800">{s.admissionNo}</div>
           <h1 data-testid="text-student-name" className="font-display text-3xl font-semibold md:text-4xl">{s.fullName}</h1>
@@ -138,6 +148,8 @@ export default function StudentDetail() {
           </Panel>
         </div>
       )}
+      {!editing && p.financeRead && <StudentFinancePanel studentId={s.id} />}
+      {!editing && (p.academicRead || p.financeRead) && <StudentAcademicPanels studentId={s.id} />}
     </div>
   );
 }

@@ -15,6 +15,12 @@ model School {
   phone String?
   email String?
   status String @default("active")
+  logoUrl String?
+  settings Json @default("{}")
+  subscriptionPlan String @default("foundation")
+  subscriptionStatus String @default("trial")
+  subscriptionStartDate DateTime? @db.Date
+  subscriptionEndDate DateTime? @db.Date
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users User[]
@@ -26,18 +32,23 @@ model School {
   guardians Guardian[]
   families Family[]
   logs AuditLog[]
+  files StoredFile[]
   @@map("schools")
 }
 model User {
   id String @id @default(uuid()) @db.Uuid
-  schoolId String @db.Uuid
-  school School @relation(fields:[schoolId], references:[id])
+  schoolId String? @db.Uuid
+  school School? @relation(fields:[schoolId], references:[id])
+  sessionSchoolId String? @db.Uuid
   name String
   email String? @unique
   phone String? @unique
   passwordHash String
   role String
   isActive Boolean @default(true)
+  lastLoginAt DateTime?
+  sessionVersion Int @default(0)
+  assignments TeacherAssignment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   streams Stream[]
@@ -101,6 +112,7 @@ model Stream {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   students Student[]
+  assignments TeacherAssignment[]
   @@unique([gradeId,name])
   @@index([schoolId])
   @@map("streams")
@@ -123,6 +135,9 @@ model Student {
   boardingStatus String @default("day")
   admissionDate DateTime? @db.Date
   upi String?
+  pathway String?
+  photoUrl String?
+  transportRouteId String?
   familyId String? @db.Uuid
   family Family? @relation(fields:[familyId], references:[id])
   guardians StudentGuardian[]
@@ -133,6 +148,7 @@ model Student {
   @@map("students")
 }
 model Guardian {
+  whatsappLastInboundAt DateTime?
   id String @id @default(uuid()) @db.Uuid
   schoolId String @db.Uuid
   school School @relation(fields:[schoolId], references:[id])
@@ -141,6 +157,8 @@ model Guardian {
   altPhone String?
   email String?
   relationship String?
+  idNumber String?
+  anonymizedAt DateTime?
   students StudentGuardian[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,6 +167,7 @@ model Guardian {
 }
 model StudentGuardian {
   id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
   studentId String @db.Uuid
   guardianId String @db.Uuid
   student Student @relation(fields:[studentId], references:[id])
@@ -159,6 +178,7 @@ model StudentGuardian {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([studentId,guardianId])
+  @@index([schoolId])
   @@map("student_guardians")
 }
 model Family {
@@ -181,8 +201,547 @@ model AuditLog {
   action String
   entityType String
   entityId String?
+  before Json?
+  after Json?
+  ip String?
+  userAgent String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([schoolId,createdAt])
   @@map("audit_logs")
+}
+model TeacherAssignment {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  userId String @db.Uuid
+  user User @relation(fields:[userId], references:[id])
+  streamId String @db.Uuid
+  stream Stream @relation(fields:[streamId], references:[id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId,streamId])
+  @@index([schoolId])
+  @@map("teacher_assignments")
+}
+model StoredFile {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  ownerId String @db.Uuid
+  entityType String
+  entityId String @db.Uuid
+  objectKey String @unique
+  filename String
+  contentType String
+  size Int
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId])
+  @@map("stored_files")
+}
+
+model FinanceRecord {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  kind String
+  studentId String? @db.Uuid
+  termId String? @db.Uuid
+  parentId String? @db.Uuid
+  status String @default("draft")
+  amount Decimal @default(0) @db.Decimal(14,2)
+  data Json @default("{}")
+  requestedBy String @db.Uuid
+  approvedBy String? @db.Uuid
+  approvedAt DateTime?
+  uniqueKey String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,kind,uniqueKey])
+  @@index([schoolId,kind,studentId])
+  @@map("finance_records")
+}
+model LedgerEntry {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  termId String? @db.Uuid
+  type String
+  debit Decimal @db.Decimal(14,2)
+  credit Decimal @db.Decimal(14,2)
+  referenceId String @db.Uuid
+  referenceType String
+  description String
+  createdBy String @db.Uuid
+  reversesId String? @unique @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([schoolId,referenceId,type])
+  @@index([schoolId,studentId,createdAt])
+  @@map("ledger_entries")
+}
+model StudentBalance {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @unique @db.Uuid
+  balance Decimal @default(0) @db.Decimal(14,2)
+  updatedAt DateTime @updatedAt
+  @@index([schoolId])
+  @@map("student_balances")
+}
+model InvoiceLine {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  invoiceId String @db.Uuid
+  feeItemId String @db.Uuid
+  description String
+  priority Int
+  amount Decimal @db.Decimal(14,2)
+  createdAt DateTime @default(now())
+  @@index([schoolId,studentId,invoiceId])
+  @@map("invoice_lines")
+}
+model FeeAllocation {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  sourceId String @db.Uuid
+  invoiceId String @db.Uuid
+  invoiceLineId String @db.Uuid
+  amount Decimal @db.Decimal(14,2)
+  createdBy String @db.Uuid
+  reversesId String? @unique @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([schoolId,studentId,sourceId])
+  @@map("fee_allocations")
+}
+model FinanceCounter {
+  schoolId String @id @db.Uuid
+  invoice Int @default(0)
+  receipt Int @default(0)
+  @@map("finance_counters")
+}
+model FinanceOutbox {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  event String
+  referenceId String @db.Uuid
+  payload Json
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+  @@unique([schoolId,event,referenceId])
+  @@map("finance_outbox")
+}
+
+model IntegrationConfig {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  provider String
+  environment String @default("sandbox")
+  encryptedCredentials String
+  publicConfig Json @default("{}")
+  callbackTokenHash String? @unique
+  apiKeyHash String? @unique
+  enabled Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,provider])
+  @@map("integration_configs")
+}
+model IncomingPayment {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  provider String
+  providerTxnId String
+  channel String
+  amount Decimal @db.Decimal(14,2)
+  transactionTime DateTime
+  payerPhone String?
+  payerName String?
+  accountReference String?
+  normalizedReference String?
+  bankAccountFrom String?
+  source String
+  rawPayload Json
+  status String @default("received")
+  knownStudentId String? @db.Uuid
+  duplicateOfId String? @db.Uuid
+  requestedBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,provider,providerTxnId])
+  @@index([schoolId,status,createdAt])
+  @@map("incoming_payments")
+}
+model PaymentStudentAllocation {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  paymentId String @db.Uuid
+  studentId String @db.Uuid
+  postingId String @unique @db.Uuid
+  amount Decimal @db.Decimal(14,2)
+  allocatedBy String @db.Uuid
+  allocatedAt DateTime @default(now())
+  @@unique([paymentId,studentId])
+  @@index([schoolId,studentId])
+  @@map("payment_student_allocations")
+}
+model MatchException {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  paymentId String @unique @db.Uuid
+  reason String
+  candidates Json
+  familyId String? @db.Uuid
+  expiresAt DateTime?
+  status String @default("open")
+  resolution String?
+  resolvedBy String? @db.Uuid
+  resolvedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId,status,createdAt])
+  @@map("match_exceptions")
+}
+model PayerAlias {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  type String
+  value String
+  studentId String? @db.Uuid
+  familyId String? @db.Uuid
+  source String
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,type,value,studentId])
+  @@index([schoolId,type,value])
+  @@map("payer_aliases")
+}
+model StkRequest {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  phone String
+  amount Decimal @db.Decimal(14,2)
+  idempotencyKey String
+  checkoutRequestId String? @unique
+  merchantRequestId String?
+  status String @default("created")
+  resultCode String?
+  requestedBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,idempotencyKey])
+  @@index([schoolId,status])
+  @@map("stk_requests")
+}
+model IntegrationEvent {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  provider String
+  event String
+  status String
+  detail Json
+  createdAt DateTime @default(now())
+  @@index([schoolId,createdAt])
+  @@map("integration_events")
+}
+model ReconciliationRun {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  provider String
+  fromDate DateTime
+  toDate DateTime
+  status String
+  statementCount Int
+  systemCount Int
+  statementTotal Decimal @db.Decimal(14,2)
+  systemTotal Decimal @db.Decimal(14,2)
+  discrepancies Json
+  createdAt DateTime @default(now())
+  @@index([schoolId,createdAt])
+  @@map("reconciliation_runs")
+}
+model MessageDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  guardianId String? @db.Uuid
+  phone String
+  channel String
+  template String
+  content String
+  idempotencyKey String
+  status String @default("queued")
+  providerMessageId String?
+  attempts Int @default(0)
+  error String?
+  scheduledAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,idempotencyKey])
+  @@index([schoolId,status,scheduledAt])
+  @@map("message_deliveries")
+}
+model BotReplay {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  signatureHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@unique([schoolId,signatureHash])
+  @@map("bot_replays")
+}
+model GuardianVerification {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  guardianId String @db.Uuid
+  codeHash String
+  expiresAt DateTime
+  attempts Int @default(0)
+  verifiedUntil DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,guardianId])
+  @@map("guardian_verifications")
+}
+model PaymentPlan {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  termId String @db.Uuid
+  totalAmount Decimal @db.Decimal(14,2)
+  baselineCredits Decimal @db.Decimal(14,2)
+  status String @default("proposed")
+  requestedVia String
+  requestedBy String @db.Uuid
+  approvedBy String? @db.Uuid
+  approvedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId,studentId,status])
+  @@map("payment_plans")
+}
+model PlanInstallment {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  planId String @db.Uuid
+  dueDate DateTime @db.Date
+  amount Decimal @db.Decimal(14,2)
+  amountPaid Decimal @default(0) @db.Decimal(14,2)
+  status String @default("upcoming")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId,planId,dueDate])
+  @@map("plan_installments")
+}
+model LearningArea {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  gradeId String @db.Uuid
+  name String
+  code String
+  isCore Boolean @default(true)
+  pathway String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,gradeId,code])
+  @@map("learning_areas")
+}
+model CurriculumStrand {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  learningAreaId String @db.Uuid
+  parentId String? @db.Uuid
+  name String
+  order Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId,learningAreaId])
+  @@map("curriculum_strands")
+}
+model PerformanceScale {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  name String
+  isDefault Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,name])
+  @@map("performance_scales")
+}
+model PerformanceLevel {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  scaleId String @db.Uuid
+  code String
+  label String
+  points Decimal @db.Decimal(6,2)
+  minPercent Decimal @db.Decimal(6,2)
+  maxPercent Decimal @db.Decimal(6,2)
+  order Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([scaleId,code])
+  @@index([schoolId,scaleId])
+  @@map("performance_levels")
+}
+model GradeScale {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  gradeId String @unique @db.Uuid
+  scaleId String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("grade_scales")
+}
+model SubjectAssignment {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  userId String @db.Uuid
+  streamId String @db.Uuid
+  learningAreaId String @db.Uuid
+  termId String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,userId,streamId,learningAreaId,termId])
+  @@map("subject_assignments")
+}
+model Assessment {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  termId String @db.Uuid
+  gradeId String @db.Uuid
+  learningAreaId String @db.Uuid
+  name String
+  type String
+  maxMarks Decimal? @db.Decimal(8,2)
+  weight Decimal @db.Decimal(8,2)
+  date DateTime @db.Date
+  status String @default("open")
+  scaleSnapshot Json @default("[]")
+  placementSnapshot Json @default("{}")
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId,termId,gradeId])
+  @@map("assessments")
+}
+model AssessmentResult {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  assessmentId String @db.Uuid
+  studentId String @db.Uuid
+  subStrandId String? @db.Uuid
+  cellKey String
+  marks Decimal? @db.Decimal(8,2)
+  performanceLevelId String @db.Uuid
+  overrideReason String?
+  comment String?
+  enteredBy String @db.Uuid
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([assessmentId,studentId,cellKey])
+  @@index([schoolId,studentId])
+  @@map("assessment_results")
+}
+model LearnerRating {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  termId String @db.Uuid
+  category String
+  code String
+  performanceLevelId String @db.Uuid
+  enteredBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,studentId,termId,category,code])
+  @@map("learner_ratings")
+}
+model ReportCard {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  termId String @db.Uuid
+  classTeacherComment String?
+  headTeacherComment String?
+  nextTermOpeningDate DateTime? @db.Date
+  fileId String? @db.Uuid
+  status String @default("draft")
+  publishedAt DateTime?
+  resultSnapshot Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,studentId,termId])
+  @@map("report_cards")
+}
+model AttendanceRecord {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  streamId String @db.Uuid
+  date DateTime @db.Date
+  status String
+  markedBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([studentId,date])
+  @@index([schoolId,streamId,date])
+  @@map("attendance_records")
+}
+model CollectionRefund {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  paymentId String @unique @db.Uuid
+  exceptionId String @unique @db.Uuid
+  amount Decimal @db.Decimal(14,2)
+  reason String
+  status String @default("pending")
+  requestedBy String @db.Uuid
+  decidedBy String? @db.Uuid
+  decisionReason String?
+  decidedAt DateTime?
+  paidReference String?
+  paidAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("collection_refunds")
+}
+model SuspenseEntry {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  paymentId String @db.Uuid
+  event String
+  debit Decimal @default(0) @db.Decimal(14,2)
+  credit Decimal @default(0) @db.Decimal(14,2)
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  @@unique([paymentId,event])
+  @@map("suspense_entries")
+}
+model SponsorBatch {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  paymentId String @unique @db.Uuid
+  sponsorId String @db.Uuid
+  allocatedAmount Decimal @db.Decimal(14,2)
+  heldAmount Decimal @db.Decimal(14,2)
+  remainderReason String?
+  requestedBy String @db.Uuid
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("sponsor_batches")
+}
+model SponsorAllocation {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  batchId String @db.Uuid
+  studentId String @db.Uuid
+  financeRecordId String @unique @db.Uuid
+  amount Decimal @db.Decimal(14,2)
+  @@unique([batchId,studentId])
+  @@map("sponsor_allocations")
 }

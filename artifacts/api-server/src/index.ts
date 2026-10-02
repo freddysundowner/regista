@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startFinanceWorker } from "./jobs/finance";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startFinanceWorker().catch(err => logger.error({ err }, "Finance jobs unavailable; run explicit job schema installation"));
 });

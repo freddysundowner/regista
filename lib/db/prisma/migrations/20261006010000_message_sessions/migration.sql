@@ -1,0 +1,1 @@
+ALTER TABLE guardians ADD COLUMN "whatsappLastInboundAt" TIMESTAMP(3);

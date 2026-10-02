@@ -2,15 +2,19 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import * as z from "@workspace/api-zod";
 import { hashPassword } from "../lib/password";
-import { admin, readers, allow, send, body, parse, contacts, requireContact, audit, owned, lock, ApiError, logInclude, logView } from "../lib/core";
+import { admin, readers, auditors, allow, send, body, parse, contacts, requireContact, audit, owned, lock, ApiError, logInclude, logView, validateAsset } from "../lib/core";
 const router = Router();
 router.get("/school", (req, res) => { send(res, "GetSchool", req.actor.school); });
 router.patch("/school", async (req, res) => {
   allow(req, admin);
   const data = contacts(body(z.UpdateSchoolBody, req.body));
+  if (req.body.settings && Object.keys(req.body.settings).some(key => !Object.keys(data.settings ?? {}).includes(key))) throw new ApiError(400, "Unknown school settings are not allowed");
   const school = await db.$transaction(async tx => {
-    const record = await tx.school.update({ where: { id: req.actor.school.id }, data });
-    await audit(tx, req.actor, "updated", "school", record.id); return record;
+    await lock(tx, req.actor.school.id);
+    const before = await tx.school.findUniqueOrThrow({ where: { id: req.actor.school.id } });
+    await validateAsset(tx, req.actor.school.id, req.actor.school.id, "school_logo", data.logoUrl);
+    const record = await tx.school.update({ where: { id: req.actor.school.id }, data: { ...data, ...(data.settings ? { settings: JSON.parse(JSON.stringify(data.settings)) } : {}) } });
+    await audit(tx, req.actor, "updated", "school", record.id, before, record); return record;
   });
   send(res, "UpdateSchool", school);
 });
@@ -51,7 +55,7 @@ router.patch("/users/:userId", async (req, res) => {
   send(res, "UpdateUser", user);
 });
 router.get("/audit-logs", async (req, res) => {
-  allow(req, readers);
+  allow(req, auditors);
   const { limit } = parse(z.ListAuditLogsQueryParams, req.query);
   send(res, "ListAuditLogs", (await db.auditLog.findMany({ where: { schoolId: req.actor.school.id }, include: logInclude, orderBy: { createdAt: "desc" }, take: limit ?? 50 })).map(logView));
 });

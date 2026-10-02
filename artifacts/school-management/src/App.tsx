@@ -17,6 +17,22 @@ import SettingsPage from '@/pages/settings';
 import ImportPage from '@/pages/import';
 import Audit from '@/pages/audit';
 import Schools from '@/pages/schools';
+import Account from '@/pages/account';
+import Fees from '@/pages/fees';
+import Invoices from '@/pages/invoices';
+import Payments from '@/pages/payments';
+import Approvals from '@/pages/approvals';
+import Sponsors from '@/pages/sponsors';
+import Jobs from '@/pages/jobs';
+import Integrations from '@/pages/integrations';
+import Reconciliation from '@/pages/reconciliation';
+import PaymentPlans from '@/pages/payment-plans';
+import Notifications from '@/pages/notifications';
+import Curriculum from '@/pages/curriculum';
+import Assessments from '@/pages/assessments';
+import ReportCards from '@/pages/report-cards';
+import Attendance from '@/pages/attendance';
+import Reports from '@/pages/reports';
 import { Shell } from '@/components/shell';
 import { SessionProvider, usePerms, errMsg } from '@/lib/session';
 import { ErrorState } from '@/components/kit';
@@ -45,6 +61,7 @@ function AppRoutes() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/students" component={Students} />
+      <Route path="/account" component={Account} />
       <Route path="/students/:id" component={StudentDetail} />
       <Route path="/guardians"><Guard allow={p.viewGuardians}><Guardians /></Guard></Route>
       <Route path="/academics"><Guard allow={p.manageSchool}><Academics /></Guard></Route>
@@ -52,6 +69,21 @@ function AppRoutes() {
       <Route path="/settings"><Guard allow={p.manageSchool}><SettingsPage /></Guard></Route>
       <Route path="/import"><Guard allow={p.importStudents}><ImportPage /></Guard></Route>
       <Route path="/schools"><Guard allow={p.platform}><Schools /></Guard></Route>
+      <Route path="/fees"><Guard allow={p.financeRead}><Fees /></Guard></Route>
+      <Route path="/invoices"><Guard allow={p.financeRead}><Invoices /></Guard></Route>
+      <Route path="/payments"><Guard allow={p.financeRead}><Payments /></Guard></Route>
+      <Route path="/approvals"><Guard allow={p.financeRead}><Approvals /></Guard></Route>
+      <Route path="/sponsors"><Guard allow={p.financeRead}><Sponsors /></Guard></Route>
+      <Route path="/jobs"><Guard allow={p.financeJobs}><Jobs /></Guard></Route>
+      <Route path="/integrations"><Guard allow={p.integrations}><Integrations /></Guard></Route>
+      <Route path="/reconciliation"><Guard allow={p.financeRead}><Reconciliation /></Guard></Route>
+      <Route path="/payment-plans"><Guard allow={p.financeRead}><PaymentPlans /></Guard></Route>
+      <Route path="/notifications"><Guard allow={p.financeRead}><Notifications /></Guard></Route>
+      <Route path="/curriculum"><Guard allow={p.academicRead}><Curriculum /></Guard></Route>
+      <Route path="/assessments"><Guard allow={p.academicRead}><Assessments /></Guard></Route>
+      <Route path="/report-cards"><Guard allow={p.academicRead}><ReportCards /></Guard></Route>
+      <Route path="/attendance"><Guard allow={p.academicRead}><Attendance /></Guard></Route>
+      <Route path="/reports"><Guard allow={p.reports}><Reports /></Guard></Route>
       <Route path="/audit"><Guard allow={p.viewAudit}><Audit /></Guard></Route>
       <Route component={NotFound} />
     </Switch>

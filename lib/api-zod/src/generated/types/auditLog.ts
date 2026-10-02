@@ -5,8 +5,18 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditLogAfter } from './auditLogAfter';
+import type { AuditLogBefore } from './auditLogBefore';
 
 export interface AuditLog {
+  /** @nullable */
+  before?: AuditLogBefore;
+  /** @nullable */
+  after?: AuditLogAfter;
+  /** @nullable */
+  ip?: string | null;
+  /** @nullable */
+  userAgent?: string | null;
   id: string;
   /** @nullable */
   userName?: string | null;

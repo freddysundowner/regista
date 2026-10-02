@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "test:api": "tsx ./src/api-acceptance.ts",
+    "test:finance": "tsx ./src/finance-acceptance.ts",
     "seed:demo": "tsx ./src/seed-demo.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

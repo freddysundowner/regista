@@ -7,6 +7,10 @@
  */
 
 export interface Guardian {
+  /** @nullable */
+  idNumber?: string | null;
+  /** @nullable */
+  anonymizedAt?: Date | null;
   id: string;
   name: string;
   phone: string;

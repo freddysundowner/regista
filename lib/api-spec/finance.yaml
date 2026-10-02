@@ -1,0 +1,277 @@
+paths:
+  update:
+    patch:
+      operationId: updateFinanceRecord
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FinanceUpdateInput' }
+      responses:
+        '200':
+          description: Fee item, sponsor or optional charge metadata updated; historical invoices unchanged
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceRecord' }
+  records:
+    get:
+      operationId: listFinanceRecords
+      parameters:
+        - { name: kind, in: query, schema: { type: string } }
+        - { name: studentId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: School-scoped finance records
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/FinanceRecord' } }
+    post:
+      operationId: createFinanceRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FinanceInput' }
+      responses:
+        '200':
+          description: Created or idempotently returned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceRecord' }
+  decision:
+    post:
+      operationId: decideFinanceRecord
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FinanceDecision' }
+      responses:
+        '200':
+          description: Maker-checker decision
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceRecord' }
+  preview:
+    post:
+      operationId: previewFinanceInvoices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceBatchInput' }
+      responses:
+        '200':
+          description: Proposed invoices, no financial writes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvoiceBatchResult' }
+  commit:
+    post:
+      operationId: commitFinanceInvoices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvoiceBatchInput' }
+      responses:
+        '200':
+          description: Idempotent committed batch
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvoiceBatchResult' }
+  overview:
+    get:
+      operationId: getFinanceOverview
+      responses:
+        '200':
+          description: Exact school totals
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceOverview' }
+  history:
+    get:
+      operationId: getStudentFinanceHistory
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Student financial history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceHistory' }
+  documents:
+    post:
+      operationId: createFinanceDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FinanceDocumentInput' }
+      responses:
+        '200':
+          description: Private PDF metadata and expiring link
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceDocument' }
+  download:
+    get:
+      operationId: downloadFinanceDocument
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+  jobs:
+    get:
+      operationId: listFailedFinanceJobs
+      responses:
+        '200':
+          description: Failed background jobs
+          content:
+            application/json:
+              schema: { type: array, items: { type: object, additionalProperties: true } }
+components:
+  schemas:
+    FinanceUpdateInput:
+      type: object
+      required: [reason]
+      properties:
+        name: { type: string, minLength: 1 }
+        priority: { type: integer, minimum: 1 }
+        contact: { type: string }
+        endDate: { type: string, format: date }
+        reason: { type: string, minLength: 1 }
+    Money:
+      type: string
+      pattern: '^-?\d{1,12}(\.\d{1,2})?$'
+      description: Exact KES decimal, never a JSON number.
+    FinanceLineInput:
+      type: object
+      required: [feeItemId, amount]
+      properties:
+        feeItemId: { type: string, format: uuid }
+        amount: { $ref: '#/components/schemas/Money' }
+        description: { type: string }
+    FinanceInput:
+      type: object
+      required: [kind, idempotencyKey]
+      properties:
+        kind:
+          type: string
+          enum: [fee_item, fee_structure, optional_charge, sponsor, invoice, payment, adjustment, refund, refund_paid, reversal, cheque_status]
+        idempotencyKey: { type: string, minLength: 1, maxLength: 150 }
+        studentId: { type: string, format: uuid }
+        termId: { type: string, format: uuid }
+        parentId: { type: string, format: uuid }
+        amount: { $ref: '#/components/schemas/Money' }
+        name: { type: string, minLength: 1 }
+        code: { type: string, minLength: 1 }
+        priority: { type: integer, minimum: 1 }
+        isOptional: { type: boolean }
+        academicYearId: { type: string, format: uuid }
+        gradeId: { type: string, format: uuid }
+        boardingStatus: { type: string, enum: [day, boarder] }
+        lines: { type: array, minItems: 1, items: { $ref: '#/components/schemas/FinanceLineInput' } }
+        feeItemId: { type: string, format: uuid }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        reason: { type: string, minLength: 1 }
+        reference: { type: string }
+        sponsorId: { type: string, format: uuid }
+        sponsorType: { type: string, enum: [ngcdf, county, ngo, church, individual, company, other] }
+        contact: { type: string }
+        adjustmentType: { type: string, enum: [discount, sibling_discount, waiver, bursary, sponsorship, write_off, correction] }
+        recurring: { type: boolean }
+        channel: { type: string, enum: [cash, cheque] }
+        providerTxnId: { type: string, minLength: 1 }
+        transactionTime: { type: string, format: date-time }
+        payerName: { type: string }
+        payerPhone: { type: string }
+        chequeNo: { type: string }
+        bank: { type: string }
+        drawer: { type: string }
+        chequeStatus: { type: string, enum: [banked, cleared, bounced] }
+        method: { type: string }
+    FinanceRecord:
+      type: object
+      required: [id, kind, status, amount, data, requestedBy, createdAt, uniqueKey]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string }
+        studentId: { type: [string, 'null'] }
+        termId: { type: [string, 'null'] }
+        parentId: { type: [string, 'null'] }
+        status: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        data: { type: object, additionalProperties: true }
+        uniqueKey: { type: string }
+        requestedBy: { type: string }
+        approvedBy: { type: [string, 'null'] }
+        approvedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    FinanceDecision:
+      type: object
+      required: [decision, reason]
+      properties:
+        decision: { type: string, enum: [approved, rejected] }
+        reason: { type: string, minLength: 1 }
+    InvoiceBatchInput:
+      type: object
+      required: [termId, dueDate]
+      properties:
+        termId: { type: string, format: uuid }
+        gradeId: { type: string, format: uuid }
+        dueDate: { type: string, format: date }
+    InvoiceProposal:
+      type: object
+      required: [studentId, amount, lines, existing]
+      properties:
+        studentId: { type: string }
+        amount: { $ref: '#/components/schemas/Money' }
+        lines: { type: array, items: { $ref: '#/components/schemas/FinanceLineInput' } }
+        existing: { type: boolean }
+        invoiceId: { type: string }
+    InvoiceBatchResult:
+      type: object
+      required: [invoices]
+      properties:
+        invoices: { type: array, items: { $ref: '#/components/schemas/InvoiceProposal' } }
+    FinanceOverview:
+      type: object
+      required: [invoiced, collected, outstanding, credit, pendingApprovals]
+      properties:
+        invoiced: { $ref: '#/components/schemas/Money' }
+        collected: { $ref: '#/components/schemas/Money' }
+        outstanding: { $ref: '#/components/schemas/Money' }
+        credit: { $ref: '#/components/schemas/Money' }
+        pendingApprovals: { type: integer }
+    FinanceHistory:
+      type: object
+      required: [balance, records, ledger, allocations]
+      properties:
+        balance: { $ref: '#/components/schemas/Money' }
+        records: { type: array, items: { $ref: '#/components/schemas/FinanceRecord' } }
+        ledger: { type: array, items: { type: object, additionalProperties: true } }
+        allocations: { type: array, items: { type: object, additionalProperties: true } }
+    FinanceDocumentInput:
+      type: object
+      required: [type, referenceId]
+      properties:
+        type: { type: string, enum: [receipt, statement] }
+        referenceId: { type: string, format: uuid }
+    FinanceDocument:
+      type: object
+      required: [id, downloadUrl, expiresAt]
+      properties:
+        id: { type: string }
+        downloadUrl: { type: string }
+        expiresAt: { type: string, format: date-time }

@@ -10,6 +10,8 @@ import { CalendarRange, Check, Layers, Loader2, Pencil, Plus } from "lucide-reac
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
 import { errMsg, fmtDate } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { PromotionsPanel } from "@/components/promotions";
+import { TeacherAssignmentsPanel } from "@/components/teacher-assignments";
 
 function useInv() {
   const qc = useQueryClient();
@@ -175,6 +177,8 @@ export default function Academics() {
       <PageHeader eyebrow="School calendar & classes" title="Academics" meta={<span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-primary" /> Structure used for admission and import matching</span>} />
       <div className="grid gap-6 lg:grid-cols-2"><Years /><Terms /></div>
       <GradesStreams />
+      <TeacherAssignmentsPanel />
+      <PromotionsPanel />
     </div>
   );
 }

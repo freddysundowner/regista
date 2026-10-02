@@ -5,7 +5,10 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AssetReference } from './assetReference';
+import type { SchoolSettings } from './schoolSettings';
 import type { SchoolStatus } from './schoolStatus';
+import type { SchoolSubscriptionStatus } from './schoolSubscriptionStatus';
 import type { SchoolType } from './schoolType';
 
 export interface School {
@@ -22,5 +25,13 @@ export interface School {
   /** @nullable */
   email?: string | null;
   status: SchoolStatus;
+  logoUrl?: AssetReference | null;
+  settings?: SchoolSettings;
+  subscriptionPlan?: string;
+  subscriptionStatus?: SchoolSubscriptionStatus;
+  /** @nullable */
+  subscriptionStartDate?: Date | null;
+  /** @nullable */
+  subscriptionEndDate?: Date | null;
   createdAt: Date;
 }

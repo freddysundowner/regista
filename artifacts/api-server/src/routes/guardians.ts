@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import * as z from "@workspace/api-zod";
-import { allow, writers, readers, send, body, parse, audit, lock, owned, ApiError } from "../lib/core";
+import { allow, writers, readers, admin, send, body, parse, audit, lock, owned, ApiError } from "../lib/core";
 import { guardianData, fullName } from "../lib/students";
 const router = Router();
 const guardianInclude = { students: { include: { student: true } } } as const;
@@ -24,11 +24,42 @@ router.post("/guardians", async (req, res) => {
 router.patch("/guardians/:guardianId", async (req, res) => {
   allow(req, writers); const { guardianId } = parse(z.UpdateGuardianParams, req.params); const data = guardianData(body(z.UpdateGuardianBody, req.body));
   const record = await db.$transaction(async tx => {
-    await lock(tx, req.actor.school.id); await owned(tx, "guardian", guardianId, req.actor.school.id);
+    await lock(tx, req.actor.school.id); const old = await owned(tx, "guardian", guardianId, req.actor.school.id);
+    if (old.anonymizedAt) throw new ApiError(409, "An anonymized guardian cannot be edited");
     const record = await tx.guardian.update({ where: { id: guardianId }, data, include: guardianInclude });
     await audit(tx, req.actor, "updated", "guardian", guardianId); return record;
   });
   send(res, "UpdateGuardian", guardianView(record));
+});
+router.get("/guardians/:guardianId/export", async (req, res) => {
+  allow(req, admin); const { guardianId } = parse(z.ExportGuardianParams, req.params);
+  const result = await db.$transaction(async tx => {
+    await lock(tx, req.actor.school.id);
+    await owned(tx, "guardian", guardianId, req.actor.school.id);
+    const guardian = await tx.guardian.findFirstOrThrow({ where: { id: guardianId, schoolId: req.actor.school.id }, include: guardianInclude });
+    await audit(tx, req.actor, "privacy_exported", "guardian", guardianId, undefined, { guardianId });
+    return { guardian: guardianView(guardian), links: guardian.students, exportedAt: new Date() };
+  });
+  res.set("Cache-Control", "no-store"); send(res, "ExportGuardian", result);
+});
+router.post("/guardians/:guardianId/anonymize", async (req, res) => {
+  allow(req, admin); const { guardianId } = parse(z.AnonymizeGuardianParams, req.params);
+  body(z.AnonymizeGuardianBody, req.body);
+  const guardian = await db.$transaction(async tx => {
+    await lock(tx, req.actor.school.id);
+    const old = await owned(tx, "guardian", guardianId, req.actor.school.id);
+    if (old.anonymizedAt) throw new ApiError(409, "Guardian is already anonymized");
+    // Retain stable IDs and links. No student, invoice, payment or ledger deletion.
+    const links = await tx.studentGuardian.findMany({ where: { guardianId, schoolId: req.actor.school.id } });
+    await tx.studentGuardian.updateMany({ where: { guardianId, schoolId: req.actor.school.id }, data: { receivesNotifications: false, relationship: "Guardian" } });
+    for (const link of links) await audit(tx, req.actor, "privacy_updated", "student_guardian", link.id, { receivesNotifications: link.receivesNotifications }, { receivesNotifications: false, relationship: "Guardian" });
+    const updated = await tx.guardian.update({ where: { id: guardianId }, data: {
+      name: "Anonymized guardian", phone: `anonymous:${guardianId}`, altPhone: null, email: null, idNumber: null, relationship: null, anonymizedAt: new Date(),
+    }, include: guardianInclude });
+    await audit(tx, req.actor, "anonymized", "guardian", guardianId, old, updated);
+    return updated;
+  });
+  send(res, "AnonymizeGuardian", guardianView(guardian));
 });
 router.get("/families", async (req, res) => {
   allow(req, readers);

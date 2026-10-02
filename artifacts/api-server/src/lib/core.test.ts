@@ -3,15 +3,49 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import * as z from "@workspace/api-zod";
-import { phone, body, validDate, send, lock } from "./core";
+import { phone, body, validDate, send, lock, redactSnapshot, streamAccess, validateAsset } from "./core";
+import { verifySetupToken } from "../routes/auth";
+import { signPromotion, readPromotion, promotionRoster } from "./promotions";
 import { hashPassword, verifyPassword } from "./password";
 import { importPreview, createStudentRecord, linkGuardian, mergeFamily, studentInclude, studentView, checkPlacement } from "./students";
 import type { Response } from "express";
 
 test("Kenyan phone normalization accepts all supported forms and rejects invalid phones", () => {
-  for (const input of ["0712345678", "712345678", "+254712345678", "254712345678", "07 1234 5678"]) assert.equal(phone(input), "+254712345678");
-  for (const input of ["0112345678", "112345678", "+254112345678"]) assert.equal(phone(input), "+254112345678");
+  for (const input of ["0712345678", "712345678", "+254712345678", "254712345678", "07 1234 5678"]) assert.equal(phone(input), "254712345678");
+  for (const input of ["0112345678", "112345678", "+254112345678"]) assert.equal(phone(input), "254112345678");
   for (const input of ["123", "+15551234567", "0271234567", "07123456789"]) assert.throws(() => phone(input));
+});
+test("audit snapshots deeply redact credentials and personal information while preserving changed state", () => {
+  const value = redactSnapshot({ name: "Private", phone: "254712345678", idNumber: "1234567", passwordHash: "hash", nested: { setupToken: "secret", firstName: "Private" }, status: "active", count: 2 });
+  assert.equal(JSON.stringify(value).includes("Private"), false);
+  assert.equal(JSON.stringify(value).includes("254712"), false);
+  assert.equal((value as any).status, "active");
+  assert.equal((value as any).nested.setupToken, "[REDACTED]");
+});
+test("production owner setup is fail-closed, token-gated; development is unchanged", () => {
+  const prior = { node: process.env.NODE_ENV, token: process.env.SETUP_TOKEN, deployment: process.env.REPLIT_DEPLOYMENT };
+  try {
+    process.env.NODE_ENV = "production"; delete process.env.SETUP_TOKEN;
+    assert.throws(() => verifySetupToken(), /disabled/);
+    process.env.SETUP_TOKEN = "secure-test-token-".repeat(3);
+    assert.throws(() => verifySetupToken("wrong"), /valid setup token/);
+    verifySetupToken(process.env.SETUP_TOKEN);
+    process.env.NODE_ENV = "development"; delete process.env.REPLIT_DEPLOYMENT;
+    verifySetupToken();
+  } finally {
+    for (const [key, value] of [["NODE_ENV", prior.node], ["SETUP_TOKEN", prior.token], ["REPLIT_DEPLOYMENT", prior.deployment]]) {
+      if (value === undefined) delete process.env[key!]; else process.env[key!] = value;
+    }
+  }
+});
+test("safe settings, image references and promotion confirmations validate at contract boundary", () => {
+  assert.throws(() => body(z.UpdateSchoolBody, { settings: { autoPostThreshold: 151 } }));
+  assert.throws(() => body(z.UpdateSchoolBody, { logoUrl: "https://example.invalid/logo.png" }));
+  assert.throws(() => body(z.UpdateStudentBody, { photoUrl: "data:image/png;base64,AA==" }));
+  assert.throws(() => body(z.AnonymizeGuardianBody, { confirmation: "yes" }));
+  assert.throws(() => body(z.CommitPromotionBody, { previewToken: "test", confirmation: "yes" }));
+  assert.throws(() => body(z.UpdatePlatformSchoolBody, { subscriptionEndDate: "2027-02-30" }));
+  assert.ok(streamAccess(randomUUID()).OR?.length === 2);
 });
 test("bcrypt passwords distinguish the complete password after the 72-byte boundary", async () => {
   const password = "a".repeat(90) + "secret";
@@ -40,9 +74,16 @@ test("development transaction: 500 imports, useful errors, duplicate revalidatio
       const school = await tx.school.create({ data: { code, name: "Synthetic Unit School", type: "primary" } });
       const user = await tx.user.create({ data: { schoolId: school.id, name: "Synthetic Administrator", email: `${randomUUID()}@example.invalid`, passwordHash: "non-login-test-record", role: "school_admin" } });
       const actor = { school, user };
+      const promotionInput = { sourceYearId: randomUUID(), targetYearId: randomUUID(), sourceStreamId: randomUUID(), action: "graduate" as const };
+      const previewToken = signPromotion(actor, promotionInput, "fingerprint");
+      assert.equal(readPromotion(actor, previewToken).fingerprint, "fingerprint");
+      assert.throws(() => readPromotion({ ...actor, user: { ...user, id: randomUUID() } }, previewToken), /invalid or expired/);
+      assert.throws(() => readPromotion({ ...actor, school: { ...school, id: randomUUID() } }, previewToken), /invalid or expired/);
       await lock(tx, school.id);
       const grade = await tx.grade.create({ data: { schoolId: school.id, name: "Synthetic Grade", levelBand: "lower_primary", order: 1 } });
       const stream = await tx.stream.create({ data: { schoolId: school.id, gradeId: grade.id, name: "A" } });
+      const sourceYear = await tx.academicYear.create({ data: { schoolId: school.id, name: "2026", startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") } });
+      const targetYear = await tx.academicYear.create({ data: { schoolId: school.id, name: "2027", startDate: new Date("2027-01-01"), endDate: new Date("2027-12-31") } });
       const otherGrade = await tx.grade.create({ data: { schoolId: school.id, name: "Other Grade", levelBand: "lower_primary", order: 2 } });
       await assert.rejects(() => checkPlacement(tx, school.id, otherGrade.id, stream.id), /Stream must belong/);
       const otherSchool = await tx.school.create({ data: { code: `${code}-OTHER`, name: "Synthetic Other School", type: "primary" } });
@@ -68,6 +109,16 @@ test("development transaction: 500 imports, useful errors, duplicate revalidatio
       assert.equal(invalid.preview.errorRows, 1);
       assert.ok(invalid.preview.rows[0].errors.length >= 3);
       const first = await tx.student.findUniqueOrThrow({ where: { schoolId_admissionNo: { schoolId: school.id, admissionNo: "S-0" } }, include: studentInclude });
+      const roster = await promotionRoster(tx, actor, { sourceYearId: sourceYear.id, targetYearId: targetYear.id, sourceStreamId: stream.id, action: "graduate" });
+      assert.equal(roster.records.length, 500);
+      await assert.rejects(() => promotionRoster(tx, actor, { sourceYearId: targetYear.id, targetYearId: sourceYear.id, sourceStreamId: stream.id, action: "graduate" }), /must start after/);
+      await assert.rejects(() => validateAsset(tx, school.id, first.id, "student_photo", `/api/storage/files/${randomUUID()}`), /completed upload/);
+      const asset = await tx.storedFile.create({ data: { schoolId: school.id, ownerId: user.id, entityType: "student_photo", entityId: first.id, objectKey: randomUUID(), filename: "synthetic.png", contentType: "image/png", size: 8, status: "ready" } });
+      await validateAsset(tx, school.id, first.id, "student_photo", `/api/storage/files/${asset.id}`);
+      await assert.rejects(() => validateAsset(tx, otherSchool.id, first.id, "student_photo", `/api/storage/files/${asset.id}`), /completed upload/);
+      assert.equal(await tx.studentGuardian.count({ where: { schoolId: school.id } }), 500);
+      const log = await tx.auditLog.findFirstOrThrow({ where: { schoolId: school.id, action: "family_linked" } });
+      assert.ok(log.before && log.after);
       const second = await tx.student.findUniqueOrThrow({ where: { schoolId_admissionNo: { schoolId: school.id, admissionNo: "S-2" } }, include: studentInclude });
       assert.equal(studentView(first).siblingCount, 1);
       await linkGuardian(tx, actor, first.id, { name: "Synthetic Bridge", phone: second.guardians[0].guardian.phone, relationship: "Guardian" });

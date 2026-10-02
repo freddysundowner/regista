@@ -9,7 +9,10 @@ import type { UserRole } from './userRole';
 
 export interface User {
   id: string;
-  schoolId: string;
+  /** @nullable */
+  schoolId: string | null;
+  /** @nullable */
+  lastLoginAt?: Date | null;
   name: string;
   /** @nullable */
   email?: string | null;

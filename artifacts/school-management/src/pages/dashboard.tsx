@@ -2,6 +2,8 @@ import { Link } from "wouter";
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { ArrowUpRight, FileSpreadsheet, GraduationCap, Plus } from "lucide-react";
 import { PageHeader, Panel, ErrorState, Empty } from "@/components/kit";
+import { FinanceOverviewPanel } from "@/components/finance-overview";
+import { ModuleDashboard } from "@/components/module-dashboard";
 import { useSession, usePerms, errMsg, fmtDateTime } from "@/lib/session";
 
 export default function Dashboard() {
@@ -25,6 +27,7 @@ export default function Dashboard() {
         {p.writeStudents && <Link href="/students?new=1" data-testid="link-new-student" className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" /> Admit student</Link>}
         {p.importStudents && <Link href="/import" data-testid="link-import" className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input bg-card px-3.5 text-sm font-semibold hover:bg-muted"><FileSpreadsheet className="h-4 w-4" /> Import</Link>}
       </PageHeader>
+      {(p.financeRead || p.academicRead) && <ModuleDashboard />}
 
       {q.isError ? <Panel><ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /></Panel> : (
         <div className="rise rise-1 grid grid-cols-2 overflow-hidden rounded-lg border border-card-border bg-card lg:grid-cols-4">
@@ -42,10 +45,12 @@ export default function Dashboard() {
         </div>
       )}
 
+      {p.financeRead && <FinanceOverviewPanel />}
+
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Panel title="Recent activity" note="Latest changes to the register" className="rise-2" action={p.viewAudit ? <Link href="/audit" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">Full history <ArrowUpRight className="h-3 w-3" /></Link> : undefined}>
           {q.isLoading ? <div className="space-y-3 p-5">{[0, 1, 2, 3].map((i) => <div key={i} className="h-4 animate-pulse rounded bg-muted" />)}</div> :
-            !d?.recentActivity.length ? <Empty icon={<GraduationCap className="h-5 w-5" />} title="A clean slate" body="Activity appears here as staff add students, guardians and settings." /> :
+            !d?.recentActivity.length ? <Empty icon={<GraduationCap className="h-5 w-5" />} title={p.viewAudit ? "A clean slate" : "Activity is restricted"} body={p.viewAudit ? "Activity appears here as staff add students, guardians and settings." : "Only administrators and the principal can see the change history."} /> :
               <ol className="relative px-5 py-4">
                 <span className="absolute bottom-4 left-[27px] top-4 w-px bg-border" />
                 {d.recentActivity.slice(0, 10).map((a) => (
