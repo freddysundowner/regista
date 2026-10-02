@@ -7,6 +7,8 @@ import { useLogout } from "@workspace/api-client-react";
 import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Menu, X, Settings, Users, UserCog } from "lucide-react";
 import { useSession, usePerms, ROLE_LABEL, initials } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { ChevronsUpDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 export function Shell({ children }: { children: ReactNode }) {
   const { user, school } = useSession();
@@ -75,7 +77,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="font-mono text-[11px] text-sidebar-foreground/60">{school.code}{school.county ? ` · ${school.county}` : ""}</div>
         </div>
       </div>
-      <nav aria-label="Main navigation" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
+      <nav aria-label="Main navigation" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {groups.map(group => (
           <section key={group.label} aria-label={group.label}>
             <h2 className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">{group.label}</h2>
@@ -93,18 +95,29 @@ export function Shell({ children }: { children: ReactNode }) {
           </section>
         ))}
       </nav>
-      <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-xs font-bold text-sidebar-primary">{initials(user.name)}</div>
-        <div className="min-w-0 flex-1">
-          <Link href="/account" onClick={() => setOpen(false)}>
-            <div data-testid="text-user-name" className="truncate text-sm font-semibold text-sidebar-accent-foreground">{user.name}</div>
-            <div className="text-[11px] text-sidebar-foreground/60">{ROLE_LABEL[user.role]}</div>
-          </Link>
-          {logout.isError && <div role="alert" className="text-xs text-red-300">Sign-out failed. Please retry.</div>}
-        </div>
-        <button data-testid="button-logout" title="Sign out" aria-label="Sign out" disabled={logout.isPending} onClick={() => logout.mutate()} className="rounded-md p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50">
-          <LogOut className="h-4 w-4" />
-        </button>
+      <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" data-testid="button-account-menu" aria-label={`Account menu for ${user.name}`} className="flex w-full items-center gap-3 rounded-md p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-primary">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-xs font-bold text-sidebar-primary">{initials(user.name)}</span>
+              <span className="min-w-0 flex-1">
+                <span data-testid="text-user-name" className="block truncate text-sm font-semibold text-sidebar-accent-foreground">{user.name}</span>
+                <span className="block text-[11px] text-sidebar-foreground/60">{ROLE_LABEL[user.role]}</span>
+              </span>
+              <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground/60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" sideOffset={8} className="z-[60] w-[var(--radix-dropdown-menu-trigger-width)]">
+            <DropdownMenuItem asChild>
+              <Link href="/account" data-testid="link-account-menu" onClick={() => setOpen(false)}><KeyRound className="h-4 w-4" />My account</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem data-testid="button-logout" disabled={logout.isPending} onSelect={() => logout.mutate()}>
+              <LogOut className="h-4 w-4" />{logout.isPending ? "Signing out…" : "Sign out"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {logout.isError && <div role="alert" className="px-2 pt-2 text-xs text-red-300">Sign-out failed. Please retry.</div>}
       </div>
     </div>
   );
