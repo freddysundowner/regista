@@ -49,6 +49,17 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: "/account", label: "My account", icon: KeyRound, show: true },
   ].filter((n) => n.show);
 
+  const groups = [
+    { label: "School", paths: ["/", "/students", "/guardians", "/import"] },
+    { label: "Finance", paths: ["/fees", "/invoices", "/payments", "/reconciliation", "/payment-plans", "/sponsors", "/approvals"] },
+    { label: "Academics", paths: ["/academics", "/curriculum", "/assessments", "/attendance", "/report-cards"] },
+    { label: "Communication & reports", paths: ["/notifications", "/reports"] },
+    { label: "Administration", paths: ["/staff", "/settings", "/integrations", "/jobs", "/audit", "/schools", "/account"] },
+  ].map(group => ({
+    label: group.label,
+    items: group.paths.flatMap(path => nav.filter(item => item.href === path)),
+  })).filter(group => group.items.length > 0);
+
   const active = (h: string) => (h === "/" ? loc === "/" : loc.startsWith(h));
 
   const side = (
@@ -63,15 +74,22 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="font-mono text-[11px] text-sidebar-foreground/60">{school.code}{school.county ? ` · ${school.county}` : ""}</div>
         </div>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-        {nav.map((n) => (
-          <Link key={n.href} href={n.href} onClick={() => setOpen(false)} data-testid={`link-nav-${n.href.slice(1) || "home"}`}
+      <nav aria-label="Main navigation" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
+        {groups.map(group => (
+          <section key={group.label} aria-label={group.label}>
+            <h2 className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">{group.label}</h2>
+            <div className="space-y-0.5">
+        {group.items.map((n) => (
+          <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} onClick={() => setOpen(false)} data-testid={`link-nav-${n.href.slice(1) || "home"}`}
             className={cn("group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition",
               active(n.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground")}>
             <span className={cn("absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-sidebar-primary transition-transform", active(n.href) ? "scale-y-100" : "scale-y-0")} />
             <n.icon className={cn("h-4 w-4", active(n.href) ? "text-sidebar-primary" : "")} />
             {n.label}
           </Link>
+        ))}
+            </div>
+          </section>
         ))}
       </nav>
       <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-4">
