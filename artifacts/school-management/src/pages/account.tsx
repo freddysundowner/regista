@@ -61,8 +61,8 @@ export default function Account() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Your account" title={user.name} meta={<span data-testid="text-account-meta">{ROLE_LABEL[user.role]} at {school.name} · Last sign-in {fmtDateTime(user.lastLoginAt)} (Nairobi)</span>} />
-      <Panel className="max-w-3xl" title="Change password"><PasswordForm /></Panel>
-      {p.limitedToAssigned && <Panel className="max-w-3xl" title="My streams" note="Streams you can view as a teacher."><MyStreams /></Panel>}
+      <Panel className="w-full" title="Change password"><PasswordForm /></Panel>
+      {p.limitedToAssigned && <Panel className="w-full" title="My streams" note="Streams you can view as a teacher."><MyStreams /></Panel>}
     </div>
   );
 }
