@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useGetSchoolReport, useExportSchoolReport, useExportKnecResults, type ReportView, type ReportFilterInput } from "@workspace/api-client-react";
 import { ArrowDown, ArrowUp, BarChart3, Download, FileDown, Loader2 } from "lucide-react";
-import { PageHeader, Panel, Empty, Btn, Field, TextInput, FormError, FormActions } from "@/components/kit";
+import { PageHeader, Panel, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
 import { StudentPicker, TermSelect, GradeSelect, MoneyInput, Table, td } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDateTime } from "@/lib/session";
 import { exportXlsx, exportCsv } from "@/lib/sheets";
@@ -88,10 +88,14 @@ export default function Reports() {
       <PageHeader eyebrow="Insight" title="Reports" meta={p.limitedToAssigned ? "Academic reports for your assigned classes." : "Run a report, read it here, then export. Exports contain exactly the rows shown."} />
       {!types.length ? <Panel><Empty icon={<BarChart3 className="h-5 w-5" />} title="No reports for your role" body="Ask your administrator if you need access." /></Panel> : (
         <Panel>
-          <div className="flex gap-1 overflow-x-auto border-b border-border/70 p-2">{types.map((x) => (
-            <button key={x.id} type="button" data-testid={`tab-report-${x.id}`} onClick={() => { setType(x.id); setErr(null); }} className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${type === x.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>{x.label}</button>))}</div>
           <form onSubmit={submit} className="space-y-4 p-5">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Field label="Report type">
+                <NativeSelect data-testid="select-report-type" value={type} onChange={e => { setType(e.target.value); setErr(null); }}>
+                  {types.some(x => x.finance) && <optgroup label="Finance">{types.filter(x => x.finance).map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>}
+                  {types.some(x => x.academic) && <optgroup label="Academics">{types.filter(x => x.academic).map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>}
+                </NativeSelect>
+              </Field>
               {show("dates") && <><Field label="From"><TextInput type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></Field><Field label="To"><TextInput type="date" value={f.to} min={f.from || undefined} onChange={(e) => setF({ ...f, to: e.target.value })} /></Field></>}
               {show("term") && <TermSelect allowNone="Any term" value={f.termId} onChange={(v) => setF({ ...f, termId: v })} />}
               {show("grade") && <GradeSelect allowNone="All grades" value={f.gradeId} onChange={(v) => setF({ ...f, gradeId: v })} />}
@@ -102,8 +106,8 @@ export default function Reports() {
             <FormError msg={err} />
             <FormActions>
               <Btn type="submit" data-testid="button-run-report" disabled={run.isPending}>{run.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}Run report</Btn>
-              <Btn type="button" variant="outline" disabled={ex.isPending} onClick={() => serverFile("pdf")}><Download className="h-4 w-4" />PDF</Btn>
-              <Btn type="button" variant="outline" disabled={ex.isPending} onClick={() => serverFile("xlsx")}><Download className="h-4 w-4" />Server Excel</Btn>
+              <Btn type="button" variant="outline" disabled={ex.isPending} onClick={() => serverFile("pdf")}><Download className="h-4 w-4" />Export PDF</Btn>
+              <Btn type="button" variant="outline" disabled={ex.isPending} onClick={() => serverFile("xlsx")}><Download className="h-4 w-4" />Export Excel</Btn>
             </FormActions>
           </form>
         </Panel>
