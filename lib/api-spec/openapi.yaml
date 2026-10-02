@@ -3,13 +3,33 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: School Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: setup
+    description: First-run school setup
+  - name: auth
+    description: User authentication
+  - name: dashboard
+    description: School overview
+  - name: school
+    description: School settings
+  - name: users
+    description: Staff accounts
+  - name: academics
+    description: Academic years, terms, grades, and streams
+  - name: students
+    description: Student records
+  - name: guardians
+    description: Guardian and family records
+  - name: imports
+    description: Student bulk import
+  - name: audit
+    description: Audit history
 paths:
   /healthz:
     get:
@@ -24,6 +44,587 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /setup/status:
+    get:
+      operationId: getSetupStatus
+      tags: [setup]
+      summary: Check whether first-run setup is required
+      responses:
+        "200":
+          description: Setup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+  /setup:
+    post:
+      operationId: createInitialSchool
+      tags: [setup]
+      summary: Create the first school and its administrator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitialSetupInput"
+      responses:
+        "201":
+          description: School and administrator created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "409":
+          description: Setup has already been completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in with email or phone and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Sign out
+      responses:
+        "200":
+          description: Signed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the signed-in user and school
+      responses:
+        "200":
+          description: Signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get school foundation metrics and recent activity
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /school:
+    get:
+      operationId: getSchool
+      tags: [school]
+      summary: Get the current school profile
+      responses:
+        "200":
+          description: School profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/School"
+    patch:
+      operationId: updateSchool
+      tags: [school]
+      summary: Update the current school profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchoolUpdate"
+      responses:
+        "200":
+          description: Updated school profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/School"
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List staff in the current school
+      responses:
+        "200":
+          description: Staff list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Add a staff account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Staff account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /users/{userId}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a staff member or deactivate their account
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated staff account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /academic-years:
+    get:
+      operationId: listAcademicYears
+      tags: [academics]
+      summary: List academic years
+      responses:
+        "200":
+          description: Academic years
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AcademicYear"
+    post:
+      operationId: createAcademicYear
+      tags: [academics]
+      summary: Create an academic year
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcademicYearInput"
+      responses:
+        "201":
+          description: Academic year created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcademicYear"
+  /academic-years/{yearId}:
+    patch:
+      operationId: updateAcademicYear
+      tags: [academics]
+      summary: Update an academic year
+      parameters:
+        - name: yearId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcademicYearUpdate"
+      responses:
+        "200":
+          description: Updated academic year
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcademicYear"
+  /terms:
+    get:
+      operationId: listTerms
+      tags: [academics]
+      summary: List terms
+      parameters:
+        - name: academicYearId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Terms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Term"
+    post:
+      operationId: createTerm
+      tags: [academics]
+      summary: Create a term
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TermInput"
+      responses:
+        "201":
+          description: Term created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Term"
+  /terms/{termId}:
+    patch:
+      operationId: updateTerm
+      tags: [academics]
+      summary: Update a term
+      parameters:
+        - name: termId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TermUpdate"
+      responses:
+        "200":
+          description: Updated term
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Term"
+  /grades:
+    get:
+      operationId: listGrades
+      tags: [academics]
+      summary: List grades or levels
+      responses:
+        "200":
+          description: Grades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Grade"
+    post:
+      operationId: createGrade
+      tags: [academics]
+      summary: Create a grade or level
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeInput"
+      responses:
+        "201":
+          description: Grade created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+  /streams:
+    get:
+      operationId: listStreams
+      tags: [academics]
+      summary: List streams
+      parameters:
+        - name: gradeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Streams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Stream"
+    post:
+      operationId: createStream
+      tags: [academics]
+      summary: Create a stream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StreamInput"
+      responses:
+        "201":
+          description: Stream created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stream"
+  /students:
+    get:
+      operationId: listStudents
+      tags: [students]
+      summary: Search students
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: gradeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: streamId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/StudentStatus"
+      responses:
+        "200":
+          description: Students matching the filters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+    post:
+      operationId: createStudent
+      tags: [students]
+      summary: Create a student and optionally link guardians
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+  /students/{studentId}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      summary: Get a student profile
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Student profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+    patch:
+      operationId: updateStudent
+      tags: [students]
+      summary: Update a student profile
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Updated student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+  /guardians:
+    get:
+      operationId: listGuardians
+      tags: [guardians]
+      summary: Search guardians
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Guardians
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Guardian"
+    post:
+      operationId: createGuardian
+      tags: [guardians]
+      summary: Create a guardian
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuardianInput"
+      responses:
+        "201":
+          description: Guardian created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guardian"
+  /families:
+    get:
+      operationId: listFamilies
+      tags: [guardians]
+      summary: List families and sibling groups
+      responses:
+        "200":
+          description: Families
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Family"
+  /imports/students/preview:
+    post:
+      operationId: previewStudentImport
+      tags: [imports]
+      summary: Validate student import rows without saving them
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentImportInput"
+      responses:
+        "200":
+          description: Import validation preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentImportPreview"
+  /imports/students/commit:
+    post:
+      operationId: commitStudentImport
+      tags: [imports]
+      summary: Save valid student import rows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentImportInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentImportResult"
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit]
+      summary: View recent school activity
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Audit history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +634,399 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    MessageResponse:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+    SchoolType:
+      type: string
+      enum: [primary, junior, senior, comprehensive, other]
+    UserRole:
+      type: string
+      enum: [super_admin, school_admin, principal, bursar, teacher, class_teacher]
+    StudentStatus:
+      type: string
+      enum: [active, transferred, graduated, left]
+    LevelBand:
+      type: string
+      enum: [pre_primary, lower_primary, upper_primary, junior, senior, other]
+    BoardingStatus:
+      type: string
+      enum: [day, boarder]
+    School:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        code: { type: string }
+        county: { type: ["string", "null"] }
+        type: { $ref: "#/components/schemas/SchoolType" }
+        address: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        email: { type: ["string", "null"] }
+        status: { type: string, enum: [active, suspended] }
+        createdAt: { type: string, format: date-time }
+      required: [id, name, code, type, status, createdAt]
+    SetupStatus:
+      type: object
+      properties:
+        needsSetup: { type: boolean }
+      required: [needsSetup]
+    InitialSetupInput:
+      type: object
+      properties:
+        schoolName: { type: string, minLength: 2, maxLength: 180 }
+        schoolCode: { type: string, minLength: 2, maxLength: 40 }
+        county: { type: string, maxLength: 100 }
+        schoolType: { $ref: "#/components/schemas/SchoolType" }
+        adminName: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: string, format: email }
+        phone: { type: string, minLength: 9, maxLength: 20 }
+        password: { type: string, minLength: 10, maxLength: 128 }
+      required: [schoolName, schoolCode, schoolType, adminName, password]
+    LoginInput:
+      type: object
+      properties:
+        identifier: { type: string, minLength: 3, maxLength: 180 }
+        password: { type: string, minLength: 1, maxLength: 128 }
+      required: [identifier, password]
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        schoolId: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        role: { $ref: "#/components/schemas/UserRole" }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required: [id, schoolId, name, role, isActive, createdAt]
+    AuthSession:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        school: { $ref: "#/components/schemas/School" }
+      required: [user, school]
+    SchoolUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 180 }
+        county: { type: ["string", "null"], maxLength: 100 }
+        type: { $ref: "#/components/schemas/SchoolType" }
+        address: { type: ["string", "null"], maxLength: 250 }
+        phone: { type: ["string", "null"], maxLength: 20 }
+        email: { type: ["string", "null"], format: email }
+    UserInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"], minLength: 9, maxLength: 20 }
+        password: { type: string, minLength: 10, maxLength: 128 }
+        role: { $ref: "#/components/schemas/UserRole" }
+      required: [name, password, role]
+    UserUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"], minLength: 9, maxLength: 20 }
+        role: { $ref: "#/components/schemas/UserRole" }
+        isActive: { type: boolean }
+    DashboardSummary:
+      type: object
+      properties:
+        schoolName: { type: string }
+        totalStudents: { type: integer }
+        activeStudents: { type: integer }
+        guardianCount: { type: integer }
+        familyCount: { type: integer }
+        staffCount: { type: integer }
+        gradeCount: { type: integer }
+        streamCount: { type: integer }
+        currentAcademicYear: { type: ["string", "null"] }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/AuditLog" }
+      required: [schoolName, totalStudents, activeStudents, guardianCount, familyCount, staffCount, gradeCount, streamCount, recentActivity]
+    AcademicYear:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        isCurrent: { type: boolean }
+      required: [id, name, startDate, endDate, isCurrent]
+    AcademicYearInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 50 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        isCurrent: { type: boolean, default: false }
+      required: [name, startDate, endDate]
+    AcademicYearUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 50 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        isCurrent: { type: boolean }
+    Term:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        academicYearId: { type: string, format: uuid }
+        academicYearName: { type: string }
+        name: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        isCurrent: { type: boolean }
+      required: [id, academicYearId, academicYearName, name, startDate, endDate, isCurrent]
+    TermInput:
+      type: object
+      properties:
+        academicYearId: { type: string, format: uuid }
+        name: { type: string, minLength: 2, maxLength: 60 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        isCurrent: { type: boolean, default: false }
+      required: [academicYearId, name, startDate, endDate]
+    TermUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        isCurrent: { type: boolean }
+    Grade:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        levelBand: { $ref: "#/components/schemas/LevelBand" }
+        order: { type: integer }
+        studentCount: { type: integer }
+      required: [id, name, levelBand, order, studentCount]
+    GradeInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        levelBand: { $ref: "#/components/schemas/LevelBand" }
+        order: { type: integer, minimum: 1 }
+      required: [name, levelBand, order]
+    Stream:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        gradeId: { type: string, format: uuid }
+        gradeName: { type: string }
+        name: { type: string }
+        classTeacherUserId: { type: ["string", "null"], format: uuid }
+        classTeacherName: { type: ["string", "null"] }
+        studentCount: { type: integer }
+      required: [id, gradeId, gradeName, name, studentCount]
+    StreamInput:
+      type: object
+      properties:
+        gradeId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 60 }
+        classTeacherUserId: { type: ["string", "null"], format: uuid }
+      required: [gradeId, name]
+    GuardianLinkInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        phone: { type: string, minLength: 9, maxLength: 20 }
+        altPhone: { type: ["string", "null"], maxLength: 20 }
+        email: { type: ["string", "null"], format: email }
+        relationship: { type: string, minLength: 2, maxLength: 60 }
+        isPrimary: { type: boolean, default: false }
+        receivesNotifications: { type: boolean, default: true }
+      required: [name, phone, relationship]
+    Guardian:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        altPhone: { type: ["string", "null"] }
+        email: { type: ["string", "null"] }
+        relationship: { type: ["string", "null"] }
+        studentCount: { type: integer }
+        studentNames:
+          type: array
+          items: { type: string }
+      required: [id, name, phone, studentCount, studentNames]
+    GuardianInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        phone: { type: string, minLength: 9, maxLength: 20 }
+        altPhone: { type: ["string", "null"], maxLength: 20 }
+        email: { type: ["string", "null"], format: email }
+        relationship: { type: ["string", "null"], maxLength: 60 }
+      required: [name, phone]
+    FamilyStudent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        admissionNo: { type: string }
+        gradeName: { type: ["string", "null"] }
+      required: [id, name, admissionNo]
+    Family:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        guardianNames:
+          type: array
+          items: { type: string }
+        students:
+          type: array
+          items: { $ref: "#/components/schemas/FamilyStudent" }
+      required: [id, name, guardianNames, students]
+    Student:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        admissionNo: { type: string }
+        firstName: { type: string }
+        middleName: { type: ["string", "null"] }
+        lastName: { type: string }
+        fullName: { type: string }
+        gender: { type: ["string", "null"], enum: [male, female, other, null] }
+        dateOfBirth: { type: ["string", "null"], format: date }
+        gradeId: { type: ["string", "null"], format: uuid }
+        gradeName: { type: ["string", "null"] }
+        streamId: { type: ["string", "null"], format: uuid }
+        streamName: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/StudentStatus" }
+        boardingStatus: { $ref: "#/components/schemas/BoardingStatus" }
+        admissionDate: { type: ["string", "null"], format: date }
+        upi: { type: ["string", "null"] }
+        familyId: { type: ["string", "null"], format: uuid }
+        guardianNames:
+          type: array
+          items: { type: string }
+        guardianPhones:
+          type: array
+          items: { type: string }
+        siblingCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, admissionNo, firstName, lastName, fullName, status, boardingStatus, guardianNames, guardianPhones, siblingCount, createdAt]
+    StudentInput:
+      type: object
+      properties:
+        admissionNo: { type: string, minLength: 1, maxLength: 60 }
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        middleName: { type: ["string", "null"], maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        gender: { type: ["string", "null"], enum: [male, female, other, null] }
+        dateOfBirth: { type: ["string", "null"], format: date }
+        gradeId: { type: ["string", "null"], format: uuid }
+        streamId: { type: ["string", "null"], format: uuid }
+        status: { $ref: "#/components/schemas/StudentStatus" }
+        boardingStatus: { $ref: "#/components/schemas/BoardingStatus" }
+        admissionDate: { type: ["string", "null"], format: date }
+        upi: { type: ["string", "null"], maxLength: 100 }
+        guardians:
+          type: array
+          items: { $ref: "#/components/schemas/GuardianLinkInput" }
+      required: [admissionNo, firstName, lastName, status, boardingStatus]
+    StudentUpdate:
+      type: object
+      properties:
+        admissionNo: { type: string, minLength: 1, maxLength: 60 }
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        middleName: { type: ["string", "null"], maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        gender: { type: ["string", "null"], enum: [male, female, other, null] }
+        dateOfBirth: { type: ["string", "null"], format: date }
+        gradeId: { type: ["string", "null"], format: uuid }
+        streamId: { type: ["string", "null"], format: uuid }
+        status: { $ref: "#/components/schemas/StudentStatus" }
+        boardingStatus: { $ref: "#/components/schemas/BoardingStatus" }
+        admissionDate: { type: ["string", "null"], format: date }
+        upi: { type: ["string", "null"], maxLength: 100 }
+    StudentImportRow:
+      type: object
+      properties:
+        admissionNo: { type: string }
+        firstName: { type: string }
+        middleName: { type: ["string", "null"] }
+        lastName: { type: string }
+        gender: { type: ["string", "null"] }
+        dateOfBirth: { type: ["string", "null"] }
+        gradeName: { type: ["string", "null"] }
+        streamName: { type: ["string", "null"] }
+        boardingStatus: { type: ["string", "null"] }
+        admissionDate: { type: ["string", "null"] }
+        guardianName: { type: ["string", "null"] }
+        guardianPhone: { type: ["string", "null"] }
+        guardianRelationship: { type: ["string", "null"] }
+      required: [admissionNo, firstName, lastName]
+    StudentImportInput:
+      type: object
+      properties:
+        rows:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: "#/components/schemas/StudentImportRow" }
+      required: [rows]
+    StudentImportPreviewRow:
+      type: object
+      properties:
+        rowNumber: { type: integer }
+        admissionNo: { type: string }
+        studentName: { type: string }
+        guardianPhone: { type: ["string", "null"] }
+        status: { type: string, enum: [valid, error, duplicate] }
+        errors:
+          type: array
+          items: { type: string }
+        warnings:
+          type: array
+          items: { type: string }
+      required: [rowNumber, admissionNo, studentName, status, errors, warnings]
+    StudentImportPreview:
+      type: object
+      properties:
+        totalRows: { type: integer }
+        validRows: { type: integer }
+        errorRows: { type: integer }
+        duplicateRows: { type: integer }
+        siblingMatches: { type: integer }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/StudentImportPreviewRow" }
+      required: [totalRows, validRows, errorRows, duplicateRows, siblingMatches, rows]
+    StudentImportResult:
+      type: object
+      properties:
+        createdStudents: { type: integer }
+        linkedGuardians: { type: integer }
+        siblingGroupsCreated: { type: integer }
+        skippedRows: { type: integer }
+      required: [createdStudents, linkedGuardians, siblingGroupsCreated, skippedRows]
+    AuditLog:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userName: { type: ["string", "null"] }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, action, entityType, createdAt]
 

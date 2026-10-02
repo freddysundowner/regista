@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "School Management System"
+description = "A multi-school administration app for Kenyan schools, starting with secure school setup, staff roles, academic structure, student and guardian records, bulk import, family linking, and audit history."
+version = "1.0.0"
+id = "artifacts/school-management"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23826
+
+[services.development]
+run = "pnpm --filter @workspace/school-management run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/school-management", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/school-management/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23826"
+BASE_PATH = "/"
