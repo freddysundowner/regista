@@ -32,6 +32,7 @@ import type {
   GradeInput,
   Guardian,
   GuardianInput,
+  GuardianLinkInput,
   HealthStatus,
   InitialSetupInput,
   ListAuditLogsParams,
@@ -86,6 +87,491 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListSchoolsUrl = () => {
+
+
+
+
+  return `/api/schools`
+}
+
+export const listSchools = async ( options?: Parameters<typeof customFetch>[1]): Promise<School[]> => {
+
+  return customFetch<School[]>(getListSchoolsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSchoolsQueryKey = () => {
+    return [
+    `/api/schools`
+    ] as const;
+    }
+
+
+export const getListSchoolsQueryOptions = <TData = Awaited<ReturnType<typeof listSchools>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSchools>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSchoolsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSchools>>> = ({ signal }) => listSchools({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSchools>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSchoolsQueryResult = NonNullable<Awaited<ReturnType<typeof listSchools>>>
+export type ListSchoolsQueryError = ErrorType<unknown>
+
+
+
+export function useListSchools<TData = Awaited<ReturnType<typeof listSchools>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSchools>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSchoolsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSchoolUrl = () => {
+
+
+
+
+  return `/api/schools`
+}
+
+export const createSchool = async (initialSetupInput: InitialSetupInput, options?: Parameters<typeof customFetch>[1]): Promise<School> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<School>(getCreateSchoolUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(initialSetupInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSchoolMutationKey = () => ['createSchool'] as const;
+
+export const getCreateSchoolMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSchool>>, TError,CreateSchoolMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSchool>>, TError,CreateSchoolMutationVariables, TContext> => {
+
+const mutationKey = getCreateSchoolMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSchool>>, CreateSchoolMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSchool(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSchoolMutationResult = NonNullable<Awaited<ReturnType<typeof createSchool>>>
+    export type CreateSchoolMutationBody = BodyType<InitialSetupInput>
+    export type CreateSchoolMutationError = ErrorType<unknown>
+    export type CreateSchoolMutationVariables = {data: BodyType<InitialSetupInput>}
+
+    export const useCreateSchool = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSchool>>, TError,CreateSchoolMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSchool>>,
+        TError,
+        CreateSchoolMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSchoolMutationOptions(options));
+    }
+
+export const getUpdateGradeUrl = (gradeId: string,) => {
+
+
+
+
+  return `/api/grades/${gradeId}`
+}
+
+export const updateGrade = async (gradeId: string,
+    gradeInput: GradeInput, options?: Parameters<typeof customFetch>[1]): Promise<Grade> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Grade>(getUpdateGradeUrl(gradeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(gradeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateGradeMutationKey = () => ['updateGrade'] as const;
+
+export const getUpdateGradeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGrade>>, TError,UpdateGradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateGrade>>, TError,UpdateGradeMutationVariables, TContext> => {
+
+const mutationKey = getUpdateGradeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateGrade>>, UpdateGradeMutationVariables> = (props) => {
+          const {gradeId,data} = props ?? {};
+
+          return  updateGrade(gradeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateGradeMutationResult = NonNullable<Awaited<ReturnType<typeof updateGrade>>>
+    export type UpdateGradeMutationBody = BodyType<GradeInput>
+    export type UpdateGradeMutationError = ErrorType<unknown>
+    export type UpdateGradeMutationVariables = {gradeId: string;data: BodyType<GradeInput>}
+
+    export const useUpdateGrade = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGrade>>, TError,UpdateGradeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateGrade>>,
+        TError,
+        UpdateGradeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateGradeMutationOptions(options));
+    }
+
+export const getUpdateStreamUrl = (streamId: string,) => {
+
+
+
+
+  return `/api/streams/${streamId}`
+}
+
+export const updateStream = async (streamId: string,
+    streamInput: StreamInput, options?: Parameters<typeof customFetch>[1]): Promise<Stream> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Stream>(getUpdateStreamUrl(streamId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(streamInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateStreamMutationKey = () => ['updateStream'] as const;
+
+export const getUpdateStreamMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStream>>, TError,UpdateStreamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStream>>, TError,UpdateStreamMutationVariables, TContext> => {
+
+const mutationKey = getUpdateStreamMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStream>>, UpdateStreamMutationVariables> = (props) => {
+          const {streamId,data} = props ?? {};
+
+          return  updateStream(streamId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStreamMutationResult = NonNullable<Awaited<ReturnType<typeof updateStream>>>
+    export type UpdateStreamMutationBody = BodyType<StreamInput>
+    export type UpdateStreamMutationError = ErrorType<unknown>
+    export type UpdateStreamMutationVariables = {streamId: string;data: BodyType<StreamInput>}
+
+    export const useUpdateStream = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStream>>, TError,UpdateStreamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStream>>,
+        TError,
+        UpdateStreamMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateStreamMutationOptions(options));
+    }
+
+export const getUpdateGuardianUrl = (guardianId: string,) => {
+
+
+
+
+  return `/api/guardians/${guardianId}`
+}
+
+export const updateGuardian = async (guardianId: string,
+    guardianInput: GuardianInput, options?: Parameters<typeof customFetch>[1]): Promise<Guardian> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Guardian>(getUpdateGuardianUrl(guardianId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(guardianInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateGuardianMutationKey = () => ['updateGuardian'] as const;
+
+export const getUpdateGuardianMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGuardian>>, TError,UpdateGuardianMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateGuardian>>, TError,UpdateGuardianMutationVariables, TContext> => {
+
+const mutationKey = getUpdateGuardianMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateGuardian>>, UpdateGuardianMutationVariables> = (props) => {
+          const {guardianId,data} = props ?? {};
+
+          return  updateGuardian(guardianId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateGuardianMutationResult = NonNullable<Awaited<ReturnType<typeof updateGuardian>>>
+    export type UpdateGuardianMutationBody = BodyType<GuardianInput>
+    export type UpdateGuardianMutationError = ErrorType<unknown>
+    export type UpdateGuardianMutationVariables = {guardianId: string;data: BodyType<GuardianInput>}
+
+    export const useUpdateGuardian = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGuardian>>, TError,UpdateGuardianMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateGuardian>>,
+        TError,
+        UpdateGuardianMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateGuardianMutationOptions(options));
+    }
+
+export const getLinkStudentGuardianUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/students/${studentId}/guardians`
+}
+
+export const linkStudentGuardian = async (studentId: string,
+    guardianLinkInput: GuardianLinkInput, options?: Parameters<typeof customFetch>[1]): Promise<Student> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Student>(getLinkStudentGuardianUrl(studentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(guardianLinkInput)
+  }
+);}
+
+
+
+
+
+export const getLinkStudentGuardianMutationKey = () => ['linkStudentGuardian'] as const;
+
+export const getLinkStudentGuardianMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkStudentGuardian>>, TError,LinkStudentGuardianMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof linkStudentGuardian>>, TError,LinkStudentGuardianMutationVariables, TContext> => {
+
+const mutationKey = getLinkStudentGuardianMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof linkStudentGuardian>>, LinkStudentGuardianMutationVariables> = (props) => {
+          const {studentId,data} = props ?? {};
+
+          return  linkStudentGuardian(studentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LinkStudentGuardianMutationResult = NonNullable<Awaited<ReturnType<typeof linkStudentGuardian>>>
+    export type LinkStudentGuardianMutationBody = BodyType<GuardianLinkInput>
+    export type LinkStudentGuardianMutationError = ErrorType<unknown>
+    export type LinkStudentGuardianMutationVariables = {studentId: string;data: BodyType<GuardianLinkInput>}
+
+    export const useLinkStudentGuardian = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkStudentGuardian>>, TError,LinkStudentGuardianMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof linkStudentGuardian>>,
+        TError,
+        LinkStudentGuardianMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLinkStudentGuardianMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

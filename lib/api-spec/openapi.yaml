@@ -31,6 +31,100 @@ tags:
   - name: audit
     description: Audit history
 paths:
+  /schools:
+    get:
+      operationId: listSchools
+      tags: [school]
+      responses:
+        "200":
+          description: Platform schools
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/School" }
+    post:
+      operationId: createSchool
+      tags: [school]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InitialSetupInput" }
+      responses:
+        "201":
+          description: Provisioned school and school administrator
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/School" }
+  /grades/{gradeId}:
+    patch:
+      operationId: updateGrade
+      tags: [academics]
+      parameters:
+        - { name: gradeId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GradeInput" }
+      responses:
+        "200":
+          description: Updated grade
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Grade" }
+  /streams/{streamId}:
+    patch:
+      operationId: updateStream
+      tags: [academics]
+      parameters:
+        - { name: streamId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StreamInput" }
+      responses:
+        "200":
+          description: Updated stream
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Stream" }
+  /guardians/{guardianId}:
+    patch:
+      operationId: updateGuardian
+      tags: [guardians]
+      parameters:
+        - { name: guardianId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GuardianInput" }
+      responses:
+        "200":
+          description: Updated guardian
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Guardian" }
+  /students/{studentId}/guardians:
+    post:
+      operationId: linkStudentGuardian
+      tags: [students]
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GuardianLinkInput" }
+      responses:
+        "200":
+          description: Student with linked guardian and recalculated family
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Student" }
   /healthz:
     get:
       operationId: healthCheck

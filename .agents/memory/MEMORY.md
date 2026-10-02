@@ -1,0 +1,1 @@
+- [School product scope](school-product-scope.md) — Kenyan schools; follow the supplied seven-phase specification and keep excluded modules out.

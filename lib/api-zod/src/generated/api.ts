@@ -8,6 +8,204 @@
 import * as zod from 'zod';
 
 
+export const ListSchoolsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "createdAt": zod.coerce.date()
+})
+export const ListSchoolsResponse = zod.array(ListSchoolsResponseItem)
+
+
+export const createSchoolBodySchoolNameMin = 2;
+export const createSchoolBodySchoolNameMax = 180;
+
+export const createSchoolBodySchoolCodeMin = 2;
+export const createSchoolBodySchoolCodeMax = 40;
+
+export const createSchoolBodyCountyMax = 100;
+
+export const createSchoolBodyAdminNameMin = 2;
+export const createSchoolBodyAdminNameMax = 160;
+
+export const createSchoolBodyPhoneMin = 9;
+export const createSchoolBodyPhoneMax = 20;
+
+export const createSchoolBodyPasswordMin = 10;
+export const createSchoolBodyPasswordMax = 128;
+
+
+
+export const CreateSchoolBody = zod.object({
+  "schoolName": zod.string().min(createSchoolBodySchoolNameMin).max(createSchoolBodySchoolNameMax),
+  "schoolCode": zod.string().min(createSchoolBodySchoolCodeMin).max(createSchoolBodySchoolCodeMax),
+  "county": zod.string().max(createSchoolBodyCountyMax).optional(),
+  "schoolType": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "adminName": zod.string().min(createSchoolBodyAdminNameMin).max(createSchoolBodyAdminNameMax),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().min(createSchoolBodyPhoneMin).max(createSchoolBodyPhoneMax).optional(),
+  "password": zod.string().min(createSchoolBodyPasswordMin).max(createSchoolBodyPasswordMax)
+})
+
+export const CreateSchoolResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const UpdateGradeParams = zod.object({
+  "gradeId": zod.coerce.string().uuid()
+})
+
+export const updateGradeBodyNameMin = 2;
+export const updateGradeBodyNameMax = 80;
+
+
+
+
+export const UpdateGradeBody = zod.object({
+  "name": zod.string().min(updateGradeBodyNameMin).max(updateGradeBodyNameMax),
+  "levelBand": zod.enum(['pre_primary', 'lower_primary', 'upper_primary', 'junior', 'senior', 'other']),
+  "order": zod.number().int().min(1)
+})
+
+export const UpdateGradeResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "levelBand": zod.enum(['pre_primary', 'lower_primary', 'upper_primary', 'junior', 'senior', 'other']),
+  "order": zod.number().int(),
+  "studentCount": zod.number().int()
+})
+
+
+export const UpdateStreamParams = zod.object({
+  "streamId": zod.coerce.string().uuid()
+})
+
+export const updateStreamBodyNameMax = 60;
+
+
+
+export const UpdateStreamBody = zod.object({
+  "gradeId": zod.string().uuid(),
+  "name": zod.string().min(1).max(updateStreamBodyNameMax),
+  "classTeacherUserId": zod.string().uuid().nullish()
+})
+
+export const UpdateStreamResponse = zod.object({
+  "id": zod.string().uuid(),
+  "gradeId": zod.string().uuid(),
+  "gradeName": zod.string(),
+  "name": zod.string(),
+  "classTeacherUserId": zod.string().uuid().nullish(),
+  "classTeacherName": zod.string().nullish(),
+  "studentCount": zod.number().int()
+})
+
+
+export const UpdateGuardianParams = zod.object({
+  "guardianId": zod.coerce.string().uuid()
+})
+
+export const updateGuardianBodyNameMin = 2;
+export const updateGuardianBodyNameMax = 160;
+
+export const updateGuardianBodyPhoneMin = 9;
+export const updateGuardianBodyPhoneMax = 20;
+
+export const updateGuardianBodyAltPhoneMax = 20;
+
+export const updateGuardianBodyRelationshipMax = 60;
+
+
+
+export const UpdateGuardianBody = zod.object({
+  "name": zod.string().min(updateGuardianBodyNameMin).max(updateGuardianBodyNameMax),
+  "phone": zod.string().min(updateGuardianBodyPhoneMin).max(updateGuardianBodyPhoneMax),
+  "altPhone": zod.string().max(updateGuardianBodyAltPhoneMax).nullish(),
+  "email": zod.string().email().nullish(),
+  "relationship": zod.string().max(updateGuardianBodyRelationshipMax).nullish()
+})
+
+export const UpdateGuardianResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "altPhone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "relationship": zod.string().nullish(),
+  "studentCount": zod.number().int(),
+  "studentNames": zod.array(zod.string())
+})
+
+
+export const LinkStudentGuardianParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const linkStudentGuardianBodyNameMin = 2;
+export const linkStudentGuardianBodyNameMax = 160;
+
+export const linkStudentGuardianBodyPhoneMin = 9;
+export const linkStudentGuardianBodyPhoneMax = 20;
+
+export const linkStudentGuardianBodyAltPhoneMax = 20;
+
+export const linkStudentGuardianBodyRelationshipMin = 2;
+export const linkStudentGuardianBodyRelationshipMax = 60;
+
+export const linkStudentGuardianBodyIsPrimaryDefault = false;
+export const linkStudentGuardianBodyReceivesNotificationsDefault = true;
+
+export const LinkStudentGuardianBody = zod.object({
+  "name": zod.string().min(linkStudentGuardianBodyNameMin).max(linkStudentGuardianBodyNameMax),
+  "phone": zod.string().min(linkStudentGuardianBodyPhoneMin).max(linkStudentGuardianBodyPhoneMax),
+  "altPhone": zod.string().max(linkStudentGuardianBodyAltPhoneMax).nullish(),
+  "email": zod.string().email().nullish(),
+  "relationship": zod.string().min(linkStudentGuardianBodyRelationshipMin).max(linkStudentGuardianBodyRelationshipMax),
+  "isPrimary": zod.boolean().default(linkStudentGuardianBodyIsPrimaryDefault),
+  "receivesNotifications": zod.boolean().default(linkStudentGuardianBodyReceivesNotificationsDefault)
+})
+
+export const LinkStudentGuardianResponse = zod.object({
+  "id": zod.string().uuid(),
+  "admissionNo": zod.string(),
+  "firstName": zod.string(),
+  "middleName": zod.string().nullish(),
+  "lastName": zod.string(),
+  "fullName": zod.string(),
+  "gender": zod.union([zod.literal('male'),zod.literal('female'),zod.literal('other'),zod.literal(null)]).nullish(),
+  "dateOfBirth": zod.coerce.date().nullish(),
+  "gradeId": zod.string().uuid().nullish(),
+  "gradeName": zod.string().nullish(),
+  "streamId": zod.string().uuid().nullish(),
+  "streamName": zod.string().nullish(),
+  "status": zod.enum(['active', 'transferred', 'graduated', 'left']),
+  "boardingStatus": zod.enum(['day', 'boarder']),
+  "admissionDate": zod.coerce.date().nullish(),
+  "upi": zod.string().nullish(),
+  "familyId": zod.string().uuid().nullish(),
+  "guardianNames": zod.array(zod.string()),
+  "guardianPhones": zod.array(zod.string()),
+  "siblingCount": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+
+
 /**
  * Returns server health status
  * @summary Health check

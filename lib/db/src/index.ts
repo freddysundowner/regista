@@ -1,8 +1,4 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
-import * as schema from "./schema";
-
-const { Pool } = pg;
+import { PrismaClient } from "@prisma/client";
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -10,7 +6,6 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
-
-export * from "./schema";
+export const db = new PrismaClient();
+export { Prisma } from "@prisma/client";
+export type { User, School } from "@prisma/client";

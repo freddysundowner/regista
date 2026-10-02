@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model School {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  code String @unique
+  county String?
+  type String
+  address String?
+  phone String?
+  email String?
+  status String @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users User[]
+  years AcademicYear[]
+  terms Term[]
+  grades Grade[]
+  streams Stream[]
+  students Student[]
+  guardians Guardian[]
+  families Family[]
+  logs AuditLog[]
+  @@map("schools")
+}
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  name String
+  email String? @unique
+  phone String? @unique
+  passwordHash String
+  role String
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  streams Stream[]
+  logs AuditLog[]
+  @@index([schoolId])
+  @@map("users")
+}
+model AcademicYear {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  name String
+  startDate DateTime @db.Date
+  endDate DateTime @db.Date
+  isCurrent Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  terms Term[]
+  @@unique([schoolId,name])
+  @@map("academic_years")
+}
+model Term {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  academicYearId String @db.Uuid
+  academicYear AcademicYear @relation(fields:[academicYearId], references:[id])
+  name String
+  startDate DateTime @db.Date
+  endDate DateTime @db.Date
+  isCurrent Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([academicYearId,name])
+  @@index([schoolId])
+  @@map("terms")
+}
+model Grade {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  name String
+  levelBand String
+  order Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  streams Stream[]
+  students Student[]
+  @@unique([schoolId,name])
+  @@map("grades")
+}
+model Stream {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  gradeId String @db.Uuid
+  grade Grade @relation(fields:[gradeId], references:[id])
+  name String
+  classTeacherUserId String? @db.Uuid
+  classTeacher User? @relation(fields:[classTeacherUserId], references:[id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  students Student[]
+  @@unique([gradeId,name])
+  @@index([schoolId])
+  @@map("streams")
+}
+model Student {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  admissionNo String
+  firstName String
+  middleName String?
+  lastName String
+  gender String?
+  dateOfBirth DateTime? @db.Date
+  gradeId String? @db.Uuid
+  grade Grade? @relation(fields:[gradeId], references:[id])
+  streamId String? @db.Uuid
+  stream Stream? @relation(fields:[streamId], references:[id])
+  status String @default("active")
+  boardingStatus String @default("day")
+  admissionDate DateTime? @db.Date
+  upi String?
+  familyId String? @db.Uuid
+  family Family? @relation(fields:[familyId], references:[id])
+  guardians StudentGuardian[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,admissionNo])
+  @@index([schoolId,streamId])
+  @@map("students")
+}
+model Guardian {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  name String
+  phone String
+  altPhone String?
+  email String?
+  relationship String?
+  students StudentGuardian[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,phone])
+  @@map("guardians")
+}
+model StudentGuardian {
+  id String @id @default(uuid()) @db.Uuid
+  studentId String @db.Uuid
+  guardianId String @db.Uuid
+  student Student @relation(fields:[studentId], references:[id])
+  guardian Guardian @relation(fields:[guardianId], references:[id])
+  relationship String
+  isPrimary Boolean @default(false)
+  receivesNotifications Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([studentId,guardianId])
+  @@map("student_guardians")
+}
+model Family {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  name String
+  students Student[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId])
+  @@map("families")
+}
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  userId String? @db.Uuid
+  user User? @relation(fields:[userId], references:[id])
+  action String
+  entityType String
+  entityId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId,createdAt])
+  @@map("audit_logs")
+}
