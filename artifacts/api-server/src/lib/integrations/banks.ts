@@ -5,6 +5,7 @@ import { ApiError, type Actor } from "../core";
 import { money, sum } from "../finance/money";
 import { json } from "../finance/posting";
 import { ingest } from "../payments/pipeline";
+import { nairobiStatementRange } from "../finance/review-invariants";
 
 export interface BankAdapter {
   name: string;
@@ -75,9 +76,10 @@ export async function previewStatement(input: StatementFileInput) {
 }
 export async function reconcileStatement(actor: Actor, input: StatementInput) {
   if (new Date(input.toDate) < new Date(input.fromDate)) throw new ApiError(400, "Invalid statement date range");
-  if (input.rows.some(r => r.provider !== input.provider || new Date(r.transactionTime) < new Date(input.fromDate) || new Date(r.transactionTime) > new Date(input.toDate))) throw new ApiError(400, "Statement rows must match provider and date range");
+  const { from, until } = nairobiStatementRange(input.fromDate, input.toDate);
+  if (until <= from || input.rows.some(r => r.provider !== input.provider || new Date(r.transactionTime) < from || new Date(r.transactionTime) >= until)) throw new ApiError(400, "Statement rows must match provider and inclusive Nairobi date range");
   if (new Set(input.rows.map(r => r.providerTxnId)).size !== input.rows.length) throw new ApiError(400, "Duplicate transaction identities within statement");
-  const existing = await db.incomingPayment.findMany({ where: { schoolId: actor.school.id, provider: input.provider, transactionTime: { gte: input.fromDate, lte: input.toDate } } });
+  const existing = await db.incomingPayment.findMany({ where: { schoolId: actor.school.id, provider: input.provider, transactionTime: { gte: from, lt: until } } });
   const discrepancies: { type: string; providerTxnId: string; detail: string }[] = [];
   for (const row of input.rows) {
     const prior = existing.find(p => p.providerTxnId === row.providerTxnId);

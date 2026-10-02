@@ -5,6 +5,7 @@ import { financeTransaction, json } from "../finance/posting";
 import { money, sum, zero } from "../finance/money";
 import { academicAdmins, academicOwned, classAccess, subjectAccess } from "./access";
 import { queueMessage } from "../integrations/messages";
+import { publicationSnapshot } from "./snapshot";
 
 function requireFields(input: Record<string, any>, fields: string[]) {
   for (const field of fields) if (input[field] === undefined || input[field] === "") throw new ApiError(400, `${field} is required`);
@@ -210,7 +211,13 @@ export async function saveReportCard(actor: Actor, input: ReportCardInput) {
       if (assessments.length) throw new ApiError(409, "Lock assessments before publishing report cards");
     }
     const previous = await tx.reportCard.findUnique({ where: { schoolId_studentId_termId: { schoolId, studentId: student.id, termId: input.termId } } });
-    const data = { classTeacherComment: input.classTeacherComment, headTeacherComment: input.headTeacherComment, nextTermOpeningDate: input.nextTermOpeningDate, ...(input.publish ? { status: "published", publishedAt: new Date(), resultSnapshot: previous?.resultSnapshot ?? json(await termResults(tx, schoolId, student.id, input.termId)) } : {}) };
+    if (previous?.status === "published") throw new ApiError(409, "Published report cards are immutable; revisions are not supported");
+    const comments = {
+      classTeacherComment: input.classTeacherComment ?? previous?.classTeacherComment ?? null,
+      headTeacherComment: input.headTeacherComment ?? previous?.headTeacherComment ?? null,
+      nextTermOpeningDate: input.nextTermOpeningDate ?? previous?.nextTermOpeningDate ?? null,
+    };
+    const data = { ...comments, ...(input.publish ? { status: "published", publishedAt: new Date(), resultSnapshot: json(await publicationSnapshot(tx, schoolId, student.id, input.termId, comments)) } : {}) };
     const card = await tx.reportCard.upsert({ where: { schoolId_studentId_termId: { schoolId, studentId: input.studentId, termId: input.termId } }, create: { schoolId, studentId: input.studentId, termId: input.termId, ...data }, update: data });
     if (input.publish) {
       const guardian = await tx.studentGuardian.findFirst({ where: { schoolId, studentId: student.id, isPrimary: true, receivesNotifications: true }, include: { guardian: true } });

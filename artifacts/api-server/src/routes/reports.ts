@@ -74,7 +74,9 @@ router.post("/jobs/:id/retry", async (req, res) => {
   const message = await db.messageDelivery.findFirst({ where: { id: String(req.params.id), schoolId: req.actor.school.id, status: "failed" } });
   if (message) {
     if (message.template === "otp") throw new ApiError(409, "Request a fresh OTP rather than retrying an expired code");
-    await db.messageDelivery.update({ where: { id: message.id }, data: { status: "queued", attempts: 0, error: null } });
+    if (!message.error?.startsWith("[not submitted] ")) throw new ApiError(409, "Submission outcome is not proven safe to retry; reconcile with the provider");
+    const changed = await db.messageDelivery.updateMany({ where: { id: message.id, schoolId: req.actor.school.id, status: "failed", attempts: message.attempts, error: message.error }, data: { status: "queued", attempts: 0, error: null } });
+    if (!changed.count) throw new ApiError(409, "Message state changed; refresh before retrying");
     res.json({ id: message.id, status: "queued" }); return;
   }
   allow(req, ["super_admin"]);

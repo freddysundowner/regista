@@ -5,7 +5,7 @@ import { ApiError, audit, owned, type Actor } from "../core";
 import { renderFinancePdf } from "../finance/documents";
 import { storedObject } from "../school-files";
 import { academicOwned, classAccess } from "./access";
-import { termResults } from "./service";
+import { publicationSnapshot, requirePublicationSnapshot } from "./snapshot";
 
 export async function signedDocument(actor: Actor, id: string) {
   const record = await db.storedFile.findFirst({ where: { id, schoolId: actor.school.id, status: "ready" } });
@@ -44,23 +44,26 @@ export async function reportCardPdf(actor: Actor, id: string) {
     if (!student.streamId) throw new ApiError(404, "Student not found");
     await classAccess(db, actor, student.streamId);
   }
-  const term = await owned(db, "term", card.termId, actor.school.id);
-  const results = card.resultSnapshot ? card.resultSnapshot as Awaited<ReturnType<typeof termResults>> : await termResults(db, actor.school.id, student.id, term.id);
-  const ratings = await db.learnerRating.findMany({ where: { schoolId: actor.school.id, studentId: student.id, termId: term.id } });
-  const levels = await db.performanceLevel.findMany({ where: { schoolId: actor.school.id, id: { in: ratings.map(r => r.performanceLevelId) } } });
-  const attendance = await db.attendanceRecord.findMany({ where: { schoolId: actor.school.id, studentId: student.id, date: { gte: term.startDate, lte: term.endDate } } });
-  const content: TDocumentDefinitions["content"] = [
-    { text: actor.school.name, fontSize: 20, bold: true }, { text: `${term.name} learner report`, fontSize: 16 },
-    { text: `${student.firstName} ${student.lastName} — ${student.admissionNo}`, margin: [0, 12, 0, 12] },
-    { table: { headerRows: 1, widths: ["*", "auto", "auto"], body: [["Learning area", "Percent", "Level"], ...results.map(r => [r.learningArea, r.percent ?? "—", r.level ?? "Not assessed"])] } },
-    { text: "Competencies and values", bold: true, margin: [0, 12, 0, 8] },
-    ...ratings.map(r => ({ text: `${r.category}: ${r.code.replace(/_/g, " ")} — ${levels.find(l => l.id === r.performanceLevelId)?.code ?? "—"}` })),
-    { text: `Attendance: ${attendance.filter(a => ["present", "late"].includes(a.status)).length} attended of ${attendance.length} recorded school days`, margin: [0, 12, 0, 8] },
-    { text: `Class teacher: ${card.classTeacherComment ?? ""}` }, { text: `Head teacher: ${card.headTeacherComment ?? ""}` },
-    { text: `Next term opens: ${card.nextTermOpeningDate?.toISOString().slice(0, 10) ?? "To be communicated"}`, margin: [0, 12, 0, 0] },
-  ];
+  const snapshot = card.status === "published" ? requirePublicationSnapshot(card.resultSnapshot) :
+    await publicationSnapshot(db, actor.school.id, student.id, card.termId, card);
   // Intentionally no finance lookup or fee-dependent publication condition.
-  const document = await savePdf(actor, "report_card", card.id, content);
-  await db.reportCard.update({ where: { id: card.id }, data: { fileId: document.id } });
+  const document = await savePdf({ ...actor, school: { ...actor.school, logoUrl: snapshot.school.logoUrl } }, "report_card", card.id, reportCardContent(snapshot, card.status === "published"));
+  await db.reportCard.updateMany({ where: { id: card.id, schoolId: actor.school.id }, data: { fileId: document.id } });
   return document;
+}
+export function reportCardContent(snapshot: ReturnType<typeof requirePublicationSnapshot>, published: boolean): TDocumentDefinitions["content"] {
+  const { term, results, ratings, attendance, comments } = snapshot;
+  const learner = snapshot.student;
+  const content: TDocumentDefinitions["content"] = [
+    { text: snapshot.school.name, fontSize: 20, bold: true }, { text: `${term.name} learner report${published ? "" : " — DRAFT"}`, fontSize: 16 },
+    { text: `${learner.firstName} ${learner.middleName ?? ""} ${learner.lastName} — ${learner.admissionNo}`, margin: [0, 12, 0, 12] },
+    { text: `${learner.gradeName ?? ""} ${learner.streamName ?? ""}` },
+    { table: { headerRows: 1, widths: ["*", "auto", "auto"], body: [["Learning area", "Percent", "Level"], ...results.map((r: any) => [r.learningArea, r.percent ?? "—", r.level ?? "Not assessed"])] } },
+    { text: "Competencies and values", bold: true, margin: [0, 12, 0, 8] },
+    ...ratings.map((r: any) => ({ text: `${r.category}: ${r.code.replace(/_/g, " ")} — ${r.level ?? "—"}` })),
+    { text: `Attendance: ${attendance.filter((a: any) => ["present", "late"].includes(a.status)).length} attended of ${attendance.length} recorded school days`, margin: [0, 12, 0, 8] },
+    { text: `Class teacher: ${comments.classTeacherComment ?? ""}` }, { text: `Head teacher: ${comments.headTeacherComment ?? ""}` },
+    { text: `Next term opens: ${comments.nextTermOpeningDate ? new Date(comments.nextTermOpeningDate).toISOString().slice(0, 10) : "To be communicated"}`, margin: [0, 12, 0, 0] },
+  ];
+  return content;
 }

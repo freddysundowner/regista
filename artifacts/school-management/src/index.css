@@ -439,3 +439,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:100;o
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .rise{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
 .rise-1{animation-delay:.05s}.rise-2{animation-delay:.1s}.rise-3{animation-delay:.15s}.rise-4{animation-delay:.2s}
+
+/* Read-only support session: saves are visibly unavailable (the API refuses them too). */
+main[data-readonly] form:not([data-readonly-safe]) button[type="submit"],
+body:has(main[data-readonly]) [role="dialog"] form:not([data-readonly-safe]) button[type="submit"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

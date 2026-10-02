@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
+import platformRouter from "./platform";
 import staffRouter from "./staff";
 import academicsRouter from "./academics";
 import studentsRouter from "./students";
@@ -12,6 +13,7 @@ import promotionsRouter from "./promotions";
 import storageRouter from "./storage";
 import financeRouter from "./finance";
 import providerCallbacks from "./provider-callbacks";
+import messageDeliveryCallbacks from "./message-delivery-callbacks";
 import botRouter from "./bot";
 import collectionsRouter from "./collections";
 import learningRouter from "./learning";
@@ -22,7 +24,9 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(platformRouter);
 router.use(providerCallbacks);
+router.use(messageDeliveryCallbacks);
 router.use(botRouter);
 router.use(authenticate);
 router.use(collectionsRouter);

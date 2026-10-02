@@ -1,5 +1,15 @@
 paths:
   update:
+    get:
+      operationId: getFinanceRecord
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: School-scoped direct finance record lookup
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceRecord' }
     patch:
       operationId: updateFinanceRecord
       parameters:
@@ -21,9 +31,18 @@ paths:
       parameters:
         - { name: kind, in: query, schema: { type: string } }
         - { name: studentId, in: query, schema: { type: string, format: uuid } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: id, in: query, schema: { type: string, format: uuid } }
       responses:
         '200':
-          description: School-scoped finance records
+          description: School-scoped records. Supply page for explicit pagination; omitting page preserves complete legacy arrays without truncation.
+          headers:
+            X-Total-Count:
+              schema: { type: integer }
+              description: Total matching records before pagination
           content:
             application/json:
               schema: { type: array, items: { $ref: '#/components/schemas/FinanceRecord' } }
@@ -228,6 +247,7 @@ components:
       type: object
       required: [termId, dueDate]
       properties:
+        previewToken: { type: string, description: Required on commit; durable school-scoped exact preview identity. }
         termId: { type: string, format: uuid }
         gradeId: { type: string, format: uuid }
         dueDate: { type: string, format: date }
@@ -244,6 +264,7 @@ components:
       type: object
       required: [invoices]
       properties:
+        previewToken: { type: string }
         invoices: { type: array, items: { $ref: '#/components/schemas/InvoiceProposal' } }
     FinanceOverview:
       type: object

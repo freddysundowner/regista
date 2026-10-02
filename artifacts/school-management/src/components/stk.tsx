@@ -8,13 +8,16 @@ import { FormDialog } from "@/components/form-dialog";
 
 import { useFinanceInvalidate, useIdemKey, validMoney } from "@/lib/finance";
 
-const WAITING = ["submitting", "pending", "awaiting_receipt"];
+const WAITING = ["submitting", "pending", "awaiting_receipt", "processing", "received"];
 const LABEL: Record<string, { tone: string; text: string }> = {
+  processing: { tone: "duplicate", text: "Confirmation received; ledger posting is still pending. Not posted yet." },
+  received: { tone: "duplicate", text: "Confirmation received; waiting for processing. Not posted yet." },
+  reconciliation_required: { tone: "error", text: "Receipt received but the learner allocation needs reconciliation. This prompt is not confirmed as paid to this learner." },
   submitting: { tone: "current", text: "Sending prompt" },
   pending: { tone: "duplicate", text: "Prompt accepted by Safaricom; waiting for the payer. Not paid yet." },
   awaiting_receipt: { tone: "duplicate", text: "Payer approved; waiting for the M-Pesa confirmation before posting. Not paid yet." },
   submission_unknown: { tone: "error", text: "Unknown whether the prompt was sent. Do not resend; check incoming payments shortly." },
-  failed: { tone: "error", text: "Prompt failed or was cancelled. Nothing was paid." },
+  failed: { tone: "error", text: "Provider reported a failed or cancelled prompt. If money was deducted, check incoming receipts before sending another prompt." },
   paid: { tone: "active", text: "Paid and posted to the learner's account." },
 };
 

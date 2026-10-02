@@ -49,7 +49,7 @@ router.patch("/users/:userId", async (req, res) => {
         throw new ApiError(409, "The last active school administrator cannot be deactivated or demoted");
       }
     }
-    const user = await tx.user.update({ where: { id: userId }, data });
+    const user = await tx.user.update({ where: { id: userId }, data: { ...data, ...((data.role !== undefined && data.role !== old.role) || (data.isActive !== undefined && data.isActive !== old.isActive) ? { sessionVersion: { increment: 1 } } : {}) } });
     await audit(tx, req.actor, "updated", "user", userId); return user;
   });
   send(res, "UpdateUser", user);

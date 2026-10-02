@@ -5,8 +5,14 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { ReportCardViewResultSnapshot } from './reportCardViewResultSnapshot';
 
 export interface ReportCardView {
+  /**
+     * Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.
+     * @nullable
+     */
+  resultSnapshot?: ReportCardViewResultSnapshot;
   id: string;
   studentId: string;
   termId: string;

@@ -138,7 +138,11 @@ router.post("/report-cards/:id/send", async (req, res) => {
   const { queueMessage, messageReadiness } = await import("../lib/integrations/messages");
   await messageReadiness(req.actor.school.id, "whatsapp", "report_card_ready", guardian.guardianId);
   const message = await queueMessage(db, req.actor.school.id, { guardianId: guardian.guardianId, phone: guardian.guardian.phone, channel: "whatsapp", template: "report_card_ready", content: `${student.firstName}'s report card is available. Verify your identity to access results.`, idempotencyKey: `report-card:${card.id}` });
-  if (message.status === "failed") await db.messageDelivery.update({ where: { id: message.id }, data: { status: "queued", attempts: 0, error: null } });
+  if (message.status === "failed") {
+    if (!message.error?.startsWith("[not submitted] ")) throw new ApiError(409, "Submission outcome is not proven safe to retry; reconcile with the provider");
+    const changed = await db.messageDelivery.updateMany({ where: { id: message.id, schoolId: req.actor.school.id, status: "failed", attempts: message.attempts, error: message.error }, data: { status: "queued", attempts: 0, error: null } });
+    if (!changed.count) throw new ApiError(409, "Message state changed; refresh before retrying");
+  }
   res.json({ id: message.id, status: message.status === "failed" ? "queued" : message.status, message: "Notification queued/submitted status is not proof of delivery" });
 });
 router.get("/attendance", async (req, res) => {

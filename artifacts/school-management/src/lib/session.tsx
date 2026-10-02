@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { AuthSession, UserRole } from "@workspace/api-client-react";
+import type { AuthSession, School, UserRole } from "@workspace/api-client-react";
 
 const Ctx = createContext<AuthSession | null>(null);
 
@@ -7,10 +7,26 @@ export function SessionProvider({ session, children }: { session: AuthSession; c
   return <Ctx.Provider value={session}>{children}</Ctx.Provider>;
 }
 
-export function useSession() {
+/** Raw session: school may be null (platform mode). Use in platform pages, shell and account. */
+export function useAuthSession() {
   const s = useContext(Ctx);
   if (!s) throw new Error("No session");
   return s;
+}
+
+export type TenantSession = AuthSession & { school: School };
+
+/** Tenant workspace session. Tenant routes only render when mode is tenant and a school is bound. */
+export function useSession(): TenantSession {
+  const s = useAuthSession();
+  if (!s.school) throw new Error("This page needs a school workspace. Return to the platform console.");
+  return s as TenantSession;
+}
+
+/** True when a platform owner is inside a school with a read-only support grant. */
+export function useReadOnly() {
+  const s = useAuthSession();
+  return s.mode === "tenant" && !!s.tenantAccess && !s.tenantAccess.writeEnabled;
 }
 
 const ADMIN: UserRole[] = ["super_admin", "school_admin"];
@@ -43,7 +59,7 @@ export function permissions(role: UserRole) {
 }
 
 export function usePerms() {
-  return permissions(useSession().user.role);
+  return permissions(useAuthSession().user.role);
 }
 
 export const ROLE_LABEL: Record<UserRole, string> = {

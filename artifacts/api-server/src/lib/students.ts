@@ -5,15 +5,15 @@ import { ApiError, owned, phone, contacts, body, audit, teacher, streamAccess, v
 
 export const studentInclude = {
   grade: true, stream: true, guardians: { include: { guardian: true } },
-  family: { include: { students: { select: { id: true, stream: { select: { classTeacherUserId: true, assignments: { select: { userId: true } } } } } } } },
+  family: { include: { students: { select: { id: true, schoolId: true, stream: { select: { classTeacherUserId: true, assignments: { select: { userId: true, schoolId: true } }, subjectAssignments: { select: { userId: true, schoolId: true } } } } } } } },
 } as const;
 export const fullName = (student: { firstName: string; middleName?: string | null; lastName: string }) =>
   [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" ");
 export const scope = (req: Request): Prisma.StudentWhereInput => ({
-  schoolId: req.actor.school.id, ...(teacher(req) ? { stream: streamAccess(req.actor.user.id) } : {}),
+  schoolId: req.actor.school.id, ...(teacher(req) ? { stream: streamAccess(req.actor.user.id, req.actor.school.id) } : {}),
 });
 export function studentView(student: any, req?: Request) {
-  const siblings = student.family?.students.filter((s: any) => !req || !teacher(req) || s.stream?.classTeacherUserId === req.actor.user.id || s.stream?.assignments?.some((a: any) => a.userId === req.actor.user.id)) ?? [];
+  const siblings = student.family?.students.filter((s: any) => s.schoolId === student.schoolId && (!req || !teacher(req) || s.stream?.classTeacherUserId === req.actor.user.id || [...(s.stream?.assignments ?? []), ...(s.stream?.subjectAssignments ?? [])].some((a: any) => a.userId === req.actor.user.id && a.schoolId === req.actor.school.id))) ?? [];
   return { ...student, fullName: fullName(student), gradeName: student.grade?.name ?? null, streamName: student.stream?.name ?? null,
     guardianNames: student.guardians.map((l: any) => l.guardian.name),
     guardianPhones: student.guardians.map((l: any) => l.guardian.phone), siblingCount: Math.max(0, siblings.length - 1) };

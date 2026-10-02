@@ -5,10 +5,29 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { PlatformSchoolUpdateConfirmation } from './platformSchoolUpdateConfirmation';
 import type { PlatformSchoolUpdateStatus } from './platformSchoolUpdateStatus';
 import type { PlatformSchoolUpdateSubscriptionStatus } from './platformSchoolUpdateSubscriptionStatus';
+import type { SchoolType } from './schoolType';
 
 export interface PlatformSchoolUpdate {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  confirmation: PlatformSchoolUpdateConfirmation;
+  /**
+     * @minLength 2
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  county?: string | null;
+  type?: SchoolType;
   status?: PlatformSchoolUpdateStatus;
   /**
      * @minLength 1

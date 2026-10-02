@@ -1,8 +1,8 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, useEffect, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListIncomingPayments, useIngestIncomingPayment, useListPaymentExceptions, useResolvePaymentException, usePreviewBankStatement, useReconcileStatement,
-  useListReconciliationRuns, useAllocateSponsorPayment, useListStudents, getListStudentsQueryKey,
+  useListReconciliationRuns, useAllocateSponsorPayment, useListStudents, getListStudentsQueryKey, useListSponsorBatches, getListSponsorBatchesQueryKey,
   getListIncomingPaymentsQueryKey, getListPaymentExceptionsQueryKey, getListReconciliationRunsQueryKey,
   type IncomingPaymentView, type ExceptionView, type ResolutionInputAction, type IncomingInput, type IncomingInputChannel, type StatementFileInputFormat, type SponsorInputType,
 } from "@workspace/api-client-react";
@@ -161,7 +161,7 @@ function SponsorAllocate({ pays, onDone }: { pays: IncomingPaymentView[]; onDone
   const m = useAllocateSponsorPayment(); const inv = useReconInvalidate(); const { toast } = useToast();
   const sponsors = useFinanceRecords({ kind: "sponsor" });
   const students = useListStudents(undefined, { query: { queryKey: getListStudentsQueryKey() } });
-  const eligible = pays.filter((x) => ["received", "unmatched", "suspended"].includes(x.status));
+  const eligible = pays.filter((x) => ["received", "unmatched", "suspended", "sponsor_remainder_held"].includes(x.status));
   const [f, setF] = useState({ paymentId: "", sponsorId: "", type: "bursary" as SponsorInputType, reason: "", remainderReason: "" });
   const [rows, setRows] = useState<Split[]>([]);
   const [sheet, setSheet] = useState<{ header: string[]; rows: string[][] } | null>(null);
@@ -296,9 +296,17 @@ function Runs() {
 export default function Reconciliation() {
   const p = usePerms();
   const [status, setStatus] = useState("");
-  const params = status ? { status } : undefined;
-  const q = useListIncomingPayments(params, { query: { queryKey: getListIncomingPaymentsQueryKey(params) } });
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const params = { status, page, pageSize: 50, search };
+  useEffect(() => setPage(1), [status]);
+  const q = useListIncomingPayments(params, { query: { queryKey: getListIncomingPaymentsQueryKey(params), refetchInterval: 30000 } });
   const all = useListIncomingPayments(undefined, { query: { queryKey: getListIncomingPaymentsQueryKey() } });
+  const batches = useListSponsorBatches({ query: { queryKey: getListSponsorBatchesQueryKey() } });
+  const sponsorPays = (all.data ?? []).map(payment => {
+    const batch = batches.data?.find(b => b.paymentId === payment.id);
+    return payment.status === "sponsor_remainder_held" && batch ? { ...payment, amount: batch.heldAmount } : payment;
+  });
   const pays = useMemo(() => new Map((all.data ?? []).map((x) => [x.id, x])), [all.data]);
   const [ingest, setIngest] = useState(false);
   const [flow, setFlow] = useState<"sponsor" | "statement" | null>(null);
@@ -313,10 +321,11 @@ export default function Reconciliation() {
       </PageHeader>
       {p.bursar && <>
         <FormDialog open={ingest} onOpenChange={setIngest} size="lg" title="Enter an incoming credit" description="For credits seen on a bank or M-Pesa statement. The same reference never posts twice."><Ingest onDone={() => setIngest(false)} /></FormDialog>
-        <FormDialog open={flow === "sponsor"} onOpenChange={(o) => setFlow(o ? "sponsor" : null)} size="full" title="Allocate a sponsor lump sum" description="Spread one NG-CDF, county or NGO payment across learners. Credits wait for approval."><SponsorAllocate pays={all.data ?? []} onDone={() => setFlow(null)} /></FormDialog>
+        <FormDialog open={flow === "sponsor"} onOpenChange={(o) => setFlow(o ? "sponsor" : null)} size="full" title="Allocate sponsor funds" description="Allocate an incoming lump sum or remaining held funds. Credits wait for independent approval."><SponsorAllocate pays={sponsorPays} onDone={() => setFlow(null)} /></FormDialog>
         <FormDialog open={flow === "statement"} onOpenChange={(o) => setFlow(o ? "statement" : null)} size="full" title="Import a bank statement" description="Upload a CSV, Excel or MT940 statement, map columns, preview, then commit. New credits go through matching."><Statement onDone={() => setFlow(null)} /></FormDialog>
       </>}
       <Queue pays={pays} />
+      <TextInput aria-label="Search incoming payments" placeholder="Search reference, payer or phone" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
       <Panel title="Incoming payments" action={<NativeSelect aria-label="Status" className="h-8 w-40 text-xs" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option>{["received", "matched", "unmatched", "suspended", "sponsor_pending", "duplicate"].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}</NativeSelect>}>
         {q.isLoading ? <SkeletonRows cols={6} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<ArrowLeftRight className="h-5 w-5" />} title="Nothing received" body="Paybill confirmations, STK results and statement credits appear here." /> : (
           <Table head={["Reference", "Channel", "Payer", "Amount", "Time", "Status"]}>{q.data.map((x) => (
@@ -326,6 +335,7 @@ export default function Reconciliation() {
         )}
       </Panel>
       <CollectionRefundsPanel />
+      <div className="flex items-center justify-end gap-3"><Btn variant="outline" disabled={page === 1 || q.isFetching} onClick={() => setPage(page - 1)}>Previous</Btn><span>Incoming payments · page {page}</span><Btn variant="outline" disabled={(q.data?.length ?? 0) < 50 || q.isFetching} onClick={() => setPage(page + 1)}>Next</Btn></div>
       <SponsorBatchesPanel />
       <Runs />
     </div>

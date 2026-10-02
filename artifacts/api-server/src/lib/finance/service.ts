@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { FinanceInput, InvoiceBatchInput } from "@workspace/api-zod";
 import { Prisma, type FinanceRecord } from "@workspace/db";
 import { ApiError, audit, owned, validDate, type Actor, type Tx } from "../core";
@@ -179,18 +179,28 @@ export async function decideRecord(tx: Tx, actor: Actor, id: string, decision: "
   return updated;
 }
 
-export async function invoiceBatch(tx: Tx, actor: Actor, input: InvoiceBatchInput, commit: boolean) {
+export async function invoiceBatch(tx: Tx, actor: Actor, input: InvoiceBatchInput, commit: boolean, previewToken?: string) {
   const schoolId = actor.school.id;
   const term = await owned(tx, "term", input.termId, schoolId);
   if (input.gradeId) await owned(tx, "grade", input.gradeId, schoolId);
   const dueDate = dateString(input.dueDate)!;
+  const scope = json({ termId: input.termId, gradeId: input.gradeId, dueDate });
+  if (commit && previewToken) {
+    const prior = await record(tx, schoolId, previewToken, "invoice_preview");
+    if (prior.requestedBy !== actor.user.id) throw new ApiError(403, "Preview belongs to another operator");
+    if (prior.status === "committed") {
+      const old = metadata(prior).scope;
+      if (old.termId !== input.termId || old.gradeId !== input.gradeId || old.dueDate !== dueDate) throw new ApiError(409, "Commit input differs from preview");
+      return metadata(prior).result;
+    }
+  }
   const students = await tx.student.findMany({ where: { schoolId, status: "active", ...(input.gradeId ? { gradeId: input.gradeId } : {}) }, orderBy: { admissionNo: "asc" } });
-  const structures = await tx.financeRecord.findMany({ where: { schoolId, kind: "fee_structure", termId: input.termId, status: "approved" } });
+  const structures = await tx.financeRecord.findMany({ where: { schoolId, kind: "fee_structure", termId: input.termId, status: "approved" }, orderBy: { id: "asc" } });
   const invoices = [];
   for (const student of students) {
     const existing = await tx.financeRecord.findUnique({ where: { schoolId_kind_uniqueKey: { schoolId, kind: "invoice", uniqueKey: `term:${student.id}:${input.termId}` } } });
     if (existing) {
-      const lines = await tx.invoiceLine.findMany({ where: { schoolId, invoiceId: existing.id } });
+      const lines = await tx.invoiceLine.findMany({ where: { schoolId, invoiceId: existing.id }, orderBy: { id: "asc" } });
       invoices.push({ studentId: student.id, amount: existing.amount.toFixed(2), existing: true, invoiceId: existing.id, lines: lines.map(l => ({ feeItemId: l.feeItemId, amount: l.amount.toFixed(2), description: l.description })) }); continue;
     }
     const matches = structures.filter(s => metadata(s).gradeId === student.gradeId && (!metadata(s).boardingStatus || metadata(s).boardingStatus === student.boardingStatus));
@@ -199,15 +209,34 @@ export async function invoiceBatch(tx: Tx, actor: Actor, input: InvoiceBatchInpu
     const selected = specific.length ? specific : matches;
     if (selected.length !== 1) throw new ApiError(409, `Student ${student.admissionNo} needs exactly one applicable approved fee structure`);
     const lines = [...metadata(selected[0]).lines] as { feeItemId: string; amount: string; description?: string }[];
-    const optional = await tx.financeRecord.findMany({ where: { schoolId, studentId: student.id, kind: "optional_charge", status: "active", OR: [{ termId: null }, { termId: input.termId }] } });
+    const optional = await tx.financeRecord.findMany({ where: { schoolId, studentId: student.id, kind: "optional_charge", status: "active", OR: [{ termId: null }, { termId: input.termId }] }, orderBy: { id: "asc" } });
     for (const charge of optional) {
       const c = metadata(charge);
       if (c.startDate > term.endDate.toISOString().slice(0, 10) || (c.endDate && c.endDate < term.startDate.toISOString().slice(0, 10))) continue;
       lines.push({ feeItemId: c.feeItemId, amount: charge.amount.toFixed(2) });
     }
     const proposal = { studentId: student.id, amount: sum(lines.map(l => money(l.amount))).toFixed(2), lines, existing: false, invoiceId: undefined as string | undefined };
-    if (commit) proposal.invoiceId = (await postInvoice(tx, actor, { studentId: student.id, termId: input.termId, uniqueKey: `term:${student.id}:${input.termId}`, dueDate, lines, type: "term" })).id;
     invoices.push(proposal);
   }
-  return { invoices };
+  // Persist the exact proposal and all underlying configuration/roster identities.
+  // A server-generated unguessable record ID binds commit to this school's preview.
+  const snapshot = json({ input: { termId: input.termId, gradeId: input.gradeId, dueDate }, invoices, students, structures,
+    charges: await tx.financeRecord.findMany({ where: { schoolId, kind: { in: ["optional_charge", "fee_item", "adjustment"] } }, orderBy: { id: "asc" } }) });
+  if (!commit) {
+    const preview = await tx.financeRecord.create({ data: { schoolId, kind: "invoice_preview", uniqueKey: randomUUID(), status: "preview", requestedBy: actor.user.id, data: snapshot } });
+    return { invoices, previewToken: preview.id };
+  }
+  if (!previewToken) throw new ApiError(409, "Preview this batch before committing");
+  const preview = await record(tx, schoolId, previewToken, "invoice_preview");
+  if (preview.requestedBy !== actor.user.id) throw new ApiError(403, "Preview belongs to another operator");
+  if (preview.status === "committed") return metadata(preview).result;
+  const canonical = (value: any): any => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+  const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
+  if (hash(preview.data) !== hash(snapshot)) throw new ApiError(409, "Preview is stale. Preview again before committing");
+  for (const proposal of invoices) if (!proposal.existing) {
+    proposal.invoiceId = (await postInvoice(tx, actor, { studentId: proposal.studentId, termId: input.termId, uniqueKey: `term:${proposal.studentId}:${input.termId}`, dueDate, lines: proposal.lines, type: "term" })).id;
+  }
+  const result = { invoices, previewToken };
+  await tx.financeRecord.update({ where: { id: preview.id }, data: { status: "committed", data: json({ result, scope, snapshot, snapshotHash: hash(snapshot) }) } });
+  return result;
 }

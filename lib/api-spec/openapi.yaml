@@ -31,12 +31,182 @@ tags:
   - name: audit
     description: Audit history
 paths:
+  /platform/overview:
+    get:
+      operationId: getPlatformOverview
+      responses:
+        "200":
+          description: Operational platform totals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformOverview" }
+  /platform/schools:
+    get:
+      operationId: listPlatformSchools
+      responses:
+        "200":
+          description: Schools
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/School" } }
+    post:
+      operationId: provisionPlatformSchool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformProvisionInput" }
+      responses:
+        "201":
+          description: Provisioned school
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/School" }
+  /platform/schools/{schoolId}:
+    parameters:
+      - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getPlatformSchool
+      responses:
+        "200":
+          description: School
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/School" }
+    patch:
+      operationId: editPlatformSchool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformSchoolUpdate" }
+      responses:
+        "200":
+          description: Updated school
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/School" }
+  /platform/schools/{schoolId}/admins:
+    parameters:
+      - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listPlatformAdmins
+      responses:
+        "200":
+          description: Administrators
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/User" } }
+    post:
+      operationId: createPlatformAdmin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformAdminInput" }
+      responses:
+        "201":
+          description: Administrator
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+  /platform/schools/{schoolId}/admins/{userId}:
+    parameters:
+      - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: editPlatformAdmin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformAdminUpdate" }
+      responses:
+        "200":
+          description: Administrator
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+  /platform/schools/{schoolId}/admins/{userId}/reset-password:
+    parameters:
+      - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: resetPlatformAdminPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformPasswordInput" }
+      responses:
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformMessage" }
+  /platform/audit:
+    get:
+      operationId: listPlatformAudit
+      parameters:
+        - { name: schoolId, in: query, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 1000000, default: 1 } }
+        - { name: action, in: query, description: Exact action filter applied across all history, schema: { type: string, minLength: 1, maxLength: 160 } }
+        - { name: search, in: query, description: Case-insensitive reason/action/entity substring search across all history, schema: { type: string, minLength: 1, maxLength: 200 } }
+      responses:
+        "200":
+          description: Server-paginated platform audit, newest first with stable ID tie-break. Array shape and default first page preserve overview limit callers.
+          headers:
+            X-Total-Count:
+              description: Matching rows across all pages
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/PlatformAudit" } }
+  /platform/tenant-access:
+    post:
+      operationId: enterTenantAccess
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantAccessInput" }
+      responses:
+        "200":
+          description: Tenant session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
+  /platform/tenant-access/exit:
+    post:
+      operationId: exitTenantAccess
+      responses:
+        "200":
+          description: Platform session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
   /integrations/config:
     $ref: './remaining.yaml#/paths/integrations'
   /integrations/daraja/register:
     $ref: './remaining.yaml#/paths/registration'
   /payments/incoming:
     $ref: './remaining.yaml#/paths/payments'
+  /payments/incoming/{id}:
+    get:
+      operationId: getIncomingPayment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: School-scoped payment, excluding raw provider payload
+          content:
+            application/json:
+              schema: { $ref: './remaining.yaml#/components/schemas/IncomingPaymentView' }
+        "404":
+          description: Payment not accessible in this school
+  /integrations/message-delivery/events/{token}:
+    $ref: './remaining.yaml#/paths/messageDeliveryGateway'
   /payments/stk:
     $ref: './remaining.yaml#/paths/stk'
   /payments/stk/{id}:
@@ -51,6 +221,23 @@ paths:
     $ref: './remaining.yaml#/paths/statements'
   /reconciliation/sponsors:
     $ref: './remaining.yaml#/paths/sponsor'
+  /reconciliation/sponsors/{id}/refund:
+    post:
+      operationId: refundSponsorRemainder
+      description: Bursar-only request reserving held suspense balance for independent refund approval and disbursement.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SponsorRefundInput' }
+      responses:
+        "200":
+          description: Pending refund request
+          content:
+            application/json:
+              schema: { $ref: './remaining.yaml#/components/schemas/CollectionRefundView' }
   /payment-plans:
     $ref: './remaining.yaml#/paths/plans'
   /payment-plans/{id}/decision:
@@ -346,7 +533,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/InitialSetupInput" }
+            schema: { $ref: "#/components/schemas/PlatformProvisionInput" }
       responses:
         "201":
           description: Provisioned school and school administrator
@@ -1111,8 +1298,101 @@ components:
       type: object
       properties:
         user: { $ref: "#/components/schemas/User" }
-        school: { $ref: "#/components/schemas/School" }
-      required: [user, school]
+        school:
+          anyOf:
+            - { $ref: "#/components/schemas/School" }
+            - { type: "null" }
+        mode: { type: string, enum: [platform, tenant] }
+        tenantAccess:
+          anyOf:
+            - { $ref: "#/components/schemas/TenantAccess" }
+            - { type: "null" }
+      required: [user, school, mode, tenantAccess]
+    PlatformMessage:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+    SponsorRefundInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1 }
+    PlatformConfirmation:
+      type: object
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        confirmation: { type: string, enum: [CONFIRM] }
+      required: [reason, confirmation]
+    PlatformProvisionInput:
+      allOf:
+        - { $ref: "#/components/schemas/InitialSetupInput" }
+        - { $ref: "#/components/schemas/PlatformConfirmation" }
+    PlatformAdminInput:
+      allOf:
+        - { $ref: "#/components/schemas/PlatformAdminUpdate" }
+        - type: object
+          properties:
+            password: { type: string, minLength: 10, maxLength: 128 }
+          required: [name, password]
+    PlatformAdminUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"], minLength: 9, maxLength: 20 }
+        isActive: { type: boolean }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        confirmation: { type: string, enum: [CONFIRM] }
+      required: [reason, confirmation]
+    PlatformPasswordInput:
+      allOf:
+        - { $ref: "#/components/schemas/PlatformConfirmation" }
+        - type: object
+          properties:
+            password: { type: string, minLength: 10, maxLength: 128 }
+          required: [password]
+    TenantAccessInput:
+      allOf:
+        - { $ref: "#/components/schemas/PlatformConfirmation" }
+        - type: object
+          properties:
+            schoolId: { type: string, format: uuid }
+            writeEnabled: { type: boolean, default: false }
+            durationMinutes: { type: integer, minimum: 5, maximum: 120, default: 30 }
+          required: [schoolId]
+    TenantAccess:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        schoolId: { type: string, format: uuid }
+        reason: { type: string }
+        writeEnabled: { type: boolean }
+        expiresAt: { type: string, format: date-time }
+      required: [id, schoolId, reason, writeEnabled, expiresAt]
+    PlatformOverview:
+      type: object
+      properties:
+        schools: { type: integer }
+        activeSchools: { type: integer }
+        suspendedSchools: { type: integer }
+        activeSubscriptions: { type: integer }
+        administrators: { type: integer }
+      required: [schools, activeSchools, suspendedSchools, activeSubscriptions, administrators]
+    PlatformAudit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actorId: { type: string, format: uuid }
+        schoolId: { type: ["string", "null"], format: uuid }
+        grantId: { type: ["string", "null"], format: uuid }
+        action: { type: string }
+        reason: { type: string }
+        entityId: { type: ["string", "null"] }
+        before: {}
+        after: {}
+        createdAt: { type: string, format: date-time }
+      required: [id, actorId, schoolId, grantId, action, reason, entityId, createdAt]
     SchoolUpdate:
       type: object
       properties:
@@ -1456,6 +1736,10 @@ components:
       type: object
       additionalProperties: false
       properties:
+        highValuePaymentThreshold:
+          type: string
+          pattern: '^\d{1,12}(\.\d{1,2})?$'
+          description: Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.
         autoPostThreshold: { type: integer, minimum: 0, maximum: 150 }
         fuzzyNameThreshold: { type: number, minimum: 0.8, maximum: 1 }
         matchingScores:
@@ -1498,7 +1782,13 @@ components:
     PlatformSchoolUpdate:
       type: object
       additionalProperties: false
+      required: [reason, confirmation]
       properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        confirmation: { type: string, enum: [CONFIRM] }
+        name: { type: string, minLength: 2, maxLength: 180 }
+        county: { type: ["string", "null"], maxLength: 100 }
+        type: { $ref: "#/components/schemas/SchoolType" }
         status: { type: string, enum: [active, suspended] }
         subscriptionPlan: { type: string, minLength: 1, maxLength: 80 }
         subscriptionStatus: { type: string, enum: [trial, active, expired, cancelled] }

@@ -192,6 +192,11 @@ export type SchoolSettingsMessageTemplates = {[key: string]: {
  */
 export interface SchoolSettings {
   /**
+     * Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.
+     * @pattern ^\d{1,12}(\.\d{1,2})?$
+     */
+  highValuePaymentThreshold?: string;
+  /**
      * @minimum 0
      * @maximum 150
      */
@@ -327,9 +332,140 @@ export interface User {
   createdAt: string;
 }
 
+export type AuthSessionMode = typeof AuthSessionMode[keyof typeof AuthSessionMode];
+
+
+export const AuthSessionMode = {
+  platform: 'platform',
+  tenant: 'tenant',
+} as const;
+
+export interface TenantAccess {
+  id: string;
+  schoolId: string;
+  reason: string;
+  writeEnabled: boolean;
+  expiresAt: string;
+}
+
 export interface AuthSession {
   user: User;
-  school: School;
+  school: School | null;
+  mode: AuthSessionMode;
+  tenantAccess: TenantAccess | null;
+}
+
+export interface PlatformMessage {
+  message: string;
+}
+
+export interface SponsorRefundInput {
+  /** @minLength 1 */
+  reason: string;
+}
+
+export type PlatformConfirmationConfirmation = typeof PlatformConfirmationConfirmation[keyof typeof PlatformConfirmationConfirmation];
+
+
+export const PlatformConfirmationConfirmation = {
+  CONFIRM: 'CONFIRM',
+} as const;
+
+export interface PlatformConfirmation {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  confirmation: PlatformConfirmationConfirmation;
+}
+
+export type PlatformProvisionInput = InitialSetupInput & PlatformConfirmation;
+
+export type PlatformAdminUpdateConfirmation = typeof PlatformAdminUpdateConfirmation[keyof typeof PlatformAdminUpdateConfirmation];
+
+
+export const PlatformAdminUpdateConfirmation = {
+  CONFIRM: 'CONFIRM',
+} as const;
+
+export interface PlatformAdminUpdate {
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name?: string;
+  /** @nullable */
+  email?: string | null;
+  /**
+     * @minLength 9
+     * @maxLength 20
+     * @nullable
+     */
+  phone?: string | null;
+  isActive?: boolean;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  confirmation: PlatformAdminUpdateConfirmation;
+}
+
+export type PlatformAdminInput = PlatformAdminUpdate & {
+  /**
+     * @minLength 10
+     * @maxLength 128
+     */
+  password: string;
+} & Required<Pick<PlatformAdminUpdate & {
+  /**
+     * @minLength 10
+     * @maxLength 128
+     */
+  password: string;
+}, 'name'>>;
+
+export type PlatformPasswordInput = PlatformConfirmation & {
+  /**
+     * @minLength 10
+     * @maxLength 128
+     */
+  password: string;
+};
+
+export type TenantAccessInput = PlatformConfirmation & {
+  schoolId: string;
+  writeEnabled?: boolean;
+  /**
+     * @minimum 5
+     * @maximum 120
+     */
+  durationMinutes?: number;
+};
+
+export interface PlatformOverview {
+  schools: number;
+  activeSchools: number;
+  suspendedSchools: number;
+  activeSubscriptions: number;
+  administrators: number;
+}
+
+export interface PlatformAudit {
+  id: string;
+  actorId: string;
+  /** @nullable */
+  schoolId: string | null;
+  /** @nullable */
+  grantId: string | null;
+  action: string;
+  reason: string;
+  /** @nullable */
+  entityId: string | null;
+  before?: unknown;
+  after?: unknown;
+  createdAt: string;
 }
 
 export interface SchoolUpdate {
@@ -891,6 +1027,13 @@ export interface StudentImportResult {
   skippedRows: number;
 }
 
+export type PlatformSchoolUpdateConfirmation = typeof PlatformSchoolUpdateConfirmation[keyof typeof PlatformSchoolUpdateConfirmation];
+
+
+export const PlatformSchoolUpdateConfirmation = {
+  CONFIRM: 'CONFIRM',
+} as const;
+
 export type PlatformSchoolUpdateStatus = typeof PlatformSchoolUpdateStatus[keyof typeof PlatformSchoolUpdateStatus];
 
 
@@ -910,6 +1053,23 @@ export const PlatformSchoolUpdateSubscriptionStatus = {
 } as const;
 
 export interface PlatformSchoolUpdate {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+  confirmation: PlatformSchoolUpdateConfirmation;
+  /**
+     * @minLength 2
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  county?: string | null;
+  type?: SchoolType;
   status?: PlatformSchoolUpdateStatus;
   /**
      * @minLength 1
@@ -1056,6 +1216,24 @@ export interface FileUpload {
 export interface StoredFileReference {
   id: string;
   objectPath: string;
+}
+
+export type MessageDeliveryGatewayInputStatus = typeof MessageDeliveryGatewayInputStatus[keyof typeof MessageDeliveryGatewayInputStatus];
+
+
+export const MessageDeliveryGatewayInputStatus = {
+  delivered: 'delivered',
+  read: 'read',
+  rejected: 'rejected',
+} as const;
+
+export interface MessageDeliveryGatewayInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  providerMessageId: string;
+  status: MessageDeliveryGatewayInputStatus;
 }
 
 export type IntegrationInputProvider = typeof IntegrationInputProvider[keyof typeof IntegrationInputProvider];
@@ -1564,7 +1742,18 @@ export interface ReportCardInput {
   publish?: boolean;
 }
 
+/**
+ * Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.
+ * @nullable
+ */
+export type ReportCardViewResultSnapshot = { [key: string]: unknown } | { [key: string]: unknown }[] | null;
+
 export interface ReportCardView {
+  /**
+     * Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.
+     * @nullable
+     */
+  resultSnapshot?: ReportCardViewResultSnapshot;
   id: string;
   studentId: string;
   termId: string;
@@ -2089,6 +2278,8 @@ export interface FinanceDecision {
 }
 
 export interface InvoiceBatchInput {
+  /** Required on commit; durable school-scoped exact preview identity. */
+  previewToken?: string;
   termId: string;
   gradeId?: string;
   dueDate: string;
@@ -2103,6 +2294,7 @@ export interface InvoiceProposal {
 }
 
 export interface InvoiceBatchResult {
+  previewToken?: string;
   invoices: InvoiceProposal[];
 }
 
@@ -2144,7 +2336,44 @@ export interface FinanceDocument {
   expiresAt: string;
 }
 
+export type ListPlatformAuditParams = {
+schoolId?: string;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+/**
+ * @minimum 1
+ * @maximum 1000000
+ */
+page?: number;
+/**
+ * Exact action filter applied across all history
+ * @minLength 1
+ * @maxLength 160
+ */
+action?: string;
+/**
+ * Case-insensitive reason/action/entity substring search across all history
+ * @minLength 1
+ * @maxLength 200
+ */
+search?: string;
+};
+
 export type ListIncomingPaymentsParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+search?: string;
+id?: string;
 status?: string;
 };
 
@@ -2184,6 +2413,18 @@ export type GetBotAttendance200Item = {
 export type ListFinanceRecordsParams = {
 kind?: string;
 studentId?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+status?: string;
+search?: string;
+id?: string;
 };
 
 export type ListFailedFinanceJobs200Item = { [key: string]: unknown };

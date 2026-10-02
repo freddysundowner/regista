@@ -5,10 +5,14 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuthSessionMode } from './authSessionMode';
 import type { School } from './school';
+import type { TenantAccess } from './tenantAccess';
 import type { User } from './user';
 
 export interface AuthSession {
   user: User;
-  school: School;
+  school: School | null;
+  mode: AuthSessionMode;
+  tenantAccess: TenantAccess | null;
 }

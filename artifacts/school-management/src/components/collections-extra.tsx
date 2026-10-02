@@ -74,15 +74,33 @@ export function SponsorBatchesPanel() {
   const sponsors = useFinanceRecords({ kind: "sponsor" });
   const ack = useGenerateSponsorAcknowledgement(); const { toast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
+  const p = usePerms();
+  const qc = useQueryClient();
+  const [refundId, setRefundId] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const sname = (id: string) => String(sponsors.data?.find((s) => s.id === id)?.data?.name ?? "Sponsor");
   return (
-    <Panel title="Sponsor batches" note="Held amounts stay held until approved or explained; they are never spread automatically. Acknowledgement letters are available once every credit is approved.">
+    <><FormDialog open={!!refundId} onOpenChange={open => { if (!open) setRefundId(null); }} title="Refund held sponsor funds" description="Requests refund of the actual remaining suspense balance. An independent checker must approve before the bursar records disbursement.">
+      <form className="space-y-4 p-5" onSubmit={async e => {
+        e.preventDefault(); setError(null); setBusy(refundId);
+        try {
+          const response = await fetch(`/api/reconciliation/sponsors/${refundId}/refund`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) });
+          if (!response.ok) { const result = await response.json(); throw new Error(result.error?.message ?? result.message ?? "Refund request failed"); }
+          await qc.invalidateQueries({ predicate: query => String(query.queryKey[0]).includes("/reconciliation/") });
+          setRefundId(null); setReason("");
+        } catch (err) { setError(errMsg(err)); } finally { setBusy(null); }
+      }}>
+        <Field label="Reason" required><TextInput value={reason} onChange={e => setReason(e.target.value)} required /></Field>
+        <FormError msg={error} /><FormActions><Btn type="submit" disabled={!!busy || !reason.trim()}>Request refund</Btn><Btn type="button" variant="ghost" onClick={() => setRefundId(null)}>Cancel</Btn></FormActions>
+      </form>
+    </FormDialog><Panel title="Sponsor batches" note="Use Allocate sponsor lump sum to reallocate held funds, or request a refund below. Both require independent approval.">
       {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<Users className="h-5 w-5" />} title="No sponsor batches" body="Allocating a lump sum creates a batch here." /> : (
-        <Table head={["Sponsor", "Allocated", "Held", "Status", ""]}>{q.data.map((b) => (
+        <Table head={["Sponsor", "Requested credits", "Held", "Status", ""]}>{q.data.map((b) => (
           <tr key={b.id} data-testid={`row-batch-${b.id}`}><td className={td}>{sname(b.sponsorId)}</td><td className={td}><Money v={b.allocatedAmount} /></td><td className={td}><Money v={b.heldAmount} />{b.remainderReason && <div className="text-[11px] text-muted-foreground">{b.remainderReason}</div>}</td><td className={td}><Pill tone={tone(b.status)}>{b.status.replace(/_/g, " ")}</Pill></td>
-            <td className={td}><Btn variant="outline" className="h-7 px-2 text-xs" disabled={busy === b.id} onClick={() => { setBusy(b.id); ack.mutate({ id: b.id }, { onSuccess: (d) => { setBusy(null); window.open(d.downloadUrl, "_blank", "noopener"); }, onError: (x) => { setBusy(null); toast({ title: "Acknowledgement not available", description: errMsg(x), variant: "destructive" }); } }); }}>{busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}Acknowledgement</Btn></td></tr>))}</Table>
+            <td className={td}>{p.bursar && b.status === "remainder_held" && <Btn variant="outline" className="h-7 px-2 text-xs" onClick={() => { setRefundId(b.id); setReason(""); setError(null); }}>Refund held funds</Btn>}<Btn variant="outline" className="h-7 px-2 text-xs" disabled={busy === b.id} onClick={() => { setBusy(b.id); ack.mutate({ id: b.id }, { onSuccess: (d) => { setBusy(null); window.open(d.downloadUrl, "_blank", "noopener"); }, onError: (x) => { setBusy(null); toast({ title: "Acknowledgement not available", description: errMsg(x), variant: "destructive" }); } }); }}>{busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}Acknowledgement</Btn></td></tr>))}</Table>
       )}
-    </Panel>
+    </Panel></>
   );
 }
 

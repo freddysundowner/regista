@@ -1,0 +1,66 @@
+import { Link } from "wouter";
+import { useGetPlatformOverview, useListPlatformSchools, useListPlatformAudit, getGetPlatformOverviewQueryKey, getListPlatformSchoolsQueryKey, getListPlatformAuditQueryKey } from "@workspace/api-client-react";
+import { ArrowRight, Building2, ScrollText } from "lucide-react";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Pill } from "@/components/kit";
+import { useAuthSession, errMsg, fmtDate, fmtDateTime } from "@/lib/session";
+
+export default function PlatformOverview() {
+  const { user } = useAuthSession();
+  const o = useGetPlatformOverview({ query: { queryKey: getGetPlatformOverviewQueryKey() } });
+  const sq = useListPlatformSchools({ query: { queryKey: getListPlatformSchoolsQueryKey() } });
+  const ap = { limit: 8 };
+  const aq = useListPlatformAudit(ap, { query: { queryKey: getListPlatformAuditQueryKey(ap) } });
+  const names = new Map((sq.data ?? []).map((s) => [s.id, s.name]));
+  const attention = (sq.data ?? []).filter((s) => s.status === "suspended" || s.subscriptionStatus === "expired" || s.subscriptionStatus === "cancelled");
+  const stats = o.data ? [
+    { k: "Schools", v: o.data.schools, d: "Provisioned registers" },
+    { k: "Active", v: o.data.activeSchools, d: "Staff can sign in" },
+    { k: "Suspended", v: o.data.suspendedSchools, d: "Sign-in blocked", warn: o.data.suspendedSchools > 0 },
+    { k: "Active subscriptions", v: o.data.activeSubscriptions, d: "Operational status" },
+    { k: "School administrators", v: o.data.administrators, d: "Across all schools" },
+  ] : [];
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow="Platform console" title="Overview" meta={`Signed in as ${user.name}. You are outside every school; enter one only with a recorded reason.`} />
+      {o.isLoading ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}</div>
+        : o.isError ? <Panel><ErrorState msg={errMsg(o.error)} onRetry={() => o.refetch()} /></Panel> : (
+        <div className="rise-1 grid gap-px overflow-hidden rounded-lg border border-card-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+          {stats.map((s) => (
+            <div key={s.k} data-testid={`stat-${s.k.toLowerCase().replace(/\s+/g, "-")}`} className="bg-card px-5 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{s.k}</div>
+              <div className={`mt-1 font-display text-4xl font-semibold tabular-nums ${s.warn ? "text-destructive" : ""}`}>{s.v}</div>
+              <div className="text-xs text-muted-foreground">{s.d}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
+        <Panel className="min-w-0" title="Needs attention" note="Suspended schools or lapsed subscriptions." action={<Link href="/schools" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline" data-testid="link-all-schools">All schools<ArrowRight className="h-3 w-3" /></Link>}>
+          {sq.isLoading ? <SkeletonRows rows={3} cols={3} /> : sq.isError ? <ErrorState msg={errMsg(sq.error)} onRetry={() => sq.refetch()} /> : !attention.length ? (
+            <Empty icon={<Building2 className="h-5 w-5" />} title="All clear" body="No suspended schools or lapsed subscriptions." />
+          ) : (
+            <ul className="divide-y divide-border/60">{attention.map((s) => (
+              <li key={s.id}><Link href={`/schools/${s.id}`} data-testid={`link-attention-${s.id}`} className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-accent/30">
+                <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{s.name}</span><span className="block break-all font-mono text-[11px] text-muted-foreground">{s.code} · ends {fmtDate(s.subscriptionEndDate)}</span></span>
+                {s.status === "suspended" && <Pill tone="error">suspended</Pill>}
+                {s.subscriptionStatus && s.subscriptionStatus !== "active" && <Pill tone="duplicate">{s.subscriptionStatus}</Pill>}
+              </Link></li>
+            ))}</ul>
+          )}
+        </Panel>
+        <Panel className="min-w-0" title="Latest platform actions" action={<Link href="/platform/audit" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline" data-testid="link-platform-audit">Audit log<ArrowRight className="h-3 w-3" /></Link>}>
+          {aq.isLoading ? <SkeletonRows rows={4} cols={3} /> : aq.isError ? <ErrorState msg={errMsg(aq.error)} onRetry={() => aq.refetch()} /> : !aq.data?.length ? (
+            <Empty icon={<ScrollText className="h-5 w-5" />} title="Nothing recorded yet" body="Every platform action is logged here with its reason." />
+          ) : (
+            <ul className="divide-y divide-border/60">{aq.data.map((e) => (
+              <li key={e.id} className="px-5 py-2.5 text-sm">
+                <div className="flex flex-wrap justify-between gap-2"><span className="break-all font-mono text-xs font-semibold">{e.action}</span><span className="font-mono text-[11px] text-muted-foreground">{fmtDateTime(e.createdAt)}</span></div>
+                <p className="truncate text-xs text-muted-foreground">{e.schoolId ? (names.get(e.schoolId) ?? "School") + " · " : ""}{e.reason}</p>
+              </li>
+            ))}</ul>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}

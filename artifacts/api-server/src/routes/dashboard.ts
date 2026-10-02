@@ -2,8 +2,9 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { send, teacher, auditors, streamAccess, logInclude, logView } from "../lib/core";
 import { scope } from "../lib/students";
-import { sum } from "../lib/finance/money";
+import { sum, money } from "../lib/finance/money";
 import { metadata, view } from "../lib/finance/posting";
+import { netPaymentCredits, termInvoiceBilling } from "../lib/finance/review-invariants";
 const router = Router();
 router.get("/dashboard/modules", async (req, res) => {
   const schoolId = req.actor.school.id, today = new Date(Date.now() + 10800000).toISOString().slice(0, 10);
@@ -16,14 +17,23 @@ router.get("/dashboard/modules", async (req, res) => {
   const assessments = await db.assessment.findMany({ where: { schoolId, ...(term ? { termId: term.id } : {}), ...(isTeacher ? { OR: assignments.map(a => ({ learningAreaId: a.learningAreaId, termId: a.termId })) } : {}) }, select: { id: true, status: true } });
   let finance = null;
   if (!isTeacher) {
-    const payments = await db.financeRecord.findMany({ where: { schoolId, kind: "payment", status: "posted", createdAt: { gte: start } } });
+    const payments = await db.financeRecord.findMany({ where: { schoolId, kind: "payment" } });
     const channels: Record<string, string> = {};
-    for (const channel of new Set(payments.map(p => String(metadata(p).channel ?? "unknown")))) channels[channel] = sum(payments.filter(p => String(metadata(p).channel ?? "unknown") === channel).map(p => p.amount)).toFixed(2);
-    const entries = term ? await db.ledgerEntry.findMany({ where: { schoolId, createdAt: { gte: term.startDate, lte: new Date(term.endDate.getTime() + 86400000 - 1) } } }) : [];
+    const allEntries = await db.ledgerEntry.findMany({ where: { schoolId } });
+    const paymentIds = new Set(allEntries.filter(e => e.type === "payment").map(e => e.id));
+    const termStart = term ? new Date(`${term.startDate.toISOString().slice(0, 10)}T00:00:00+03:00`) : start;
+    const termEnd = term ? new Date(new Date(`${term.endDate.toISOString().slice(0, 10)}T00:00:00+03:00`).getTime() + 86400000) : start;
+    for (const entry of allEntries.filter(e => e.createdAt >= start)) {
+      if (!["payment", "refund"].includes(entry.type) && !(entry.type === "reversal" && !!entry.reversesId && paymentIds.has(entry.reversesId))) continue;
+      const original = entry.reversesId ? allEntries.find(e => e.id === entry.reversesId) : entry;
+      const payment = payments.find(p => p.id === original?.referenceId);
+      const channel = payment ? String(metadata(payment).channel ?? "unknown") : "refund";
+      channels[channel] = sum([entry.credit.minus(entry.debit), ...(channels[channel] ? [money(channels[channel])] : [])]).toFixed(2);
+    }
     finance = {
-      todayCollected: sum(payments.map(p => p.amount)).toFixed(2), channels,
-      termBilled: sum(entries.filter(e => e.type === "invoice").map(e => e.debit.minus(e.credit))).toFixed(2),
-      termCollected: sum(entries.filter(e => ["payment", "refund"].includes(e.type)).map(e => e.credit.minus(e.debit))).toFixed(2),
+      todayCollected: netPaymentCredits(allEntries, e => e.createdAt >= start).toFixed(2), channels,
+      termBilled: termInvoiceBilling(allEntries, term?.id).toFixed(2),
+      termCollected: netPaymentCredits(allEntries, e => e.createdAt >= termStart && e.createdAt < termEnd).toFixed(2),
       unmatchedCount: await db.matchException.count({ where: { schoolId, status: "open" } }),
       defaulterCount: await db.studentBalance.count({ where: { schoolId, balance: { gt: 0 } } }),
       reconciliation: await db.reconciliationRun.findFirst({ where: { schoolId }, orderBy: { createdAt: "desc" }, select: { id: true, status: true, provider: true, createdAt: true } }),
@@ -40,8 +50,8 @@ router.get("/dashboard/summary", async (req, res) => {
     db.guardian.count({ where: { schoolId, ...(isTeacher ? { students: { some: { student: studentScope } } } : {}) } }),
     db.family.count({ where: { schoolId, ...(isTeacher ? { students: { some: studentScope } } : {}) } }),
     db.user.count({ where: { schoolId, ...(isTeacher ? { id: req.actor.user.id } : {}) } }),
-    db.grade.count({ where: { schoolId, ...(isTeacher ? { streams: { some: streamAccess(req.actor.user.id) } } : {}) } }),
-    db.stream.count({ where: { schoolId, ...(isTeacher ? streamAccess(req.actor.user.id) : {}) } }),
+    db.grade.count({ where: { schoolId, ...(isTeacher ? { streams: { some: streamAccess(req.actor.user.id, schoolId) } } : {}) } }),
+    db.stream.count({ where: { schoolId, ...(isTeacher ? streamAccess(req.actor.user.id, schoolId) : {}) } }),
     db.academicYear.findFirst({ where: { schoolId, isCurrent: true } }),
     !auditors.includes(req.actor.user.role) ? Promise.resolve([]) : db.auditLog.findMany({ where: { schoolId }, include: logInclude, orderBy: { createdAt: "desc" }, take: 8 }),
   ]);

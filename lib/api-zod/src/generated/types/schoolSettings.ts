@@ -16,6 +16,11 @@ import type { SchoolSettingsSiblingSplitRule } from './schoolSettingsSiblingSpli
  */
 export interface SchoolSettings {
   /**
+     * Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.
+     * @pattern ^\d{1,12}(\.\d{1,2})?$
+     */
+  highValuePaymentThreshold?: string;
+  /**
      * @minimum 0
      * @maximum 150
      */

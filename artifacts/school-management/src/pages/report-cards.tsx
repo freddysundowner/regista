@@ -20,7 +20,8 @@ function CardRow({ s, card, termId }: { s: Student; card?: ReportCardView; termI
   const submit = () => {
     setErr(null);
     if (f.publish && !window.confirm(`Publish ${s.fullName}'s report card? It will be frozen and visible to the family.`)) return;
-    save.mutate({ data: { studentId: s.id, termId, ...(f.cls.trim() ? { classTeacherComment: f.cls.trim() } : {}), ...(p.headRemarks && f.head.trim() ? { headTeacherComment: f.head.trim() } : {}), ...(f.opening ? { nextTermOpeningDate: f.opening } : {}), ...(f.publish ? { publish: true } : {}) } }, {
+    if (published) return setErr("This report card was published and is now immutable. Close this dialog and refresh.");
+    save.mutate({ data: { studentId: s.id, termId, ...(p.academicAdmin || p.limitedToAssigned ? { classTeacherComment: f.cls.trim() } : {}), ...(p.headRemarks ? { headTeacherComment: f.head.trim() } : {}), ...(f.opening ? { nextTermOpeningDate: f.opening } : {}), ...(f.publish ? { publish: true } : {}) } }, {
       onSuccess: (r) => { qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/report-cards") }); toast({ title: r.status === "published" ? "Report card published" : "Comments saved" }); setOpen(false); },
       onError: (x) => setErr(errMsg(x)),
     });
@@ -39,17 +40,17 @@ function CardRow({ s, card, termId }: { s: Student; card?: ReportCardView; termI
           {!published && <Btn variant="outline" className="h-8" data-testid={`button-comments-${s.id}`} onClick={() => { setErr(null); setF({ cls: card?.classTeacherComment ?? "", head: card?.headTeacherComment ?? "", opening: card?.nextTermOpeningDate?.slice(0, 10) ?? "", publish: false }); setOpen(true); }}>Edit comments</Btn>}
           {card && <Btn variant="outline" className="h-8" disabled={pdf.isPending} onClick={download}>{pdf.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</Btn>}
           {published && <Btn variant="outline" className="h-8" data-testid={`button-send-report-${s.id}`} disabled={send.isPending} onClick={() => card && send.mutate({ id: card.id }, {
-            onSuccess: (r) => toast({ title: `Report card ${r.status}`, description: r.message ?? "Sent to the primary guardian's outbox. Queued or submitted is not yet delivered; check Messages." }),
+            onSuccess: (r) => { qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/notifications") }); toast({ title: `Report card ${r.status}`, description: r.message ?? "Sent to the primary guardian's outbox. Queued or submitted is not yet delivered; check Messages." }); },
             onError: (x) => toast({ title: "Not sent", description: errMsg(x), variant: "destructive" }) })}>{send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Send</Btn>}
         </div>
       </div>
       {(published || card?.classTeacherComment || card?.headTeacherComment) && <div className="space-y-1 px-4 pb-3 text-xs text-muted-foreground">{card?.classTeacherComment && <p><span className="font-semibold text-foreground">Class teacher:</span> {card.classTeacherComment}</p>}{card?.headTeacherComment && <p><span className="font-semibold text-foreground">Head teacher:</span> {card.headTeacherComment}</p>}</div>}
-      <FormDialog open={open} onOpenChange={setOpen} busy={save.isPending} size="lg" title={`Report card comments: ${s.fullName}`} description={`${s.admissionNo}${s.streamName ? ` · ${s.streamName}` : ""}. Publishing freezes the card and makes it visible to the family.`}>
+      <FormDialog open={open} onOpenChange={setOpen} busy={save.isPending} size="lg" title={`Report card comments: ${s.fullName}`} description={`${s.admissionNo}${s.streamName ? ` · ${s.streamName}` : ""}. Publishing freezes results, comments, ratings, attendance and school/learner details. Published cards cannot be edited or republished; revisions are not supported.`}>
         <form className="space-y-4 p-5" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Class teacher comment"><textarea rows={3} className={area} value={f.cls} onChange={(e) => setF({ ...f, cls: e.target.value })} /></Field>
+            <Field label="Class teacher comment" hint={p.academicAdmin || p.limitedToAssigned ? undefined : "Class teacher or administrator only"}><textarea rows={3} disabled={!p.academicAdmin && !p.limitedToAssigned} className={area} value={f.cls} onChange={(e) => setF({ ...f, cls: e.target.value })} /></Field>
             <Field label="Head teacher remarks" hint={p.headRemarks ? undefined : "Principal or administrator only"}><textarea rows={3} className={area} disabled={!p.headRemarks} value={f.head} onChange={(e) => setF({ ...f, head: e.target.value })} /></Field>
-            <Field label="Next term opens"><TextInput type="date" value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value })} /></Field>
+            <Field label="Next term opens" hint="Blank keeps any saved opening date"><TextInput type="date" value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value })} /></Field>
             {p.headRemarks && <label className="flex items-center gap-2 self-end pb-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={f.publish} onChange={(e) => setF({ ...f, publish: e.target.checked })} /> Publish now (assessments must be locked)</label>}
           </div>
           <FormError msg={err} />
@@ -66,7 +67,7 @@ export default function ReportCards() {
   const sp = f.gradeId ? { gradeId: f.gradeId } : undefined;
   const students = useListStudents(sp, { query: { queryKey: getListStudentsQueryKey(sp), enabled: !!f.gradeId } });
   const rp = f.termId ? { termId: f.termId } : undefined;
-  const cards = useListReportCards(rp, { query: { queryKey: getListReportCardsQueryKey(rp), enabled: !!f.termId } });
+  const cards = useListReportCards(rp, { query: { queryKey: getListReportCardsQueryKey(rp), enabled: !!f.termId, staleTime: 0, refetchInterval: 30000 } });
   const byStudent = useMemo(() => new Map(cards.data?.map((c) => [c.studentId, c])), [cards.data]);
   const list = (students.data ?? []).filter((s) => s.status === "active").sort((a, b) => a.fullName.localeCompare(b.fullName));
   const batch = useGenerateBatchReportCards(); const { toast } = useToast();

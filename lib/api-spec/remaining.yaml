@@ -1,5 +1,33 @@
 {
   "paths": {
+    "messageDeliveryGateway": {
+      "post": {
+        "operationId": "recordMessageDeliveryGatewayEvent",
+        "summary": "Record an authenticated delivery gateway event",
+        "description": "School-operated normalized gateway contract, NOT a native LeadsIntel or Africa's Talking webhook. An approved gateway must verify native provider delivery evidence before calling this endpoint. Configure an enabled integration with a callbackToken and a separate deliveryGatewaySecret of at least 32 characters. X-Delivery-Signature is hex HMAC-SHA256 over timestamp + '.' + raw JSON body; timestamps are epoch milliseconds within five minutes. Token binds the tenant and provider. Repeated and out-of-order statuses are handled idempotently; submitted/accepted is never delivered. Definitive WhatsApp rejection queues at most one consent-checked SMS fallback. Unknown submission outcomes do not trigger fallback or retry.",
+        "security": [],
+        "parameters": [
+          { "in": "path", "name": "token", "required": true, "schema": { "type": "string" } },
+          { "in": "header", "name": "X-Delivery-Timestamp", "required": true, "schema": { "type": "string", "pattern": "^\\d{13}$" } },
+          { "in": "header", "name": "X-Delivery-Signature", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MessageDeliveryGatewayInput" }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Delivery evidence recorded or duplicate ignored" },
+          "401": { "description": "Invalid HMAC or expired timestamp" },
+          "404": { "description": "Enabled integration not found" },
+          "409": { "description": "Unknown or ambiguous provider identity; retry once submission identity is recorded" },
+          "503": { "description": "Authenticated delivery gateway is not configured" }
+        }
+      }
+    },
     "integrations": {
       "get": {
         "operationId": "listIntegrationStatus",
@@ -69,6 +97,10 @@
       "get": {
         "operationId": "listIncomingPayments",
         "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "id", "in": "query", "schema": { "type": "string", "format": "uuid" } },
           {
             "name": "status",
             "in": "query",
@@ -79,7 +111,8 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "School-scoped payments. Page enables pagination; omitted page returns the complete matching legacy array. Search matches provider transaction ID, account reference, payer name or phone.",
+            "headers": { "X-Total-Count": { "description": "Total matching records before pagination", "schema": { "type": "integer" } } },
             "content": {
               "application/json": {
                 "schema": {
@@ -9190,6 +9223,15 @@
   },
   "components": {
     "schemas": {
+      "MessageDeliveryGatewayInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["providerMessageId", "status"],
+        "properties": {
+          "providerMessageId": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "status": { "type": "string", "enum": ["delivered", "read", "rejected"] }
+        }
+      },
       "IntegrationInput": {
         "type": "object",
         "properties": {
@@ -10577,6 +10619,12 @@
       "ReportCardView": {
         "type": "object",
         "properties": {
+          "resultSnapshot": {
+            "type": ["object", "array", "null"],
+            "description": "Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.",
+            "additionalProperties": true,
+            "items": { "type": "object", "additionalProperties": true }
+          },
           "id": {
             "type": "string",
             "format": "uuid"

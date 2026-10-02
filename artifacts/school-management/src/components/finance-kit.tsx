@@ -10,8 +10,8 @@ import { errMsg } from "@/lib/session";
 import { kes, sumMoney, type Line } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 
-export function useFinanceRecords(params?: ListFinanceRecordsParams, enabled = true) {
-  return useListFinanceRecords(params, { query: { queryKey: getListFinanceRecordsQueryKey(params), enabled } });
+export function useFinanceRecords(params?: ListFinanceRecordsParams & { page?: number; pageSize?: number; status?: string; search?: string; id?: string }, enabled = true) {
+  return useListFinanceRecords(params, { query: { queryKey: getListFinanceRecordsQueryKey(params), enabled, staleTime: 15000, refetchInterval: 30000 } });
 }
 
 export function useStudentNames() {

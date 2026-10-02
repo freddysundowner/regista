@@ -7,6 +7,8 @@ import { createRecord, decideRecord, invoiceBatch } from "./finance/service";
 import { metadata, record } from "./finance/posting";
 import type { Actor } from "./core";
 import { renderFinancePdf } from "./finance/documents";
+import { refreshSponsorBatch, requestUnmatchedRefund, suspenseEntry } from "./payments/settlements";
+import { postIncoming, postedStkStatus } from "./payments/pipeline";
 
 test("money uses exact decimal arithmetic and rejects floating inputs", () => {
   assert.equal(money("0.10").plus(money("0.20")).toFixed(2), "0.30");
@@ -48,8 +50,14 @@ test("finance integration: idempotency, priority, future credit, approvals, tena
       const preview = await invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, false);
       assert.equal(preview.invoices[0].amount, "150.00");
       assert.equal(await tx.ledgerEntry.count({ where: { schoolId: school.id } }), 0);
-      const batch = await invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, true);
-      const repeatedBatch = await invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, true);
+      await tx.student.update({ where: { id: student.id }, data: { lastName: "Roster changed" } });
+      await assert.rejects(invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, true, preview.previewToken), /stale/);
+      await tx.student.update({ where: { id: student.id }, data: { lastName: student.lastName, updatedAt: student.updatedAt } });
+      await assert.rejects(invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, true), /Preview this batch/);
+      await assert.rejects(invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-02") }, true, preview.previewToken), /stale/);
+      const batch = await invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, true, preview.previewToken);
+      const repeatedBatch = await invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, true, preview.previewToken);
+      await assert.rejects(invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-02") }, true, preview.previewToken), /differs/);
       assert.equal(batch.invoices[0].invoiceId, repeatedBatch.invoices[0].invoiceId);
       const paymentInput = { kind: "payment" as const, idempotencyKey: "cash1", studentId: student.id, channel: "cash" as const, providerTxnId: "cash-test1", amount: "110.00" };
       await assert.rejects(createRecord(tx, admin, paymentInput), /Role/);
@@ -107,8 +115,9 @@ test("finance integration: idempotency, priority, future credit, approvals, tena
       const nextTerm = await tx.term.create({ data: { schoolId: school.id, academicYearId: year.id, name: "Test term two", startDate: new Date("2099-05-01"), endDate: new Date("2099-08-01") } });
       const nextStructure = await createRecord(tx, admin, { kind: "fee_structure", idempotencyKey: "next-structure", name: "Next term fees", academicYearId: year.id, termId: nextTerm.id, gradeId: grade.id, lines: [{ feeItemId: tuition.id, amount: "100.00" }] });
       await decideRecord(tx, checker, nextStructure.id, "approved", "Checked");
-      await invoiceBatch(tx, maker, { termId: nextTerm.id, dueDate: new Date("2099-06-01") }, true);
-      await invoiceBatch(tx, maker, { termId: nextTerm.id, dueDate: new Date("2099-06-01") }, true);
+      const nextPreview = await invoiceBatch(tx, maker, { termId: nextTerm.id, dueDate: new Date("2099-06-01") }, false);
+      await invoiceBatch(tx, maker, { termId: nextTerm.id, dueDate: new Date("2099-06-01") }, true, nextPreview.previewToken);
+      await invoiceBatch(tx, maker, { termId: nextTerm.id, dueDate: new Date("2099-06-01") }, true, nextPreview.previewToken);
       assert.equal(await tx.financeRecord.count({ where: { schoolId: school.id, kind: "adjustment", status: "posted" } }), 1);
       const rejected = await createRecord(tx, maker, { kind: "adjustment", adjustmentType: "waiver", idempotencyKey: "rejected", studentId: student.id, amount: "500.00", reason: "Request denied" });
       const countBeforeReject = await tx.ledgerEntry.count({ where: { schoolId: school.id } });
@@ -127,6 +136,29 @@ test("finance integration: idempotency, priority, future credit, approvals, tena
       await tx.$executeRawUnsafe("SAVEPOINT immutable_test");
       await assert.rejects(tx.ledgerEntry.update({ where: { id: entries[0].id }, data: { description: "tampering" } }), /append-only/);
       await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT immutable_test");
+      const incoming = await tx.incomingPayment.create({ data: { schoolId: school.id, provider: "fixture", providerTxnId: randomUUID(), channel: "bank", amount: money("100"), transactionTime: new Date(), source: "test", rawPayload: {}, requestedBy: maker.user.id } });
+      await suspenseEntry(tx, maker, incoming.id, "received", "0");
+      const sponsorCredit = await createRecord(tx, maker, { kind: "adjustment", adjustmentType: "sponsorship", idempotencyKey: "sponsor-credit", studentId: student.id, sponsorId: sponsor.id, amount: "60", reason: "Fixture award" });
+      const sponsorBatch = await tx.sponsorBatch.create({ data: { schoolId: school.id, paymentId: incoming.id, sponsorId: sponsor.id, allocatedAmount: money("60"), heldAmount: money("100"), requestedBy: maker.user.id } });
+      await tx.sponsorAllocation.create({ data: { schoolId: school.id, batchId: sponsorBatch.id, studentId: student.id, financeRecordId: sponsorCredit.id, amount: money("60") } });
+      const exception = await tx.matchException.create({ data: { schoolId: school.id, paymentId: incoming.id, reason: "sponsor_fixture", candidates: [] } });
+      await decideRecord(tx, checker, sponsorCredit.id, "approved", "Evidence checked");
+      await refreshSponsorBatch(tx, checker, sponsorCredit.id);
+      assert.equal((await tx.sponsorBatch.findUniqueOrThrow({ where: { id: sponsorBatch.id } })).heldAmount.toFixed(2), "40.00");
+      const sponsorReversal = await createRecord(tx, maker, { kind: "reversal", parentId: sponsorCredit.id, idempotencyKey: "sponsor-reverse", reason: "Award reversed" });
+      await decideRecord(tx, checker, sponsorReversal.id, "approved", "Verified reversal");
+      await refreshSponsorBatch(tx, checker, sponsorReversal.id);
+      await refreshSponsorBatch(tx, checker, sponsorReversal.id);
+      assert.equal((await tx.sponsorBatch.findUniqueOrThrow({ where: { id: sponsorBatch.id } })).heldAmount.toFixed(2), "100.00");
+      assert.equal(sum((await tx.suspenseEntry.findMany({ where: { paymentId: incoming.id } })).map(e => e.credit.minus(e.debit))).toFixed(2), "100.00");
+      const sponsorRefund = await requestUnmatchedRefund(tx, maker, exception.id, "Return held funds");
+      assert.equal(sponsorRefund.amount.toFixed(2), "100.00");
+      const checkoutId = randomUUID();
+      const stk = await tx.stkRequest.create({ data: { schoolId: school.id, studentId: student.id, phone: "254712345678", amount: money("10"), idempotencyKey: randomUUID(), checkoutRequestId: checkoutId, requestedBy: maker.user.id, status: "paid" } });
+      const stkIncoming = await tx.incomingPayment.create({ data: { schoolId: school.id, provider: "fixture", providerTxnId: randomUUID(), channel: "mpesa_stk", amount: money("10"), transactionTime: new Date(), source: "test", rawPayload: { Body: { stkCallback: { CheckoutRequestID: checkoutId } } }, knownStudentId: student.id, requestedBy: maker.user.id } });
+      assert.equal((await postedStkStatus(tx, stk)).status, "processing", "raw provider success must not claim ledger posting");
+      await postIncoming(tx, maker, stkIncoming.id, [{ studentId: student.id, amount: "10" }], "Verified fixture receipt");
+      assert.equal((await postedStkStatus(tx, stk)).status, "paid");
       throw rollback;
     }, { timeout: 60000 });
   } catch (error) {

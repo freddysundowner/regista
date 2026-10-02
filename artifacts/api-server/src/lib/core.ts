@@ -3,14 +3,17 @@ import { db, Prisma, type User, type School } from "@workspace/db";
 import * as schemas from "@workspace/api-zod";
 import type { ZodTypeAny } from "zod";
 import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export type Tx = Prisma.TransactionClient;
-export type Actor = { user: User; school: School; ip?: string; userAgent?: string };
+export type TenantAccess = { id: string; schoolId: string; reason: string; writeEnabled: boolean; expiresAt: Date };
+export type Identity = { user: User; sessionId: string; grantId?: string; ip?: string; userAgent?: string };
+export type Actor = { user: User; school: School; ip?: string; userAgent?: string; tenantAccess?: TenantAccess };
 declare global {
-  namespace Express { interface Request { actor: Actor } }
+  namespace Express { interface Request { actor: Actor; identity: Identity } }
 }
 const secret = process.env.SESSION_SECRET;
 if (!secret) throw new Error("SESSION_SECRET must be configured");
@@ -20,8 +23,13 @@ export const admin = ["super_admin", "school_admin"];
 export const writers = [...admin, "bursar"];
 export const readers = [...writers, "principal"];
 export const auditors = [...admin, "principal"];
-export const streamAccess = (userId: string): Prisma.StreamWhereInput => ({
-  OR: [{ classTeacherUserId: userId }, { assignments: { some: { userId } } }],
+export const streamAccess = (userId: string, schoolId: string): Prisma.StreamWhereInput => ({
+  schoolId,
+  OR: [
+    { classTeacherUserId: userId },
+    { assignments: { some: { userId, schoolId } } },
+    { subjectAssignments: { some: { userId, schoolId } } },
+  ],
 });
 export const teacher = (req: Request) => ["teacher", "class_teacher"].includes(req.actor.user.role);
 export function allow(req: Request, roles: string[]) {
@@ -68,29 +76,61 @@ export function body<T extends ZodTypeAny>(schema: T, data: unknown): T["_output
   }
   return parse(schema, cleaned);
 }
-export function session(req: Request, res: Response, user: User) {
-  const token = jwt.sign({ version: user.sessionVersion }, jwtSecret, { subject: user.id, expiresIn: "8h", issuer: "school-api", audience: "school-web" });
+export function session(req: Request, res: Response, user: User, binding?: { sessionId: string; grantId?: string }) {
+  const token = jwt.sign({ version: user.sessionVersion, sid: binding?.sessionId ?? randomUUID(), grantId: binding?.grantId }, jwtSecret, { subject: user.id, expiresIn: "8h", issuer: "school-api", audience: "school-web" });
   res.cookie(cookieName, token, { httpOnly: true, secure: req.secure, sameSite: "lax", maxAge: 8 * 3600000, path: "/api" });
 }
 export function clearSession(req: Request, res: Response) {
   res.clearCookie(cookieName, { httpOnly: true, secure: req.secure, sameSite: "lax", path: "/api" });
 }
-export async function authenticate(req: Request, _res: Response, next: NextFunction) {
+export async function authenticateIdentity(req: Request, _res: Response, next: NextFunction) {
   try {
     let id: string;
     let version = 0;
+    let sessionId = "";
+    let grantId: string | undefined;
     try {
       const payload = jwt.verify(req.cookies?.[cookieName] || "", jwtSecret, { algorithms: ["HS256"], issuer: "school-api", audience: "school-web" });
       if (typeof payload === "string" || !payload.sub) throw new Error();
       id = payload.sub;
       version = typeof payload.version === "number" ? payload.version : 0;
+      sessionId = typeof payload.sid === "string" ? payload.sid : "";
+      grantId = typeof payload.grantId === "string" ? payload.grantId : undefined;
     } catch { throw new ApiError(401, "Not signed in"); }
     const user = await db.user.findUnique({ where: { id }, include: { school: true } });
-    const school = user?.school ?? (user?.role === "super_admin" && user.sessionSchoolId ? await db.school.findUnique({ where: { id: user.sessionSchoolId } }) : null);
-    if (!user?.isActive || ![...readers, "teacher", "class_teacher"].includes(user.role) || user.sessionVersion !== version || !school || school.status !== "active") throw new ApiError(401, "Account is inactive or session is invalid");
-    req.actor = { user, school, ip: req.ip, userAgent: req.get("user-agent")?.slice(0, 500) };
+    if (!user?.isActive || ![...readers, "teacher", "class_teacher"].includes(user.role) || user.sessionVersion !== version || !sessionId) throw new ApiError(401, "Account is inactive or session is invalid");
+    req.identity = { user, sessionId, grantId, ip: req.ip, userAgent: req.get("user-agent")?.slice(0, 500) };
     next();
   } catch (e) { next(e); }
+}
+export async function resolveTenant(req: Request): Promise<Actor> {
+  const identity = req.identity;
+  let tenantAccess: TenantAccess | undefined;
+  let schoolId = identity.user.schoolId;
+  if (identity.user.role === "super_admin") {
+    const grant = identity.grantId ? await db.platformTenantGrant.findUnique({ where: { id: identity.grantId } }) : null;
+    if (!grant || grant.actorId !== identity.user.id || grant.sessionId !== identity.sessionId || grant.sessionVersion !== identity.user.sessionVersion || grant.revokedAt || grant.expiresAt <= new Date()) throw new ApiError(403, "An active tenant access grant is required");
+    tenantAccess = grant;
+    schoolId = grant.schoolId;
+  }
+  const school = schoolId ? await db.school.findUnique({ where: { id: schoolId } }) : null;
+  if (!school || school.status !== "active") throw new ApiError(403, "School is suspended or unavailable");
+  return { user: identity.user, school, ip: identity.ip, userAgent: identity.userAgent, tenantAccess };
+}
+export function safeTenantRequest(method: string, path: string) {
+  return ["GET", "HEAD", "OPTIONS"].includes(method) || (method === "POST" && (
+    ["/imports/students/preview"].includes(path) ||
+    ["collections", "fee-items", "balances", "defaulters", "aged-arrears", "unmatched", "reconciliation", "adjustments", "sponsors", "plans", "statement", "performance", "attendance"].some(type => path === `/reports/${type}`)));
+}
+export async function authenticate(req: Request, res: Response, next: NextFunction) {
+  await authenticateIdentity(req, res, async error => {
+    if (error) { next(error); return; }
+    try {
+      req.actor = await resolveTenant(req);
+      if (req.actor.tenantAccess && !req.actor.tenantAccess.writeEnabled && !safeTenantRequest(req.method, req.path)) throw new ApiError(403, "This tenant access grant is read-only");
+      next();
+    } catch (e) { next(e); }
+  });
 }
 export function csrf(req: Request, _res: Response, next: NextFunction) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) { next(); return; }
@@ -128,6 +168,13 @@ export async function audit(tx: Tx, actor: Actor, action: string, entityType: st
     before: prior == null ? Prisma.DbNull : redactSnapshot(prior),
     after: current == null ? Prisma.DbNull : redactSnapshot(current),
     ip: actor.ip ?? null, userAgent: actor.userAgent ?? null,
+  } });
+  if (actor.tenantAccess) await tx.platformAudit.create({ data: {
+    actorId: actor.user.id, schoolId: actor.school.id, grantId: actor.tenantAccess.id,
+    action: `tenant.${action}`, reason: actor.tenantAccess.reason, entityId,
+    before: prior == null ? Prisma.DbNull : redactSnapshot(prior),
+    after: current == null ? Prisma.DbNull : redactSnapshot(current),
+    ip: actor.ip, userAgent: actor.userAgent,
   } });
 }
 export const logInclude = { user: true } as const;

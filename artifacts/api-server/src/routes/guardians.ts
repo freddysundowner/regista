@@ -26,6 +26,12 @@ router.patch("/guardians/:guardianId", async (req, res) => {
   const record = await db.$transaction(async tx => {
     await lock(tx, req.actor.school.id); const old = await owned(tx, "guardian", guardianId, req.actor.school.id);
     if (old.anonymizedAt) throw new ApiError(409, "An anonymized guardian cannot be edited");
+    if (data.phone !== undefined && data.phone !== old.phone) {
+      await tx.guardianVerification.deleteMany({ where: { schoolId: req.actor.school.id, guardianId } });
+      await tx.messageDelivery.updateMany({ where: { schoolId: req.actor.school.id, guardianId, status: { in: ["queued", "failed"] } }, data: { status: "cancelled", error: "Guardian phone changed; recipient authorization revoked" } });
+      data.whatsappLastInboundAt = null;
+      await audit(tx, req.actor, "verification_revoked", "guardian", guardianId);
+    }
     const record = await tx.guardian.update({ where: { id: guardianId }, data, include: guardianInclude });
     await audit(tx, req.actor, "updated", "guardian", guardianId); return record;
   });
@@ -49,12 +55,14 @@ router.post("/guardians/:guardianId/anonymize", async (req, res) => {
     await lock(tx, req.actor.school.id);
     const old = await owned(tx, "guardian", guardianId, req.actor.school.id);
     if (old.anonymizedAt) throw new ApiError(409, "Guardian is already anonymized");
+    await tx.guardianVerification.deleteMany({ where: { schoolId: req.actor.school.id, guardianId } });
+    await tx.messageDelivery.updateMany({ where: { schoolId: req.actor.school.id, guardianId, status: { in: ["queued", "failed"] } }, data: { status: "cancelled", error: "Guardian anonymized" } });
     // Retain stable IDs and links. No student, invoice, payment or ledger deletion.
     const links = await tx.studentGuardian.findMany({ where: { guardianId, schoolId: req.actor.school.id } });
     await tx.studentGuardian.updateMany({ where: { guardianId, schoolId: req.actor.school.id }, data: { receivesNotifications: false, relationship: "Guardian" } });
     for (const link of links) await audit(tx, req.actor, "privacy_updated", "student_guardian", link.id, { receivesNotifications: link.receivesNotifications }, { receivesNotifications: false, relationship: "Guardian" });
     const updated = await tx.guardian.update({ where: { id: guardianId }, data: {
-      name: "Anonymized guardian", phone: `anonymous:${guardianId}`, altPhone: null, email: null, idNumber: null, relationship: null, anonymizedAt: new Date(),
+      name: "Anonymized guardian", phone: `anonymous:${guardianId}`, altPhone: null, email: null, idNumber: null, relationship: null, anonymizedAt: new Date(), whatsappLastInboundAt: null,
     }, include: guardianInclude });
     await audit(tx, req.actor, "anonymized", "guardian", guardianId, old, updated);
     return updated;

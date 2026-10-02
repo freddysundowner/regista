@@ -8,6 +8,907 @@
 import * as zod from 'zod';
 
 
+export const GetPlatformOverviewResponse = zod.object({
+  "schools": zod.number().int(),
+  "activeSchools": zod.number().int(),
+  "suspendedSchools": zod.number().int(),
+  "activeSubscriptions": zod.number().int(),
+  "administrators": zod.number().int()
+})
+
+
+export const listPlatformSchoolsResponseLogoUrlMax = 500;
+
+
+export const listPlatformSchoolsResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const listPlatformSchoolsResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const listPlatformSchoolsResponseSettingsAutoPostThresholdMin = 0;
+export const listPlatformSchoolsResponseSettingsAutoPostThresholdMax = 150;
+
+export const listPlatformSchoolsResponseSettingsFuzzyNameThresholdMin = 0.8;
+export const listPlatformSchoolsResponseSettingsFuzzyNameThresholdMax = 1;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresExactMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresExactMax = 150;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresNormalizedMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresNormalizedMax = 150;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresAliasMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresAliasMax = 150;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresGuardianMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresGuardianMax = 150;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresNameMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresNameMax = 150;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresTypoMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresTypoMax = 150;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresBonusMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresBonusMax = 30;
+
+export const listPlatformSchoolsResponseSettingsMatchingScoresInactiveMin = 0;
+export const listPlatformSchoolsResponseSettingsMatchingScoresInactiveMax = 150;
+
+export const listPlatformSchoolsResponseSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const listPlatformSchoolsResponseSettingsChronicAbsencePercentMax = 100;
+
+export const listPlatformSchoolsResponseSettingsSiblingReplyHoursMax = 168;
+
+export const listPlatformSchoolsResponseSettingsReminderDaysItemMin = -365;
+export const listPlatformSchoolsResponseSettingsReminderDaysItemMax = 365;
+
+export const listPlatformSchoolsResponseSettingsReminderDaysMax = 20;
+
+export const listPlatformSchoolsResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const listPlatformSchoolsResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const ListPlatformSchoolsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "logoUrl": zod.string().max(listPlatformSchoolsResponseLogoUrlMax).regex(listPlatformSchoolsResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(listPlatformSchoolsResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(listPlatformSchoolsResponseSettingsAutoPostThresholdMin).max(listPlatformSchoolsResponseSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(listPlatformSchoolsResponseSettingsFuzzyNameThresholdMin).max(listPlatformSchoolsResponseSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresExactMin).max(listPlatformSchoolsResponseSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresNormalizedMin).max(listPlatformSchoolsResponseSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresAliasMin).max(listPlatformSchoolsResponseSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresGuardianMin).max(listPlatformSchoolsResponseSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresNameMin).max(listPlatformSchoolsResponseSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresTypoMin).max(listPlatformSchoolsResponseSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresBonusMin).max(listPlatformSchoolsResponseSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(listPlatformSchoolsResponseSettingsMatchingScoresInactiveMin).max(listPlatformSchoolsResponseSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(listPlatformSchoolsResponseSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(listPlatformSchoolsResponseSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(listPlatformSchoolsResponseSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(listPlatformSchoolsResponseSettingsReminderDaysItemMin).max(listPlatformSchoolsResponseSettingsReminderDaysItemMax)).max(listPlatformSchoolsResponseSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(listPlatformSchoolsResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(listPlatformSchoolsResponseSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListPlatformSchoolsResponse = zod.array(ListPlatformSchoolsResponseItem)
+
+
+export const provisionPlatformSchoolBodyOneSetupTokenMax = 256;
+
+export const provisionPlatformSchoolBodyOneSchoolNameMin = 2;
+export const provisionPlatformSchoolBodyOneSchoolNameMax = 180;
+
+export const provisionPlatformSchoolBodyOneSchoolCodeMin = 2;
+export const provisionPlatformSchoolBodyOneSchoolCodeMax = 40;
+
+export const provisionPlatformSchoolBodyOneCountyMax = 100;
+
+export const provisionPlatformSchoolBodyOneAdminNameMin = 2;
+export const provisionPlatformSchoolBodyOneAdminNameMax = 160;
+
+export const provisionPlatformSchoolBodyOnePhoneMin = 9;
+export const provisionPlatformSchoolBodyOnePhoneMax = 20;
+
+export const provisionPlatformSchoolBodyOnePasswordMin = 10;
+export const provisionPlatformSchoolBodyOnePasswordMax = 128;
+
+export const provisionPlatformSchoolBodyTwoReasonMin = 3;
+export const provisionPlatformSchoolBodyTwoReasonMax = 500;
+
+
+
+export const ProvisionPlatformSchoolBody = zod.object({
+  "setupToken": zod.string().max(provisionPlatformSchoolBodyOneSetupTokenMax).optional(),
+  "schoolName": zod.string().min(provisionPlatformSchoolBodyOneSchoolNameMin).max(provisionPlatformSchoolBodyOneSchoolNameMax),
+  "schoolCode": zod.string().min(provisionPlatformSchoolBodyOneSchoolCodeMin).max(provisionPlatformSchoolBodyOneSchoolCodeMax),
+  "county": zod.string().max(provisionPlatformSchoolBodyOneCountyMax).optional(),
+  "schoolType": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "adminName": zod.string().min(provisionPlatformSchoolBodyOneAdminNameMin).max(provisionPlatformSchoolBodyOneAdminNameMax),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().min(provisionPlatformSchoolBodyOnePhoneMin).max(provisionPlatformSchoolBodyOnePhoneMax).optional(),
+  "password": zod.string().min(provisionPlatformSchoolBodyOnePasswordMin).max(provisionPlatformSchoolBodyOnePasswordMax)
+}).and(zod.object({
+  "reason": zod.string().min(provisionPlatformSchoolBodyTwoReasonMin).max(provisionPlatformSchoolBodyTwoReasonMax),
+  "confirmation": zod.enum(['CONFIRM'])
+}))
+
+export const provisionPlatformSchoolResponseLogoUrlMax = 500;
+
+
+export const provisionPlatformSchoolResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const provisionPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const provisionPlatformSchoolResponseSettingsAutoPostThresholdMin = 0;
+export const provisionPlatformSchoolResponseSettingsAutoPostThresholdMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsFuzzyNameThresholdMin = 0.8;
+export const provisionPlatformSchoolResponseSettingsFuzzyNameThresholdMax = 1;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresExactMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresExactMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresNormalizedMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresNormalizedMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresAliasMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresAliasMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresGuardianMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresGuardianMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresNameMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresNameMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresTypoMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresTypoMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresBonusMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresBonusMax = 30;
+
+export const provisionPlatformSchoolResponseSettingsMatchingScoresInactiveMin = 0;
+export const provisionPlatformSchoolResponseSettingsMatchingScoresInactiveMax = 150;
+
+export const provisionPlatformSchoolResponseSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const provisionPlatformSchoolResponseSettingsChronicAbsencePercentMax = 100;
+
+export const provisionPlatformSchoolResponseSettingsSiblingReplyHoursMax = 168;
+
+export const provisionPlatformSchoolResponseSettingsReminderDaysItemMin = -365;
+export const provisionPlatformSchoolResponseSettingsReminderDaysItemMax = 365;
+
+export const provisionPlatformSchoolResponseSettingsReminderDaysMax = 20;
+
+export const provisionPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const provisionPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const ProvisionPlatformSchoolResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "logoUrl": zod.string().max(provisionPlatformSchoolResponseLogoUrlMax).regex(provisionPlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(provisionPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(provisionPlatformSchoolResponseSettingsAutoPostThresholdMin).max(provisionPlatformSchoolResponseSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(provisionPlatformSchoolResponseSettingsFuzzyNameThresholdMin).max(provisionPlatformSchoolResponseSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresExactMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresNormalizedMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresAliasMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresGuardianMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresNameMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresTypoMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresBonusMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(provisionPlatformSchoolResponseSettingsMatchingScoresInactiveMin).max(provisionPlatformSchoolResponseSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(provisionPlatformSchoolResponseSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(provisionPlatformSchoolResponseSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(provisionPlatformSchoolResponseSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(provisionPlatformSchoolResponseSettingsReminderDaysItemMin).max(provisionPlatformSchoolResponseSettingsReminderDaysItemMax)).max(provisionPlatformSchoolResponseSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(provisionPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(provisionPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const GetPlatformSchoolParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const getPlatformSchoolResponseLogoUrlMax = 500;
+
+
+export const getPlatformSchoolResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const getPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const getPlatformSchoolResponseSettingsAutoPostThresholdMin = 0;
+export const getPlatformSchoolResponseSettingsAutoPostThresholdMax = 150;
+
+export const getPlatformSchoolResponseSettingsFuzzyNameThresholdMin = 0.8;
+export const getPlatformSchoolResponseSettingsFuzzyNameThresholdMax = 1;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresExactMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresExactMax = 150;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresNormalizedMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresNormalizedMax = 150;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresAliasMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresAliasMax = 150;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresGuardianMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresGuardianMax = 150;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresNameMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresNameMax = 150;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresTypoMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresTypoMax = 150;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresBonusMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresBonusMax = 30;
+
+export const getPlatformSchoolResponseSettingsMatchingScoresInactiveMin = 0;
+export const getPlatformSchoolResponseSettingsMatchingScoresInactiveMax = 150;
+
+export const getPlatformSchoolResponseSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const getPlatformSchoolResponseSettingsChronicAbsencePercentMax = 100;
+
+export const getPlatformSchoolResponseSettingsSiblingReplyHoursMax = 168;
+
+export const getPlatformSchoolResponseSettingsReminderDaysItemMin = -365;
+export const getPlatformSchoolResponseSettingsReminderDaysItemMax = 365;
+
+export const getPlatformSchoolResponseSettingsReminderDaysMax = 20;
+
+export const getPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const getPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const GetPlatformSchoolResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "logoUrl": zod.string().max(getPlatformSchoolResponseLogoUrlMax).regex(getPlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(getPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(getPlatformSchoolResponseSettingsAutoPostThresholdMin).max(getPlatformSchoolResponseSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(getPlatformSchoolResponseSettingsFuzzyNameThresholdMin).max(getPlatformSchoolResponseSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresExactMin).max(getPlatformSchoolResponseSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresNormalizedMin).max(getPlatformSchoolResponseSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresAliasMin).max(getPlatformSchoolResponseSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresGuardianMin).max(getPlatformSchoolResponseSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresNameMin).max(getPlatformSchoolResponseSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresTypoMin).max(getPlatformSchoolResponseSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresBonusMin).max(getPlatformSchoolResponseSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(getPlatformSchoolResponseSettingsMatchingScoresInactiveMin).max(getPlatformSchoolResponseSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(getPlatformSchoolResponseSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(getPlatformSchoolResponseSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(getPlatformSchoolResponseSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(getPlatformSchoolResponseSettingsReminderDaysItemMin).max(getPlatformSchoolResponseSettingsReminderDaysItemMax)).max(getPlatformSchoolResponseSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(getPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(getPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const EditPlatformSchoolParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const editPlatformSchoolBodyReasonMin = 3;
+export const editPlatformSchoolBodyReasonMax = 500;
+
+export const editPlatformSchoolBodyNameMin = 2;
+export const editPlatformSchoolBodyNameMax = 180;
+
+export const editPlatformSchoolBodyCountyMax = 100;
+
+export const editPlatformSchoolBodySubscriptionPlanMax = 80;
+
+
+
+export const EditPlatformSchoolBody = zod.object({
+  "reason": zod.string().min(editPlatformSchoolBodyReasonMin).max(editPlatformSchoolBodyReasonMax),
+  "confirmation": zod.enum(['CONFIRM']),
+  "name": zod.string().min(editPlatformSchoolBodyNameMin).max(editPlatformSchoolBodyNameMax).optional(),
+  "county": zod.string().max(editPlatformSchoolBodyCountyMax).nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']).optional(),
+  "status": zod.enum(['active', 'suspended']).optional(),
+  "subscriptionPlan": zod.string().min(1).max(editPlatformSchoolBodySubscriptionPlanMax).optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish()
+})
+
+export const editPlatformSchoolResponseLogoUrlMax = 500;
+
+
+export const editPlatformSchoolResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const editPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const editPlatformSchoolResponseSettingsAutoPostThresholdMin = 0;
+export const editPlatformSchoolResponseSettingsAutoPostThresholdMax = 150;
+
+export const editPlatformSchoolResponseSettingsFuzzyNameThresholdMin = 0.8;
+export const editPlatformSchoolResponseSettingsFuzzyNameThresholdMax = 1;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresExactMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresExactMax = 150;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresNormalizedMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresNormalizedMax = 150;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresAliasMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresAliasMax = 150;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresGuardianMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresGuardianMax = 150;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresNameMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresNameMax = 150;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresTypoMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresTypoMax = 150;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresBonusMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresBonusMax = 30;
+
+export const editPlatformSchoolResponseSettingsMatchingScoresInactiveMin = 0;
+export const editPlatformSchoolResponseSettingsMatchingScoresInactiveMax = 150;
+
+export const editPlatformSchoolResponseSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const editPlatformSchoolResponseSettingsChronicAbsencePercentMax = 100;
+
+export const editPlatformSchoolResponseSettingsSiblingReplyHoursMax = 168;
+
+export const editPlatformSchoolResponseSettingsReminderDaysItemMin = -365;
+export const editPlatformSchoolResponseSettingsReminderDaysItemMax = 365;
+
+export const editPlatformSchoolResponseSettingsReminderDaysMax = 20;
+
+export const editPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const editPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const EditPlatformSchoolResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "logoUrl": zod.string().max(editPlatformSchoolResponseLogoUrlMax).regex(editPlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(editPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(editPlatformSchoolResponseSettingsAutoPostThresholdMin).max(editPlatformSchoolResponseSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(editPlatformSchoolResponseSettingsFuzzyNameThresholdMin).max(editPlatformSchoolResponseSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresExactMin).max(editPlatformSchoolResponseSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresNormalizedMin).max(editPlatformSchoolResponseSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresAliasMin).max(editPlatformSchoolResponseSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresGuardianMin).max(editPlatformSchoolResponseSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresNameMin).max(editPlatformSchoolResponseSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresTypoMin).max(editPlatformSchoolResponseSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresBonusMin).max(editPlatformSchoolResponseSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(editPlatformSchoolResponseSettingsMatchingScoresInactiveMin).max(editPlatformSchoolResponseSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(editPlatformSchoolResponseSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(editPlatformSchoolResponseSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(editPlatformSchoolResponseSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(editPlatformSchoolResponseSettingsReminderDaysItemMin).max(editPlatformSchoolResponseSettingsReminderDaysItemMax)).max(editPlatformSchoolResponseSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(editPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(editPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const ListPlatformAdminsParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const ListPlatformAdminsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "lastLoginAt": zod.coerce.date().nullish(),
+  "name": zod.string(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const ListPlatformAdminsResponse = zod.array(ListPlatformAdminsResponseItem)
+
+
+export const CreatePlatformAdminParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const createPlatformAdminBodyOneNameMin = 2;
+export const createPlatformAdminBodyOneNameMax = 160;
+
+export const createPlatformAdminBodyOnePhoneMin = 9;
+export const createPlatformAdminBodyOnePhoneMax = 20;
+
+export const createPlatformAdminBodyOneReasonMin = 3;
+export const createPlatformAdminBodyOneReasonMax = 500;
+
+export const createPlatformAdminBodyTwoPasswordMin = 10;
+export const createPlatformAdminBodyTwoPasswordMax = 128;
+
+
+
+export const CreatePlatformAdminBody = zod.object({
+  "name": zod.string().min(createPlatformAdminBodyOneNameMin).max(createPlatformAdminBodyOneNameMax),
+  "email": zod.string().email().nullish(),
+  "phone": zod.string().min(createPlatformAdminBodyOnePhoneMin).max(createPlatformAdminBodyOnePhoneMax).nullish(),
+  "isActive": zod.boolean().optional(),
+  "reason": zod.string().min(createPlatformAdminBodyOneReasonMin).max(createPlatformAdminBodyOneReasonMax),
+  "confirmation": zod.enum(['CONFIRM'])
+}).and(zod.object({
+  "password": zod.string().min(createPlatformAdminBodyTwoPasswordMin).max(createPlatformAdminBodyTwoPasswordMax)
+}))
+
+export const CreatePlatformAdminResponse = zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "lastLoginAt": zod.coerce.date().nullish(),
+  "name": zod.string(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const EditPlatformAdminParams = zod.object({
+  "schoolId": zod.coerce.string().uuid(),
+  "userId": zod.coerce.string().uuid()
+})
+
+export const editPlatformAdminBodyNameMin = 2;
+export const editPlatformAdminBodyNameMax = 160;
+
+export const editPlatformAdminBodyPhoneMin = 9;
+export const editPlatformAdminBodyPhoneMax = 20;
+
+export const editPlatformAdminBodyReasonMin = 3;
+export const editPlatformAdminBodyReasonMax = 500;
+
+
+
+export const EditPlatformAdminBody = zod.object({
+  "name": zod.string().min(editPlatformAdminBodyNameMin).max(editPlatformAdminBodyNameMax).optional(),
+  "email": zod.string().email().nullish(),
+  "phone": zod.string().min(editPlatformAdminBodyPhoneMin).max(editPlatformAdminBodyPhoneMax).nullish(),
+  "isActive": zod.boolean().optional(),
+  "reason": zod.string().min(editPlatformAdminBodyReasonMin).max(editPlatformAdminBodyReasonMax),
+  "confirmation": zod.enum(['CONFIRM'])
+})
+
+export const EditPlatformAdminResponse = zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "lastLoginAt": zod.coerce.date().nullish(),
+  "name": zod.string(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const ResetPlatformAdminPasswordParams = zod.object({
+  "schoolId": zod.coerce.string().uuid(),
+  "userId": zod.coerce.string().uuid()
+})
+
+export const resetPlatformAdminPasswordBodyOneReasonMin = 3;
+export const resetPlatformAdminPasswordBodyOneReasonMax = 500;
+
+export const resetPlatformAdminPasswordBodyTwoPasswordMin = 10;
+export const resetPlatformAdminPasswordBodyTwoPasswordMax = 128;
+
+
+
+export const ResetPlatformAdminPasswordBody = zod.object({
+  "reason": zod.string().min(resetPlatformAdminPasswordBodyOneReasonMin).max(resetPlatformAdminPasswordBodyOneReasonMax),
+  "confirmation": zod.enum(['CONFIRM'])
+}).and(zod.object({
+  "password": zod.string().min(resetPlatformAdminPasswordBodyTwoPasswordMin).max(resetPlatformAdminPasswordBodyTwoPasswordMax)
+}))
+
+export const ResetPlatformAdminPasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const listPlatformAuditQueryLimitDefault = 50;
+export const listPlatformAuditQueryLimitMax = 200;
+
+export const listPlatformAuditQueryPageDefault = 1;
+export const listPlatformAuditQueryPageMax = 1000000;
+
+export const listPlatformAuditQueryActionMax = 160;
+
+export const listPlatformAuditQuerySearchMax = 200;
+
+
+
+export const ListPlatformAuditQueryParams = zod.object({
+  "schoolId": zod.coerce.string().uuid().optional(),
+  "limit": zod.coerce.number().int().min(1).max(listPlatformAuditQueryLimitMax).default(listPlatformAuditQueryLimitDefault),
+  "page": zod.coerce.number().int().min(1).max(listPlatformAuditQueryPageMax).default(listPlatformAuditQueryPageDefault),
+  "action": zod.coerce.string().min(1).max(listPlatformAuditQueryActionMax).optional().describe('Exact action filter applied across all history'),
+  "search": zod.coerce.string().min(1).max(listPlatformAuditQuerySearchMax).optional().describe('Case-insensitive reason/action/entity substring search across all history')
+})
+
+export const ListPlatformAuditResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "actorId": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "grantId": zod.string().uuid().nullable(),
+  "action": zod.string(),
+  "reason": zod.string(),
+  "entityId": zod.string().nullable(),
+  "before": zod.unknown().optional(),
+  "after": zod.unknown().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const ListPlatformAuditResponse = zod.array(ListPlatformAuditResponseItem)
+
+
+export const enterTenantAccessBodyOneReasonMin = 3;
+export const enterTenantAccessBodyOneReasonMax = 500;
+
+export const enterTenantAccessBodyTwoWriteEnabledDefault = false;
+export const enterTenantAccessBodyTwoDurationMinutesDefault = 30;
+export const enterTenantAccessBodyTwoDurationMinutesMin = 5;
+export const enterTenantAccessBodyTwoDurationMinutesMax = 120;
+
+
+
+export const EnterTenantAccessBody = zod.object({
+  "reason": zod.string().min(enterTenantAccessBodyOneReasonMin).max(enterTenantAccessBodyOneReasonMax),
+  "confirmation": zod.enum(['CONFIRM'])
+}).and(zod.object({
+  "schoolId": zod.string().uuid(),
+  "writeEnabled": zod.boolean().default(enterTenantAccessBodyTwoWriteEnabledDefault),
+  "durationMinutes": zod.number().int().min(enterTenantAccessBodyTwoDurationMinutesMin).max(enterTenantAccessBodyTwoDurationMinutesMax).default(enterTenantAccessBodyTwoDurationMinutesDefault)
+}))
+
+export const enterTenantAccessResponseSchoolOneLogoUrlMax = 500;
+
+
+export const enterTenantAccessResponseSchoolOneLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const enterTenantAccessResponseSchoolOneSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const enterTenantAccessResponseSchoolOneSettingsAutoPostThresholdMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsAutoPostThresholdMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMin = 0.8;
+export const enterTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMax = 1;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresExactMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresExactMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresNameMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresNameMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMax = 30;
+
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMin = 0;
+export const enterTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMax = 150;
+
+export const enterTenantAccessResponseSchoolOneSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const enterTenantAccessResponseSchoolOneSettingsChronicAbsencePercentMax = 100;
+
+export const enterTenantAccessResponseSchoolOneSettingsSiblingReplyHoursMax = 168;
+
+export const enterTenantAccessResponseSchoolOneSettingsReminderDaysItemMin = -365;
+export const enterTenantAccessResponseSchoolOneSettingsReminderDaysItemMax = 365;
+
+export const enterTenantAccessResponseSchoolOneSettingsReminderDaysMax = 20;
+
+export const enterTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const enterTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const EnterTenantAccessResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "lastLoginAt": zod.coerce.date().nullish(),
+  "name": zod.string(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}),
+  "school": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "logoUrl": zod.string().max(enterTenantAccessResponseSchoolOneLogoUrlMax).regex(enterTenantAccessResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(enterTenantAccessResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsAutoPostThresholdMin).max(enterTenantAccessResponseSchoolOneSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(enterTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMin).max(enterTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresExactMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresNameMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMin).max(enterTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(enterTenantAccessResponseSchoolOneSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(enterTenantAccessResponseSchoolOneSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(enterTenantAccessResponseSchoolOneSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsReminderDaysItemMin).max(enterTenantAccessResponseSchoolOneSettingsReminderDaysItemMax)).max(enterTenantAccessResponseSchoolOneSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(enterTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(enterTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "mode": zod.enum(['platform', 'tenant']),
+  "tenantAccess": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "reason": zod.string(),
+  "writeEnabled": zod.boolean(),
+  "expiresAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+export const exitTenantAccessResponseSchoolOneLogoUrlMax = 500;
+
+
+export const exitTenantAccessResponseSchoolOneLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const exitTenantAccessResponseSchoolOneSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const exitTenantAccessResponseSchoolOneSettingsAutoPostThresholdMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsAutoPostThresholdMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMin = 0.8;
+export const exitTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMax = 1;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresExactMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresExactMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresNameMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresNameMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMax = 30;
+
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMin = 0;
+export const exitTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMax = 150;
+
+export const exitTenantAccessResponseSchoolOneSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const exitTenantAccessResponseSchoolOneSettingsChronicAbsencePercentMax = 100;
+
+export const exitTenantAccessResponseSchoolOneSettingsSiblingReplyHoursMax = 168;
+
+export const exitTenantAccessResponseSchoolOneSettingsReminderDaysItemMin = -365;
+export const exitTenantAccessResponseSchoolOneSettingsReminderDaysItemMax = 365;
+
+export const exitTenantAccessResponseSchoolOneSettingsReminderDaysMax = 20;
+
+export const exitTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const exitTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const ExitTenantAccessResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "lastLoginAt": zod.coerce.date().nullish(),
+  "name": zod.string(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}),
+  "school": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended']),
+  "logoUrl": zod.string().max(exitTenantAccessResponseSchoolOneLogoUrlMax).regex(exitTenantAccessResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(exitTenantAccessResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsAutoPostThresholdMin).max(exitTenantAccessResponseSchoolOneSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(exitTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMin).max(exitTenantAccessResponseSchoolOneSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresExactMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresNameMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMin).max(exitTenantAccessResponseSchoolOneSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(exitTenantAccessResponseSchoolOneSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(exitTenantAccessResponseSchoolOneSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(exitTenantAccessResponseSchoolOneSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsReminderDaysItemMin).max(exitTenantAccessResponseSchoolOneSettingsReminderDaysItemMax)).max(exitTenantAccessResponseSchoolOneSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(exitTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(exitTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "mode": zod.enum(['platform', 'tenant']),
+  "tenantAccess": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "reason": zod.string(),
+  "writeEnabled": zod.boolean(),
+  "expiresAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
 export const ListIntegrationStatusResponseItem = zod.object({
   "provider": zod.string(),
   "environment": zod.string().optional(),
@@ -46,7 +947,17 @@ export const RegisterDarajaCallbacksResponse = zod.object({
 })
 
 
+
+export const listIncomingPaymentsQueryPageSizeDefault = 50;
+export const listIncomingPaymentsQueryPageSizeMax = 100;
+
+
+
 export const ListIncomingPaymentsQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).optional(),
+  "pageSize": zod.coerce.number().int().min(1).max(listIncomingPaymentsQueryPageSizeMax).default(listIncomingPaymentsQueryPageSizeDefault),
+  "search": zod.coerce.string().optional(),
+  "id": zod.coerce.string().uuid().optional(),
   "status": zod.coerce.string().optional()
 })
 
@@ -101,6 +1012,56 @@ export const IngestIncomingPaymentResponse = zod.object({
   "status": zod.string(),
   "duplicateOfId": zod.string().optional()
 })
+
+
+export const GetIncomingPaymentParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const getIncomingPaymentResponseAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const GetIncomingPaymentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "provider": zod.string(),
+  "providerTxnId": zod.string(),
+  "channel": zod.string(),
+  "amount": zod.string().regex(getIncomingPaymentResponseAmountRegExp),
+  "transactionTime": zod.coerce.date().optional(),
+  "payerPhone": zod.string().optional(),
+  "payerName": zod.string().optional(),
+  "accountReference": zod.string().optional(),
+  "status": zod.string(),
+  "duplicateOfId": zod.string().optional()
+})
+
+
+/**
+ * School-operated normalized gateway contract, NOT a native LeadsIntel or Africa's Talking webhook. An approved gateway must verify native provider delivery evidence before calling this endpoint. Configure an enabled integration with a callbackToken and a separate deliveryGatewaySecret of at least 32 characters. X-Delivery-Signature is hex HMAC-SHA256 over timestamp + '.' + raw JSON body; timestamps are epoch milliseconds within five minutes. Token binds the tenant and provider. Repeated and out-of-order statuses are handled idempotently; submitted/accepted is never delivered. Definitive WhatsApp rejection queues at most one consent-checked SMS fallback. Unknown submission outcomes do not trigger fallback or retry.
+ * @summary Record an authenticated delivery gateway event
+ */
+export const RecordMessageDeliveryGatewayEventParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const recordMessageDeliveryGatewayEventHeaderXDeliveryTimestampRegExp = new RegExp('^\\d{13}$');
+
+
+export const RecordMessageDeliveryGatewayEventHeader = zod.object({
+  "X-Delivery-Timestamp": zod.string().regex(recordMessageDeliveryGatewayEventHeaderXDeliveryTimestampRegExp),
+  "X-Delivery-Signature": zod.string()
+})
+
+export const recordMessageDeliveryGatewayEventBodyProviderMessageIdMax = 200;
+
+
+
+export const RecordMessageDeliveryGatewayEventBody = zod.object({
+  "providerMessageId": zod.string().min(1).max(recordMessageDeliveryGatewayEventBodyProviderMessageIdMax),
+  "status": zod.enum(['delivered', 'read', 'rejected'])
+})
+
+export const RecordMessageDeliveryGatewayEventResponse = zod.void()
 
 
 export const startStkPaymentBodyAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
@@ -318,6 +1279,36 @@ export const AllocateSponsorPaymentResponse = zod.object({
   "id": zod.string().optional(),
   "status": zod.string(),
   "message": zod.string().optional()
+})
+
+
+/**
+ * Bursar-only request reserving held suspense balance for independent refund approval and disbursement.
+ */
+export const RefundSponsorRemainderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+
+
+export const RefundSponsorRemainderBody = zod.object({
+  "reason": zod.string().min(1)
+})
+
+export const refundSponsorRemainderResponseAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const RefundSponsorRemainderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "paymentId": zod.string().uuid(),
+  "exceptionId": zod.string().uuid().optional(),
+  "amount": zod.string().regex(refundSponsorRemainderResponseAmountRegExp),
+  "status": zod.string(),
+  "reason": zod.string().optional(),
+  "requestedBy": zod.string().uuid().optional(),
+  "decidedBy": zod.string().uuid().optional(),
+  "paidReference": zod.string().optional()
 })
 
 
@@ -732,6 +1723,7 @@ export const ListReportCardsQueryParams = zod.object({
 })
 
 export const ListReportCardsResponseItem = zod.object({
+  "resultSnapshot": zod.union([zod.record(zod.string(), zod.unknown()).describe('Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.'),zod.array(zod.record(zod.string(), zod.unknown())).describe('Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.')]).nullish().describe('Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.'),
   "id": zod.string().uuid(),
   "studentId": zod.string().uuid(),
   "termId": zod.string().uuid(),
@@ -755,6 +1747,7 @@ export const SaveReportCardBody = zod.object({
 })
 
 export const SaveReportCardResponse = zod.object({
+  "resultSnapshot": zod.union([zod.record(zod.string(), zod.unknown()).describe('Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.'),zod.array(zod.record(zod.string(), zod.unknown())).describe('Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.')]).nullish().describe('Immutable version 1 publication object containing school, student, term, results, ratings, attendance and comments. Historical array-only snapshots are retained but cannot be regenerated as PDFs; they require administrator review.'),
   "id": zod.string().uuid(),
   "studentId": zod.string().uuid(),
   "termId": zod.string().uuid(),
@@ -1620,9 +2613,20 @@ export const RequestBotPaymentPlanResponse = zod.object({
 })
 
 
+
+export const listFinanceRecordsQueryPageSizeDefault = 50;
+export const listFinanceRecordsQueryPageSizeMax = 100;
+
+
+
 export const ListFinanceRecordsQueryParams = zod.object({
   "kind": zod.coerce.string().optional(),
-  "studentId": zod.coerce.string().uuid().optional()
+  "studentId": zod.coerce.string().uuid().optional(),
+  "page": zod.coerce.number().int().min(1).optional(),
+  "pageSize": zod.coerce.number().int().min(1).max(listFinanceRecordsQueryPageSizeMax).default(listFinanceRecordsQueryPageSizeDefault),
+  "status": zod.coerce.string().optional(),
+  "search": zod.coerce.string().optional(),
+  "id": zod.coerce.string().uuid().optional()
 })
 
 export const listFinanceRecordsResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
@@ -1720,6 +2724,30 @@ export const CreateFinanceRecordResponse = zod.object({
 })
 
 
+export const GetFinanceRecordParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const getFinanceRecordResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const GetFinanceRecordResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "studentId": zod.string().nullish(),
+  "termId": zod.string().nullish(),
+  "parentId": zod.string().nullish(),
+  "status": zod.string(),
+  "amount": zod.string().regex(getFinanceRecordResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "uniqueKey": zod.string(),
+  "requestedBy": zod.string(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
 export const UpdateFinanceRecordParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
@@ -1790,6 +2818,7 @@ export const DecideFinanceRecordResponse = zod.object({
 
 
 export const PreviewFinanceInvoicesBody = zod.object({
+  "previewToken": zod.string().optional().describe('Required on commit; durable school-scoped exact preview identity.'),
   "termId": zod.string().uuid(),
   "gradeId": zod.string().uuid().optional(),
   "dueDate": zod.coerce.date()
@@ -1800,6 +2829,7 @@ export const previewFinanceInvoicesResponseInvoicesItemLinesItemAmountRegExp = n
 
 
 export const PreviewFinanceInvoicesResponse = zod.object({
+  "previewToken": zod.string().optional(),
   "invoices": zod.array(zod.object({
   "studentId": zod.string(),
   "amount": zod.string().regex(previewFinanceInvoicesResponseInvoicesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
@@ -1815,6 +2845,7 @@ export const PreviewFinanceInvoicesResponse = zod.object({
 
 
 export const CommitFinanceInvoicesBody = zod.object({
+  "previewToken": zod.string().optional().describe('Required on commit; durable school-scoped exact preview identity.'),
   "termId": zod.string().uuid(),
   "gradeId": zod.string().uuid().optional(),
   "dueDate": zod.coerce.date()
@@ -1825,6 +2856,7 @@ export const commitFinanceInvoicesResponseInvoicesItemLinesItemAmountRegExp = ne
 
 
 export const CommitFinanceInvoicesResponse = zod.object({
+  "previewToken": zod.string().optional(),
   "invoices": zod.array(zod.object({
   "studentId": zod.string(),
   "amount": zod.string().regex(commitFinanceInvoicesResponseInvoicesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
@@ -1949,11 +2981,24 @@ export const UpdatePlatformSchoolParams = zod.object({
   "schoolId": zod.coerce.string().uuid()
 })
 
+export const updatePlatformSchoolBodyReasonMin = 3;
+export const updatePlatformSchoolBodyReasonMax = 500;
+
+export const updatePlatformSchoolBodyNameMin = 2;
+export const updatePlatformSchoolBodyNameMax = 180;
+
+export const updatePlatformSchoolBodyCountyMax = 100;
+
 export const updatePlatformSchoolBodySubscriptionPlanMax = 80;
 
 
 
 export const UpdatePlatformSchoolBody = zod.object({
+  "reason": zod.string().min(updatePlatformSchoolBodyReasonMin).max(updatePlatformSchoolBodyReasonMax),
+  "confirmation": zod.enum(['CONFIRM']),
+  "name": zod.string().min(updatePlatformSchoolBodyNameMin).max(updatePlatformSchoolBodyNameMax).optional(),
+  "county": zod.string().max(updatePlatformSchoolBodyCountyMax).nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']).optional(),
   "status": zod.enum(['active', 'suspended']).optional(),
   "subscriptionPlan": zod.string().min(1).max(updatePlatformSchoolBodySubscriptionPlanMax).optional(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -1965,6 +3010,7 @@ export const updatePlatformSchoolResponseLogoUrlMax = 500;
 
 
 export const updatePlatformSchoolResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const updatePlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
 export const updatePlatformSchoolResponseSettingsAutoPostThresholdMin = 0;
 export const updatePlatformSchoolResponseSettingsAutoPostThresholdMax = 150;
 
@@ -2022,6 +3068,7 @@ export const UpdatePlatformSchoolResponse = zod.object({
   "status": zod.enum(['active', 'suspended']),
   "logoUrl": zod.string().max(updatePlatformSchoolResponseLogoUrlMax).regex(updatePlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(updatePlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
   "autoPostThreshold": zod.number().int().min(updatePlatformSchoolResponseSettingsAutoPostThresholdMin).max(updatePlatformSchoolResponseSettingsAutoPostThresholdMax).optional(),
   "fuzzyNameThreshold": zod.number().min(updatePlatformSchoolResponseSettingsFuzzyNameThresholdMin).max(updatePlatformSchoolResponseSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
@@ -2198,6 +3245,7 @@ export const listSchoolsResponseLogoUrlMax = 500;
 
 
 export const listSchoolsResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const listSchoolsResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
 export const listSchoolsResponseSettingsAutoPostThresholdMin = 0;
 export const listSchoolsResponseSettingsAutoPostThresholdMax = 150;
 
@@ -2255,6 +3303,7 @@ export const ListSchoolsResponseItem = zod.object({
   "status": zod.enum(['active', 'suspended']),
   "logoUrl": zod.string().max(listSchoolsResponseLogoUrlMax).regex(listSchoolsResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(listSchoolsResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
   "autoPostThreshold": zod.number().int().min(listSchoolsResponseSettingsAutoPostThresholdMin).max(listSchoolsResponseSettingsAutoPostThresholdMax).optional(),
   "fuzzyNameThreshold": zod.number().min(listSchoolsResponseSettingsFuzzyNameThresholdMin).max(listSchoolsResponseSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
@@ -2293,43 +3342,50 @@ export const ListSchoolsResponseItem = zod.object({
 export const ListSchoolsResponse = zod.array(ListSchoolsResponseItem)
 
 
-export const createSchoolBodySetupTokenMax = 256;
+export const createSchoolBodyOneSetupTokenMax = 256;
 
-export const createSchoolBodySchoolNameMin = 2;
-export const createSchoolBodySchoolNameMax = 180;
+export const createSchoolBodyOneSchoolNameMin = 2;
+export const createSchoolBodyOneSchoolNameMax = 180;
 
-export const createSchoolBodySchoolCodeMin = 2;
-export const createSchoolBodySchoolCodeMax = 40;
+export const createSchoolBodyOneSchoolCodeMin = 2;
+export const createSchoolBodyOneSchoolCodeMax = 40;
 
-export const createSchoolBodyCountyMax = 100;
+export const createSchoolBodyOneCountyMax = 100;
 
-export const createSchoolBodyAdminNameMin = 2;
-export const createSchoolBodyAdminNameMax = 160;
+export const createSchoolBodyOneAdminNameMin = 2;
+export const createSchoolBodyOneAdminNameMax = 160;
 
-export const createSchoolBodyPhoneMin = 9;
-export const createSchoolBodyPhoneMax = 20;
+export const createSchoolBodyOnePhoneMin = 9;
+export const createSchoolBodyOnePhoneMax = 20;
 
-export const createSchoolBodyPasswordMin = 10;
-export const createSchoolBodyPasswordMax = 128;
+export const createSchoolBodyOnePasswordMin = 10;
+export const createSchoolBodyOnePasswordMax = 128;
+
+export const createSchoolBodyTwoReasonMin = 3;
+export const createSchoolBodyTwoReasonMax = 500;
 
 
 
 export const CreateSchoolBody = zod.object({
-  "setupToken": zod.string().max(createSchoolBodySetupTokenMax).optional(),
-  "schoolName": zod.string().min(createSchoolBodySchoolNameMin).max(createSchoolBodySchoolNameMax),
-  "schoolCode": zod.string().min(createSchoolBodySchoolCodeMin).max(createSchoolBodySchoolCodeMax),
-  "county": zod.string().max(createSchoolBodyCountyMax).optional(),
+  "setupToken": zod.string().max(createSchoolBodyOneSetupTokenMax).optional(),
+  "schoolName": zod.string().min(createSchoolBodyOneSchoolNameMin).max(createSchoolBodyOneSchoolNameMax),
+  "schoolCode": zod.string().min(createSchoolBodyOneSchoolCodeMin).max(createSchoolBodyOneSchoolCodeMax),
+  "county": zod.string().max(createSchoolBodyOneCountyMax).optional(),
   "schoolType": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
-  "adminName": zod.string().min(createSchoolBodyAdminNameMin).max(createSchoolBodyAdminNameMax),
+  "adminName": zod.string().min(createSchoolBodyOneAdminNameMin).max(createSchoolBodyOneAdminNameMax),
   "email": zod.string().email().optional(),
-  "phone": zod.string().min(createSchoolBodyPhoneMin).max(createSchoolBodyPhoneMax).optional(),
-  "password": zod.string().min(createSchoolBodyPasswordMin).max(createSchoolBodyPasswordMax)
-})
+  "phone": zod.string().min(createSchoolBodyOnePhoneMin).max(createSchoolBodyOnePhoneMax).optional(),
+  "password": zod.string().min(createSchoolBodyOnePasswordMin).max(createSchoolBodyOnePasswordMax)
+}).and(zod.object({
+  "reason": zod.string().min(createSchoolBodyTwoReasonMin).max(createSchoolBodyTwoReasonMax),
+  "confirmation": zod.enum(['CONFIRM'])
+}))
 
 export const createSchoolResponseLogoUrlMax = 500;
 
 
 export const createSchoolResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createSchoolResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
 export const createSchoolResponseSettingsAutoPostThresholdMin = 0;
 export const createSchoolResponseSettingsAutoPostThresholdMax = 150;
 
@@ -2387,6 +3443,7 @@ export const CreateSchoolResponse = zod.object({
   "status": zod.enum(['active', 'suspended']),
   "logoUrl": zod.string().max(createSchoolResponseLogoUrlMax).regex(createSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(createSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
   "autoPostThreshold": zod.number().int().min(createSchoolResponseSettingsAutoPostThresholdMin).max(createSchoolResponseSettingsAutoPostThresholdMax).optional(),
   "fuzzyNameThreshold": zod.number().min(createSchoolResponseSettingsFuzzyNameThresholdMin).max(createSchoolResponseSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
@@ -2634,53 +3691,54 @@ export const CreateInitialSchoolBody = zod.object({
   "password": zod.string().min(createInitialSchoolBodyPasswordMin).max(createInitialSchoolBodyPasswordMax)
 })
 
-export const createInitialSchoolResponseSchoolLogoUrlMax = 500;
+export const createInitialSchoolResponseSchoolOneLogoUrlMax = 500;
 
 
-export const createInitialSchoolResponseSchoolLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
-export const createInitialSchoolResponseSchoolSettingsAutoPostThresholdMin = 0;
-export const createInitialSchoolResponseSchoolSettingsAutoPostThresholdMax = 150;
+export const createInitialSchoolResponseSchoolOneLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createInitialSchoolResponseSchoolOneSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const createInitialSchoolResponseSchoolOneSettingsAutoPostThresholdMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsAutoPostThresholdMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsFuzzyNameThresholdMin = 0.8;
-export const createInitialSchoolResponseSchoolSettingsFuzzyNameThresholdMax = 1;
+export const createInitialSchoolResponseSchoolOneSettingsFuzzyNameThresholdMin = 0.8;
+export const createInitialSchoolResponseSchoolOneSettingsFuzzyNameThresholdMax = 1;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresExactMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresExactMax = 150;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresExactMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresExactMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresNormalizedMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresNormalizedMax = 150;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresAliasMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresAliasMax = 150;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresAliasMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresAliasMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresGuardianMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresGuardianMax = 150;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresGuardianMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresGuardianMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresNameMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresNameMax = 150;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresNameMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresNameMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresTypoMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresTypoMax = 150;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresTypoMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresTypoMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresBonusMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresBonusMax = 30;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresBonusMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresBonusMax = 30;
 
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresInactiveMin = 0;
-export const createInitialSchoolResponseSchoolSettingsMatchingScoresInactiveMax = 150;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresInactiveMin = 0;
+export const createInitialSchoolResponseSchoolOneSettingsMatchingScoresInactiveMax = 150;
 
-export const createInitialSchoolResponseSchoolSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
-export const createInitialSchoolResponseSchoolSettingsChronicAbsencePercentMax = 100;
+export const createInitialSchoolResponseSchoolOneSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const createInitialSchoolResponseSchoolOneSettingsChronicAbsencePercentMax = 100;
 
-export const createInitialSchoolResponseSchoolSettingsSiblingReplyHoursMax = 168;
+export const createInitialSchoolResponseSchoolOneSettingsSiblingReplyHoursMax = 168;
 
-export const createInitialSchoolResponseSchoolSettingsReminderDaysItemMin = -365;
-export const createInitialSchoolResponseSchoolSettingsReminderDaysItemMax = 365;
+export const createInitialSchoolResponseSchoolOneSettingsReminderDaysItemMin = -365;
+export const createInitialSchoolResponseSchoolOneSettingsReminderDaysItemMax = 365;
 
-export const createInitialSchoolResponseSchoolSettingsReminderDaysMax = 20;
+export const createInitialSchoolResponseSchoolOneSettingsReminderDaysMax = 20;
 
-export const createInitialSchoolResponseSchoolSettingsDefaultAfterMissedInstallmentsMax = 24;
+export const createInitialSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
-export const createInitialSchoolResponseSchoolSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createInitialSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const CreateInitialSchoolResponse = zod.object({
@@ -2695,7 +3753,7 @@ export const CreateInitialSchoolResponse = zod.object({
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
-  "school": zod.object({
+  "school": zod.union([zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
   "code": zod.string(),
@@ -2705,21 +3763,22 @@ export const CreateInitialSchoolResponse = zod.object({
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
   "status": zod.enum(['active', 'suspended']),
-  "logoUrl": zod.string().max(createInitialSchoolResponseSchoolLogoUrlMax).regex(createInitialSchoolResponseSchoolLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "logoUrl": zod.string().max(createInitialSchoolResponseSchoolOneLogoUrlMax).regex(createInitialSchoolResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
-  "autoPostThreshold": zod.number().int().min(createInitialSchoolResponseSchoolSettingsAutoPostThresholdMin).max(createInitialSchoolResponseSchoolSettingsAutoPostThresholdMax).optional(),
-  "fuzzyNameThreshold": zod.number().min(createInitialSchoolResponseSchoolSettingsFuzzyNameThresholdMin).max(createInitialSchoolResponseSchoolSettingsFuzzyNameThresholdMax).optional(),
+  "highValuePaymentThreshold": zod.string().regex(createInitialSchoolResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsAutoPostThresholdMin).max(createInitialSchoolResponseSchoolOneSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(createInitialSchoolResponseSchoolOneSettingsFuzzyNameThresholdMin).max(createInitialSchoolResponseSchoolOneSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
-  "exact": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresExactMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresExactMax).optional(),
-  "normalized": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresNormalizedMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresNormalizedMax).optional(),
-  "alias": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresAliasMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresAliasMax).optional(),
-  "guardian": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresGuardianMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresGuardianMax).optional(),
-  "name": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresNameMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresNameMax).optional(),
-  "typo": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresTypoMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresTypoMax).optional(),
-  "bonus": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresBonusMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresBonusMax).optional(),
-  "inactive": zod.number().int().min(createInitialSchoolResponseSchoolSettingsMatchingScoresInactiveMin).max(createInitialSchoolResponseSchoolSettingsMatchingScoresInactiveMax).optional()
+  "exact": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresExactMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresAliasMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresGuardianMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresNameMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresTypoMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresBonusMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsMatchingScoresInactiveMin).max(createInitialSchoolResponseSchoolOneSettingsMatchingScoresInactiveMax).optional()
 }).optional(),
-  "autoApprovePlanLimit": zod.string().regex(createInitialSchoolResponseSchoolSettingsAutoApprovePlanLimitRegExp).optional(),
+  "autoApprovePlanLimit": zod.string().regex(createInitialSchoolResponseSchoolOneSettingsAutoApprovePlanLimitRegExp).optional(),
   "messageTemplates": zod.record(zod.string(), zod.object({
   "transport": zod.enum(['template', 'text']).optional(),
   "name": zod.string().optional(),
@@ -2727,21 +3786,29 @@ export const CreateInitialSchoolResponse = zod.object({
   "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
 })).optional(),
   "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
-  "chronicAbsencePercent": zod.number().min(1).max(createInitialSchoolResponseSchoolSettingsChronicAbsencePercentMax).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(createInitialSchoolResponseSchoolOneSettingsChronicAbsencePercentMax).optional(),
   "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
   "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
-  "siblingReplyHours": zod.number().int().min(1).max(createInitialSchoolResponseSchoolSettingsSiblingReplyHoursMax).optional(),
-  "reminderDays": zod.array(zod.number().int().min(createInitialSchoolResponseSchoolSettingsReminderDaysItemMin).max(createInitialSchoolResponseSchoolSettingsReminderDaysItemMax)).max(createInitialSchoolResponseSchoolSettingsReminderDaysMax).optional(),
-  "defaultAfterMissedInstallments": zod.number().int().min(1).max(createInitialSchoolResponseSchoolSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(createInitialSchoolResponseSchoolOneSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsReminderDaysItemMin).max(createInitialSchoolResponseSchoolOneSettingsReminderDaysItemMax)).max(createInitialSchoolResponseSchoolOneSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(createInitialSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(createInitialSchoolResponseSchoolSettingsAbsenceAlertTimeRegExp).optional()
+  "absenceAlertTime": zod.string().regex(createInitialSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
-})
+}),zod.null()]),
+  "mode": zod.enum(['platform', 'tenant']),
+  "tenantAccess": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "reason": zod.string(),
+  "writeEnabled": zod.boolean(),
+  "expiresAt": zod.coerce.date()
+}),zod.null()])
 })
 
 
@@ -2760,53 +3827,54 @@ export const LoginBody = zod.object({
   "password": zod.string().min(1).max(loginBodyPasswordMax)
 })
 
-export const loginResponseSchoolLogoUrlMax = 500;
+export const loginResponseSchoolOneLogoUrlMax = 500;
 
 
-export const loginResponseSchoolLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
-export const loginResponseSchoolSettingsAutoPostThresholdMin = 0;
-export const loginResponseSchoolSettingsAutoPostThresholdMax = 150;
+export const loginResponseSchoolOneLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const loginResponseSchoolOneSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const loginResponseSchoolOneSettingsAutoPostThresholdMin = 0;
+export const loginResponseSchoolOneSettingsAutoPostThresholdMax = 150;
 
-export const loginResponseSchoolSettingsFuzzyNameThresholdMin = 0.8;
-export const loginResponseSchoolSettingsFuzzyNameThresholdMax = 1;
+export const loginResponseSchoolOneSettingsFuzzyNameThresholdMin = 0.8;
+export const loginResponseSchoolOneSettingsFuzzyNameThresholdMax = 1;
 
-export const loginResponseSchoolSettingsMatchingScoresExactMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresExactMax = 150;
+export const loginResponseSchoolOneSettingsMatchingScoresExactMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresExactMax = 150;
 
-export const loginResponseSchoolSettingsMatchingScoresNormalizedMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresNormalizedMax = 150;
+export const loginResponseSchoolOneSettingsMatchingScoresNormalizedMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresNormalizedMax = 150;
 
-export const loginResponseSchoolSettingsMatchingScoresAliasMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresAliasMax = 150;
+export const loginResponseSchoolOneSettingsMatchingScoresAliasMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresAliasMax = 150;
 
-export const loginResponseSchoolSettingsMatchingScoresGuardianMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresGuardianMax = 150;
+export const loginResponseSchoolOneSettingsMatchingScoresGuardianMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresGuardianMax = 150;
 
-export const loginResponseSchoolSettingsMatchingScoresNameMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresNameMax = 150;
+export const loginResponseSchoolOneSettingsMatchingScoresNameMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresNameMax = 150;
 
-export const loginResponseSchoolSettingsMatchingScoresTypoMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresTypoMax = 150;
+export const loginResponseSchoolOneSettingsMatchingScoresTypoMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresTypoMax = 150;
 
-export const loginResponseSchoolSettingsMatchingScoresBonusMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresBonusMax = 30;
+export const loginResponseSchoolOneSettingsMatchingScoresBonusMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresBonusMax = 30;
 
-export const loginResponseSchoolSettingsMatchingScoresInactiveMin = 0;
-export const loginResponseSchoolSettingsMatchingScoresInactiveMax = 150;
+export const loginResponseSchoolOneSettingsMatchingScoresInactiveMin = 0;
+export const loginResponseSchoolOneSettingsMatchingScoresInactiveMax = 150;
 
-export const loginResponseSchoolSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
-export const loginResponseSchoolSettingsChronicAbsencePercentMax = 100;
+export const loginResponseSchoolOneSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const loginResponseSchoolOneSettingsChronicAbsencePercentMax = 100;
 
-export const loginResponseSchoolSettingsSiblingReplyHoursMax = 168;
+export const loginResponseSchoolOneSettingsSiblingReplyHoursMax = 168;
 
-export const loginResponseSchoolSettingsReminderDaysItemMin = -365;
-export const loginResponseSchoolSettingsReminderDaysItemMax = 365;
+export const loginResponseSchoolOneSettingsReminderDaysItemMin = -365;
+export const loginResponseSchoolOneSettingsReminderDaysItemMax = 365;
 
-export const loginResponseSchoolSettingsReminderDaysMax = 20;
+export const loginResponseSchoolOneSettingsReminderDaysMax = 20;
 
-export const loginResponseSchoolSettingsDefaultAfterMissedInstallmentsMax = 24;
+export const loginResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
-export const loginResponseSchoolSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const loginResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const LoginResponse = zod.object({
@@ -2821,7 +3889,7 @@ export const LoginResponse = zod.object({
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
-  "school": zod.object({
+  "school": zod.union([zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
   "code": zod.string(),
@@ -2831,21 +3899,22 @@ export const LoginResponse = zod.object({
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
   "status": zod.enum(['active', 'suspended']),
-  "logoUrl": zod.string().max(loginResponseSchoolLogoUrlMax).regex(loginResponseSchoolLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "logoUrl": zod.string().max(loginResponseSchoolOneLogoUrlMax).regex(loginResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
-  "autoPostThreshold": zod.number().int().min(loginResponseSchoolSettingsAutoPostThresholdMin).max(loginResponseSchoolSettingsAutoPostThresholdMax).optional(),
-  "fuzzyNameThreshold": zod.number().min(loginResponseSchoolSettingsFuzzyNameThresholdMin).max(loginResponseSchoolSettingsFuzzyNameThresholdMax).optional(),
+  "highValuePaymentThreshold": zod.string().regex(loginResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(loginResponseSchoolOneSettingsAutoPostThresholdMin).max(loginResponseSchoolOneSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(loginResponseSchoolOneSettingsFuzzyNameThresholdMin).max(loginResponseSchoolOneSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
-  "exact": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresExactMin).max(loginResponseSchoolSettingsMatchingScoresExactMax).optional(),
-  "normalized": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresNormalizedMin).max(loginResponseSchoolSettingsMatchingScoresNormalizedMax).optional(),
-  "alias": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresAliasMin).max(loginResponseSchoolSettingsMatchingScoresAliasMax).optional(),
-  "guardian": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresGuardianMin).max(loginResponseSchoolSettingsMatchingScoresGuardianMax).optional(),
-  "name": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresNameMin).max(loginResponseSchoolSettingsMatchingScoresNameMax).optional(),
-  "typo": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresTypoMin).max(loginResponseSchoolSettingsMatchingScoresTypoMax).optional(),
-  "bonus": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresBonusMin).max(loginResponseSchoolSettingsMatchingScoresBonusMax).optional(),
-  "inactive": zod.number().int().min(loginResponseSchoolSettingsMatchingScoresInactiveMin).max(loginResponseSchoolSettingsMatchingScoresInactiveMax).optional()
+  "exact": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresExactMin).max(loginResponseSchoolOneSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresNormalizedMin).max(loginResponseSchoolOneSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresAliasMin).max(loginResponseSchoolOneSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresGuardianMin).max(loginResponseSchoolOneSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresNameMin).max(loginResponseSchoolOneSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresTypoMin).max(loginResponseSchoolOneSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresBonusMin).max(loginResponseSchoolOneSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(loginResponseSchoolOneSettingsMatchingScoresInactiveMin).max(loginResponseSchoolOneSettingsMatchingScoresInactiveMax).optional()
 }).optional(),
-  "autoApprovePlanLimit": zod.string().regex(loginResponseSchoolSettingsAutoApprovePlanLimitRegExp).optional(),
+  "autoApprovePlanLimit": zod.string().regex(loginResponseSchoolOneSettingsAutoApprovePlanLimitRegExp).optional(),
   "messageTemplates": zod.record(zod.string(), zod.object({
   "transport": zod.enum(['template', 'text']).optional(),
   "name": zod.string().optional(),
@@ -2853,21 +3922,29 @@ export const LoginResponse = zod.object({
   "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
 })).optional(),
   "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
-  "chronicAbsencePercent": zod.number().min(1).max(loginResponseSchoolSettingsChronicAbsencePercentMax).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(loginResponseSchoolOneSettingsChronicAbsencePercentMax).optional(),
   "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
   "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
-  "siblingReplyHours": zod.number().int().min(1).max(loginResponseSchoolSettingsSiblingReplyHoursMax).optional(),
-  "reminderDays": zod.array(zod.number().int().min(loginResponseSchoolSettingsReminderDaysItemMin).max(loginResponseSchoolSettingsReminderDaysItemMax)).max(loginResponseSchoolSettingsReminderDaysMax).optional(),
-  "defaultAfterMissedInstallments": zod.number().int().min(1).max(loginResponseSchoolSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(loginResponseSchoolOneSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(loginResponseSchoolOneSettingsReminderDaysItemMin).max(loginResponseSchoolOneSettingsReminderDaysItemMax)).max(loginResponseSchoolOneSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(loginResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(loginResponseSchoolSettingsAbsenceAlertTimeRegExp).optional()
+  "absenceAlertTime": zod.string().regex(loginResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
-})
+}),zod.null()]),
+  "mode": zod.enum(['platform', 'tenant']),
+  "tenantAccess": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "reason": zod.string(),
+  "writeEnabled": zod.boolean(),
+  "expiresAt": zod.coerce.date()
+}),zod.null()])
 })
 
 
@@ -2882,53 +3959,54 @@ export const LogoutResponse = zod.object({
 /**
  * @summary Get the signed-in user and school
  */
-export const getCurrentUserResponseSchoolLogoUrlMax = 500;
+export const getCurrentUserResponseSchoolOneLogoUrlMax = 500;
 
 
-export const getCurrentUserResponseSchoolLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
-export const getCurrentUserResponseSchoolSettingsAutoPostThresholdMin = 0;
-export const getCurrentUserResponseSchoolSettingsAutoPostThresholdMax = 150;
+export const getCurrentUserResponseSchoolOneLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const getCurrentUserResponseSchoolOneSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const getCurrentUserResponseSchoolOneSettingsAutoPostThresholdMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsAutoPostThresholdMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsFuzzyNameThresholdMin = 0.8;
-export const getCurrentUserResponseSchoolSettingsFuzzyNameThresholdMax = 1;
+export const getCurrentUserResponseSchoolOneSettingsFuzzyNameThresholdMin = 0.8;
+export const getCurrentUserResponseSchoolOneSettingsFuzzyNameThresholdMax = 1;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresExactMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresExactMax = 150;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresExactMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresExactMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresNormalizedMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresNormalizedMax = 150;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresNormalizedMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresNormalizedMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresAliasMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresAliasMax = 150;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresAliasMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresAliasMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresGuardianMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresGuardianMax = 150;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresGuardianMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresGuardianMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresNameMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresNameMax = 150;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresNameMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresNameMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresTypoMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresTypoMax = 150;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresTypoMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresTypoMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresBonusMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresBonusMax = 30;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresBonusMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresBonusMax = 30;
 
-export const getCurrentUserResponseSchoolSettingsMatchingScoresInactiveMin = 0;
-export const getCurrentUserResponseSchoolSettingsMatchingScoresInactiveMax = 150;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresInactiveMin = 0;
+export const getCurrentUserResponseSchoolOneSettingsMatchingScoresInactiveMax = 150;
 
-export const getCurrentUserResponseSchoolSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
-export const getCurrentUserResponseSchoolSettingsChronicAbsencePercentMax = 100;
+export const getCurrentUserResponseSchoolOneSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const getCurrentUserResponseSchoolOneSettingsChronicAbsencePercentMax = 100;
 
-export const getCurrentUserResponseSchoolSettingsSiblingReplyHoursMax = 168;
+export const getCurrentUserResponseSchoolOneSettingsSiblingReplyHoursMax = 168;
 
-export const getCurrentUserResponseSchoolSettingsReminderDaysItemMin = -365;
-export const getCurrentUserResponseSchoolSettingsReminderDaysItemMax = 365;
+export const getCurrentUserResponseSchoolOneSettingsReminderDaysItemMin = -365;
+export const getCurrentUserResponseSchoolOneSettingsReminderDaysItemMax = 365;
 
-export const getCurrentUserResponseSchoolSettingsReminderDaysMax = 20;
+export const getCurrentUserResponseSchoolOneSettingsReminderDaysMax = 20;
 
-export const getCurrentUserResponseSchoolSettingsDefaultAfterMissedInstallmentsMax = 24;
+export const getCurrentUserResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
-export const getCurrentUserResponseSchoolSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getCurrentUserResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
 
 
 export const GetCurrentUserResponse = zod.object({
@@ -2943,7 +4021,7 @@ export const GetCurrentUserResponse = zod.object({
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
-  "school": zod.object({
+  "school": zod.union([zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
   "code": zod.string(),
@@ -2953,21 +4031,22 @@ export const GetCurrentUserResponse = zod.object({
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
   "status": zod.enum(['active', 'suspended']),
-  "logoUrl": zod.string().max(getCurrentUserResponseSchoolLogoUrlMax).regex(getCurrentUserResponseSchoolLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "logoUrl": zod.string().max(getCurrentUserResponseSchoolOneLogoUrlMax).regex(getCurrentUserResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
-  "autoPostThreshold": zod.number().int().min(getCurrentUserResponseSchoolSettingsAutoPostThresholdMin).max(getCurrentUserResponseSchoolSettingsAutoPostThresholdMax).optional(),
-  "fuzzyNameThreshold": zod.number().min(getCurrentUserResponseSchoolSettingsFuzzyNameThresholdMin).max(getCurrentUserResponseSchoolSettingsFuzzyNameThresholdMax).optional(),
+  "highValuePaymentThreshold": zod.string().regex(getCurrentUserResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsAutoPostThresholdMin).max(getCurrentUserResponseSchoolOneSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(getCurrentUserResponseSchoolOneSettingsFuzzyNameThresholdMin).max(getCurrentUserResponseSchoolOneSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
-  "exact": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresExactMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresExactMax).optional(),
-  "normalized": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresNormalizedMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresNormalizedMax).optional(),
-  "alias": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresAliasMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresAliasMax).optional(),
-  "guardian": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresGuardianMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresGuardianMax).optional(),
-  "name": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresNameMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresNameMax).optional(),
-  "typo": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresTypoMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresTypoMax).optional(),
-  "bonus": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresBonusMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresBonusMax).optional(),
-  "inactive": zod.number().int().min(getCurrentUserResponseSchoolSettingsMatchingScoresInactiveMin).max(getCurrentUserResponseSchoolSettingsMatchingScoresInactiveMax).optional()
+  "exact": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresExactMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresNormalizedMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresAliasMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresGuardianMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresNameMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresTypoMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresBonusMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(getCurrentUserResponseSchoolOneSettingsMatchingScoresInactiveMin).max(getCurrentUserResponseSchoolOneSettingsMatchingScoresInactiveMax).optional()
 }).optional(),
-  "autoApprovePlanLimit": zod.string().regex(getCurrentUserResponseSchoolSettingsAutoApprovePlanLimitRegExp).optional(),
+  "autoApprovePlanLimit": zod.string().regex(getCurrentUserResponseSchoolOneSettingsAutoApprovePlanLimitRegExp).optional(),
   "messageTemplates": zod.record(zod.string(), zod.object({
   "transport": zod.enum(['template', 'text']).optional(),
   "name": zod.string().optional(),
@@ -2975,21 +4054,29 @@ export const GetCurrentUserResponse = zod.object({
   "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
 })).optional(),
   "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
-  "chronicAbsencePercent": zod.number().min(1).max(getCurrentUserResponseSchoolSettingsChronicAbsencePercentMax).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(getCurrentUserResponseSchoolOneSettingsChronicAbsencePercentMax).optional(),
   "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
   "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
-  "siblingReplyHours": zod.number().int().min(1).max(getCurrentUserResponseSchoolSettingsSiblingReplyHoursMax).optional(),
-  "reminderDays": zod.array(zod.number().int().min(getCurrentUserResponseSchoolSettingsReminderDaysItemMin).max(getCurrentUserResponseSchoolSettingsReminderDaysItemMax)).max(getCurrentUserResponseSchoolSettingsReminderDaysMax).optional(),
-  "defaultAfterMissedInstallments": zod.number().int().min(1).max(getCurrentUserResponseSchoolSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(getCurrentUserResponseSchoolOneSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(getCurrentUserResponseSchoolOneSettingsReminderDaysItemMin).max(getCurrentUserResponseSchoolOneSettingsReminderDaysItemMax)).max(getCurrentUserResponseSchoolOneSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(getCurrentUserResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(getCurrentUserResponseSchoolSettingsAbsenceAlertTimeRegExp).optional()
+  "absenceAlertTime": zod.string().regex(getCurrentUserResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
-})
+}),zod.null()]),
+  "mode": zod.enum(['platform', 'tenant']),
+  "tenantAccess": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "reason": zod.string(),
+  "writeEnabled": zod.boolean(),
+  "expiresAt": zod.coerce.date()
+}),zod.null()])
 })
 
 
@@ -3028,6 +4115,7 @@ export const getSchoolResponseLogoUrlMax = 500;
 
 
 export const getSchoolResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const getSchoolResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
 export const getSchoolResponseSettingsAutoPostThresholdMin = 0;
 export const getSchoolResponseSettingsAutoPostThresholdMax = 150;
 
@@ -3085,6 +4173,7 @@ export const GetSchoolResponse = zod.object({
   "status": zod.enum(['active', 'suspended']),
   "logoUrl": zod.string().max(getSchoolResponseLogoUrlMax).regex(getSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(getSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
   "autoPostThreshold": zod.number().int().min(getSchoolResponseSettingsAutoPostThresholdMin).max(getSchoolResponseSettingsAutoPostThresholdMax).optional(),
   "fuzzyNameThreshold": zod.number().min(getSchoolResponseSettingsFuzzyNameThresholdMin).max(getSchoolResponseSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
@@ -3129,6 +4218,7 @@ export const updateSchoolBodyLogoUrlMax = 500;
 
 
 export const updateSchoolBodyLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const updateSchoolBodySettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
 export const updateSchoolBodySettingsAutoPostThresholdMin = 0;
 export const updateSchoolBodySettingsAutoPostThresholdMax = 150;
 
@@ -3186,6 +4276,7 @@ export const updateSchoolBodyPhoneMax = 20;
 export const UpdateSchoolBody = zod.object({
   "logoUrl": zod.string().max(updateSchoolBodyLogoUrlMax).regex(updateSchoolBodyLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(updateSchoolBodySettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
   "autoPostThreshold": zod.number().int().min(updateSchoolBodySettingsAutoPostThresholdMin).max(updateSchoolBodySettingsAutoPostThresholdMax).optional(),
   "fuzzyNameThreshold": zod.number().min(updateSchoolBodySettingsFuzzyNameThresholdMin).max(updateSchoolBodySettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({
@@ -3227,6 +4318,7 @@ export const updateSchoolResponseLogoUrlMax = 500;
 
 
 export const updateSchoolResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const updateSchoolResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
 export const updateSchoolResponseSettingsAutoPostThresholdMin = 0;
 export const updateSchoolResponseSettingsAutoPostThresholdMax = 150;
 
@@ -3284,6 +4376,7 @@ export const UpdateSchoolResponse = zod.object({
   "status": zod.enum(['active', 'suspended']),
   "logoUrl": zod.string().max(updateSchoolResponseLogoUrlMax).regex(updateSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(updateSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
   "autoPostThreshold": zod.number().int().min(updateSchoolResponseSettingsAutoPostThresholdMin).max(updateSchoolResponseSettingsAutoPostThresholdMax).optional(),
   "fuzzyNameThreshold": zod.number().min(updateSchoolResponseSettingsFuzzyNameThresholdMin).max(updateSchoolResponseSettingsFuzzyNameThresholdMax).optional(),
   "matchingScores": zod.object({

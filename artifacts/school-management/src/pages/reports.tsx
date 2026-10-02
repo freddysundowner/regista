@@ -88,7 +88,7 @@ export default function Reports() {
       <PageHeader eyebrow="Insight" title="Reports" meta={p.limitedToAssigned ? "Academic reports for your assigned classes." : "Run a report, read it here, then export. Exports contain exactly the rows shown."} />
       {!types.length ? <Panel><Empty icon={<BarChart3 className="h-5 w-5" />} title="No reports for your role" body="Ask your administrator if you need access." /></Panel> : (
         <Panel>
-          <form onSubmit={submit} className="space-y-4 p-5">
+          <form onSubmit={submit} data-readonly-safe="report-run" className="space-y-4 p-5">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Field label="Report type">
                 <NativeSelect data-testid="select-report-type" value={type} onChange={e => { setType(e.target.value); setErr(null); }}>

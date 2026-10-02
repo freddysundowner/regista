@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { usePreviewFinanceInvoices, useCommitFinanceInvoices, useCreateFinanceRecord, type InvoiceProposal } from "@workspace/api-client-react";
 import { FileText, Loader2, Plus } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
@@ -16,20 +16,21 @@ function Batch({ onClose }: { onClose: () => void }) {
   const { toast } = useToast();
   const [f, setF] = useState({ termId: "", gradeId: "", dueDate: "" });
   const [rows, setRows] = useState<InvoiceProposal[] | null>(null);
+  const [previewToken, setPreviewToken] = useState<string>();
   const [done, setDone] = useState<InvoiceProposal[] | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const body = () => ({ termId: f.termId, dueDate: f.dueDate, ...(f.gradeId ? { gradeId: f.gradeId } : {}) });
+  const body = () => ({ termId: f.termId, dueDate: f.dueDate, previewToken, ...(f.gradeId ? { gradeId: f.gradeId } : {}) });
   const change = (p: Partial<typeof f>) => { setF({ ...f, ...p }); setRows(null); setConfirm(false); };
   const run = (e: FormEvent) => {
     e.preventDefault(); setErr(null); setDone(null);
     if (!f.termId || !f.dueDate) return setErr("Choose a term and a due date.");
-    preview.mutate({ data: body() }, { onSuccess: (r) => setRows(r.invoices), onError: (x) => setErr(errMsg(x)) });
+    preview.mutate({ data: body() }, { onSuccess: (r) => { setRows(r.invoices); setPreviewToken((r as typeof r & { previewToken: string }).previewToken); }, onError: (x) => setErr(errMsg(x)) });
   };
   const fresh = rows?.filter((r) => !r.existing) ?? [];
   const go = () => commit.mutate({ data: body() }, {
     onSuccess: (r) => { inv(); setDone(r.invoices); setRows(null); setConfirm(false); toast({ title: "Invoices generated", description: `${r.invoices.filter((x) => !x.existing).length} new; existing invoices were left untouched.` }); onClose(); },
-    onError: (x) => setErr(`${errMsg(x)} Nothing was posted if the request failed; preview again.`),
+    onError: (x) => setErr(`${errMsg(x)} If the connection failed, retry this same preview safely. A stale-preview rejection requires a fresh preview.`),
   });
   return (
     <div>
@@ -91,13 +92,15 @@ function OneOff({ onDone }: { onDone: () => void }) {
 
 export default function Invoices() {
   const p = usePerms();
-  const q = useFinanceRecords({ kind: "invoice" });
   const sname = useStudentNames(); const term = useTermNames();
   const [oneoff, setOneoff] = useState(false);
   const [batch, setBatch] = useState(false);
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState("");
-  const list = (q.data ?? []).filter((r) => !status || r.status === status).filter((r) => !filter || sname(r.studentId).toLowerCase().includes(filter.toLowerCase()) || (rd(r, "invoiceNo") ?? "").toLowerCase().includes(filter.toLowerCase()));
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [status, filter]);
+  const q = useFinanceRecords({ kind: "invoice", page, pageSize: 50, status, search: filter });
+  const list = q.data ?? [];
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Billing" title="Invoices" meta="Term invoices from approved structures, plus one-off charges.">
@@ -114,6 +117,7 @@ export default function Invoices() {
             <tr key={r.id} data-testid={`row-invoice-${r.id}`}><td className={`${td} font-mono text-xs`}>{rd(r, "invoiceNo") ?? "\u2014"}<div className="font-sans text-[11px] text-muted-foreground">{rd(r, "type") === "one_off" ? "One-off" : "Term"}</div></td><td className={td}>{sname(r.studentId)}</td><td className={`${td} text-xs`}>{term(r.termId)}</td><td className={`${td} text-xs`}>{fmtDate(rd(r, "issueDate"))}<div className="text-muted-foreground">Due {fmtDate(rd(r, "dueDate"))}</div></td><td className={td}><Money v={r.amount} /></td><td className={td}><StatusPill status={r.status} /></td><td className={`${td} text-xs text-muted-foreground`}>{fmtDateTime(r.createdAt)}</td></tr>))}</Table>
         )}
       </Panel>
+      <div className="flex items-center justify-end gap-3"><Btn variant="outline" disabled={page === 1 || q.isFetching} onClick={() => setPage(page - 1)}>Previous</Btn><span>Page {page}</span><Btn variant="outline" disabled={list.length < 50 || q.isFetching} onClick={() => setPage(page + 1)}>Next</Btn></div>
     </div>
   );
 }

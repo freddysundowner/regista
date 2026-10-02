@@ -7,6 +7,8 @@
  */
 
 export interface InvoiceBatchInput {
+  /** Required on commit; durable school-scoped exact preview identity. */
+  previewToken?: string;
   termId: string;
   gradeId?: string;
   dueDate: Date;

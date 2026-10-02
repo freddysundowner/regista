@@ -4,14 +4,14 @@ import * as schemas from "@workspace/api-zod";
 import { allow, admin, readers, writers, auditors, body, ApiError, audit } from "../lib/core";
 import { saveIntegration } from "../lib/integrations/security";
 import { registerCallbacks, startStk } from "../lib/integrations/daraja";
-import { ingest, resolveException } from "../lib/payments/pipeline";
+import { ingest, resolveException, postedStkStatus } from "../lib/payments/pipeline";
 import { previewStatement, reconcileStatement } from "../lib/integrations/banks";
 import { financeTransaction, record, view } from "../lib/finance/posting";
 import { createRecord } from "../lib/finance/service";
 import { sum, money } from "../lib/finance/money";
 import { createPlan, decidePlan, planView } from "../lib/payments/plans";
 import { queueMessage, messageReadiness } from "../lib/integrations/messages";
-import { decideUnmatchedRefund, payUnmatchedRefund, sponsorAcknowledgement } from "../lib/payments/settlements";
+import { decideUnmatchedRefund, payUnmatchedRefund, sponsorAcknowledgement, requestUnmatchedRefund } from "../lib/payments/settlements";
 import { z } from "zod";
 
 const router = Router();
@@ -25,6 +25,17 @@ router.post("/reconciliation/refunds/:id/paid", async (req, res) => {
   res.json(view(await payUnmatchedRefund(req.actor, String(req.params.id), input.reference)));
 });
 router.get("/reconciliation/sponsors/batches", async (req, res) => { allow(req, readers); res.json(view(await db.sponsorBatch.findMany({ where: { schoolId: req.actor.school.id }, orderBy: { createdAt: "desc" } }))); });
+router.post("/reconciliation/sponsors/:id/refund", async (req, res) => {
+  allow(req, ["bursar"]);
+  const input = body(z.object({ reason: z.string().trim().min(1) }), req.body);
+  res.json(view(await financeTransaction(req.actor, async tx => {
+    const batch = await tx.sponsorBatch.findFirst({ where: { schoolId: req.actor.school.id, id: String(req.params.id) } });
+    if (!batch) throw new ApiError(404, "Sponsor batch not found");
+    let exception = await tx.matchException.findFirst({ where: { schoolId: req.actor.school.id, paymentId: batch.paymentId } });
+    if (!exception) exception = await tx.matchException.create({ data: { schoolId: req.actor.school.id, paymentId: batch.paymentId, reason: "sponsor_remainder", status: "sponsor_remainder_held", candidates: [] } });
+    return requestUnmatchedRefund(tx, req.actor, exception.id, input.reason);
+  })));
+});
 router.post("/reconciliation/sponsors/:id/acknowledgement", async (req, res) => { allow(req, readers); res.json(await sponsorAcknowledgement(req.actor, String(req.params.id))); });
 router.get("/integrations/config", async (req, res) => {
   allow(req, admin);
@@ -38,7 +49,16 @@ router.put("/integrations/config", async (req, res) => { allow(req, admin); res.
 router.post("/integrations/daraja/register", async (req, res) => { allow(req, admin); res.json(await registerCallbacks(req.actor)); });
 router.get("/payments/incoming", async (req, res) => {
   allow(req, readers);
-  res.json(view(await db.incomingPayment.findMany({ where: { schoolId: req.actor.school.id, ...(typeof req.query.status === "string" ? { status: req.query.status } : {}) }, orderBy: { createdAt: "desc" }, take: 500, omit: { rawPayload: true } })));
+  const query = body(z.object({ page: z.coerce.number().int().min(1).optional(), pageSize: z.coerce.number().int().min(1).max(100).default(50), status: z.string().optional(), search: z.string().optional(), id: z.string().uuid().optional() }), req.query);
+  const where = { schoolId: req.actor.school.id, status: query.status || undefined, id: query.id, ...(query.search ? { OR: ["providerTxnId", "accountReference", "payerName", "payerPhone"].map(key => ({ [key]: { contains: query.search, mode: "insensitive" as const } })) } : {}) };
+  res.set("X-Total-Count", String(await db.incomingPayment.count({ where })));
+  res.json(view(await db.incomingPayment.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], ...(query.page ? { skip: (query.page - 1) * query.pageSize, take: query.pageSize } : {}), omit: { rawPayload: true } })));
+});
+router.get("/payments/incoming/:id", async (req, res) => {
+  allow(req, readers);
+  const payment = await db.incomingPayment.findFirst({ where: { schoolId: req.actor.school.id, id: String(req.params.id) }, omit: { rawPayload: true } });
+  if (!payment) throw new ApiError(404, "Incoming payment not found");
+  res.json(view(payment));
 });
 router.post("/payments/incoming", async (req, res) => {
   allow(req, ["bursar"]);
@@ -53,7 +73,7 @@ router.get("/payments/stk/:id", async (req, res) => {
   allow(req, readers);
   const request = await db.stkRequest.findFirst({ where: { schoolId: req.actor.school.id, id: String(req.params.id) } });
   if (!request) throw new ApiError(404, "STK request not found");
-  res.json(view(request));
+  res.json(view(await postedStkStatus(db, request)));
 });
 router.post("/reconciliation/statements/preview", async (req, res) => { allow(req, writers); res.json(view(await previewStatement(body(schemas.PreviewBankStatementBody, req.body)))); });
 router.post("/reconciliation/statements", async (req, res) => { allow(req, ["bursar"]); res.json(view(await reconcileStatement(req.actor, body(schemas.ReconcileStatementBody, req.body)))); });
@@ -65,28 +85,37 @@ router.post("/reconciliation/sponsors", async (req, res) => {
     const payment = await tx.incomingPayment.findFirst({ where: { schoolId: req.actor.school.id, id: input.paymentId } });
     if (!payment) throw new ApiError(404, "Payment not found");
     await record(tx, req.actor.school.id, input.sponsorId, "sponsor");
-    if (!["received", "unmatched", "suspended"].includes(payment.status)) throw new ApiError(409, "Payment already allocated or awaiting sponsor approval");
+    if (!["received", "unmatched", "suspended", "sponsor_remainder_held"].includes(payment.status)) throw new ApiError(409, "Payment already allocated or awaiting sponsor approval");
+    const priorBatch = await tx.sponsorBatch.findUnique({ where: { paymentId: payment.id } });
+    if (priorBatch && priorBatch.sponsorId !== input.sponsorId) throw new ApiError(409, "Held funds belong to the original sponsor");
+    const held = priorBatch ? sum((await tx.suspenseEntry.findMany({ where: { schoolId: req.actor.school.id, paymentId: payment.id } })).map(e => e.credit.minus(e.debit))) : payment.amount;
     const total = sum(input.allocations.map(a => money(a.amount)));
-    if (total.gt(payment.amount) || !total.gt(0) || new Set(input.allocations.map(a => a.studentId)).size !== input.allocations.length) throw new ApiError(400, "Invalid sponsor allocations");
-    if (!total.equals(payment.amount) && !input.remainderReason) throw new ApiError(400, "Unallocated remainder requires a reason");
-    const batch = await tx.sponsorBatch.create({ data: { schoolId: req.actor.school.id, paymentId: payment.id, sponsorId: input.sponsorId, allocatedAmount: total, heldAmount: payment.amount, remainderReason: input.remainderReason, requestedBy: req.actor.user.id } });
+    if (total.gt(held) || !total.gt(0) || new Set(input.allocations.map(a => a.studentId)).size !== input.allocations.length) throw new ApiError(400, "Invalid sponsor allocations or insufficient held funds");
+    if (!total.equals(held) && !input.remainderReason) throw new ApiError(400, "Unallocated remainder requires a reason");
+    const batch = priorBatch ?? await tx.sponsorBatch.create({ data: { schoolId: req.actor.school.id, paymentId: payment.id, sponsorId: input.sponsorId, allocatedAmount: total, heldAmount: payment.amount, remainderReason: input.remainderReason, requestedBy: req.actor.user.id } });
     for (const split of input.allocations) {
+      const oldLink = await tx.sponsorAllocation.findUnique({ where: { batchId_studentId: { batchId: batch.id, studentId: split.studentId } } });
+      if (oldLink) {
+        const oldCredit = await record(tx, req.actor.school.id, oldLink.financeRecordId);
+        if (!["rejected", "reversed"].includes(oldCredit.status)) throw new ApiError(409, "Learner already has a pending or approved sponsor allocation");
+      }
       const credit = await createRecord(tx, req.actor, {
-      kind: "adjustment", idempotencyKey: `sponsor:${payment.id}:${split.studentId}`, studentId: split.studentId,
+      kind: "adjustment", idempotencyKey: `sponsor:${payment.id}:${split.studentId}:${oldLink?.financeRecordId ?? "initial"}`, studentId: split.studentId,
       amount: split.amount, reason: input.reason, adjustmentType: input.type, sponsorId: input.sponsorId, reference: payment.id,
       });
-      await tx.sponsorAllocation.create({ data: { schoolId: req.actor.school.id, batchId: batch.id, studentId: split.studentId, financeRecordId: credit.id, amount: money(split.amount) } });
+      await tx.sponsorAllocation.upsert({ where: { batchId_studentId: { batchId: batch.id, studentId: split.studentId } }, create: { schoolId: req.actor.school.id, batchId: batch.id, studentId: split.studentId, financeRecordId: credit.id, amount: money(split.amount) }, update: { financeRecordId: credit.id, amount: money(split.amount) } });
     }
+    await tx.sponsorBatch.update({ where: { id: batch.id }, data: { status: "pending", heldAmount: held } });
     await tx.incomingPayment.update({ where: { id: payment.id }, data: { status: "sponsor_pending" } });
     await tx.matchException.updateMany({ where: { schoolId: req.actor.school.id, paymentId: payment.id }, data: { status: "sponsor_pending", expiresAt: null, resolution: "sponsor_batch" } });
-    await audit(tx, req.actor, "sponsor_allocation_requested", "incoming_payment", payment.id, undefined, { sponsorId: input.sponsorId, remainder: payment.amount.minus(total).toFixed(2), remainderReason: input.remainderReason });
+    await audit(tx, req.actor, "sponsor_allocation_requested", "incoming_payment", payment.id, undefined, { sponsorId: input.sponsorId, remainder: held.minus(total).toFixed(2), remainderReason: input.remainderReason });
     return { id: batch.id, status: "pending", message: "Sponsor credits require independent approval in the finance inbox; unallocated/rejected amounts remain held" };
   });
   res.json(result);
 });
 router.get("/payment-plans", async (req, res) => {
   allow(req, readers);
-  const plans = await db.paymentPlan.findMany({ where: { schoolId: req.actor.school.id }, orderBy: { createdAt: "desc" }, take: 500 });
+  const plans = await db.paymentPlan.findMany({ where: { schoolId: req.actor.school.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
   res.json(view(await Promise.all(plans.map(p => planView(db, req.actor.school.id, p.id)))));
 });
 router.post("/payment-plans", async (req, res) => { allow(req, ["bursar"]); res.json(view(await createPlan(req.actor, body(schemas.CreatePaymentPlanBody, req.body)))); });

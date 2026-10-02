@@ -79,8 +79,8 @@ router.patch("/terms/:termId", async (req, res) => {
   send(res, "UpdateTerm", termView(record));
 });
 router.get("/grades", async (req, res) => {
-  const scope: Prisma.StudentWhereInput = teacher(req) ? { stream: streamAccess(req.actor.user.id) } : {};
-  const where: Prisma.GradeWhereInput = { schoolId: req.actor.school.id, ...(teacher(req) ? { streams: { some: streamAccess(req.actor.user.id) } } : {}) };
+  const scope: Prisma.StudentWhereInput = teacher(req) ? { stream: streamAccess(req.actor.user.id, req.actor.school.id) } : {};
+  const where: Prisma.GradeWhereInput = { schoolId: req.actor.school.id, ...(teacher(req) ? { streams: { some: streamAccess(req.actor.user.id, req.actor.school.id) } } : {}) };
   const records = await db.grade.findMany({ where, include: { _count: { select: { students: { where: scope } } } }, orderBy: { order: "asc" }, take: 1000 });
   send(res, "ListGrades", records.map(gradeView));
 });
@@ -104,7 +104,7 @@ router.patch("/grades/:gradeId", async (req, res) => {
 router.get("/streams", async (req, res) => {
   const query = parse(z.ListStreamsQueryParams, req.query);
   if (query.gradeId) await owned(db, "grade", query.gradeId, req.actor.school.id);
-  send(res, "ListStreams", (await db.stream.findMany({ where: { schoolId: req.actor.school.id, ...query, ...(teacher(req) ? streamAccess(req.actor.user.id) : {}) }, include: streamInclude, orderBy: { name: "asc" }, take: 1000 })).map(streamView));
+  send(res, "ListStreams", (await db.stream.findMany({ where: { schoolId: req.actor.school.id, ...query, ...(teacher(req) ? streamAccess(req.actor.user.id, req.actor.school.id) : {}) }, include: streamInclude, orderBy: { name: "asc" }, take: 1000 })).map(streamView));
 });
 async function checkStream(tx: Tx, data: any, schoolId: string) {
   await owned(tx, "grade", data.gradeId, schoolId);

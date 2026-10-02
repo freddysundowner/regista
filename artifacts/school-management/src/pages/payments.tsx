@@ -93,9 +93,12 @@ export default function Payments() {
   const [open, setOpen] = useState(false);
   const [cheque, setCheque] = useState<FinanceRecord | null>(null);
   const [fl, setFl] = useState({ text: "", channel: "", status: "", cheque: "", from: "", to: "" });
+  const [page, setPage] = useState(1);
   const pendingBounce = new Set((cs.data ?? []).filter((c) => c.status === "pending").map((c) => c.parentId));
-  const list = (q.data ?? []).filter((r) => { const day = dayOf(rd(r, "transactionTime") ?? r.createdAt); return (!fl.from || day >= fl.from) && (!fl.to || day <= fl.to); }).filter((r) => (!fl.channel || rd(r, "channel") === fl.channel) && (!fl.status || r.status === fl.status) && (!fl.cheque || (rd(r, "chequeStatus") ?? "received") === fl.cheque)
+  const filtered = (q.data ?? []).filter((r) => { const day = dayOf(rd(r, "transactionTime") ?? r.createdAt); return (!fl.from || day >= fl.from) && (!fl.to || day <= fl.to); }).filter((r) => (!fl.channel || rd(r, "channel") === fl.channel) && (!fl.status || r.status === fl.status) && (!fl.cheque || (rd(r, "chequeStatus") ?? "received") === fl.cheque)
     && (!fl.text || `${sname(r.studentId)} ${rd(r, "receiptNo") ?? ""} ${rd(r, "providerTxnId") ?? ""}`.toLowerCase().includes(fl.text.toLowerCase())));
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 50)));
+  const list = filtered.slice((currentPage - 1) * 50, currentPage * 50);
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Collections" title="Payments" meta={p.bursar ? "Record cash and cheques. Posted payments are final; corrections go through Approvals." : "Read-only. Only the bursar records payments."}>
@@ -126,6 +129,7 @@ export default function Payments() {
             </tr>))}</Table>
         )}
       </Panel>
+      <div className="flex items-center justify-end gap-3"><span>{filtered.length} payments · page {currentPage}</span><Btn variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Btn><Btn variant="outline" disabled={currentPage * 50 >= filtered.length} onClick={() => setPage(currentPage + 1)}>Next</Btn></div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { useGetSetupStatus, useGetCurrentUser, getGetCurrentUserQueryKey } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -17,6 +17,11 @@ import SettingsPage from '@/pages/settings';
 import ImportPage from '@/pages/import';
 import Audit from '@/pages/audit';
 import Schools from '@/pages/schools';
+import PlatformOverview from '@/pages/platform-overview';
+import PlatformSchool from '@/pages/platform-school';
+import PlatformAuditPage from '@/pages/platform-audit';
+import { PlatformRecovery } from '@/components/platform-kit';
+import { toast } from '@/hooks/use-toast';
 import Account from '@/pages/account';
 import Fees from '@/pages/fees';
 import Invoices from '@/pages/invoices';
@@ -34,10 +39,20 @@ import ReportCards from '@/pages/report-cards';
 import Attendance from '@/pages/attendance';
 import Reports from '@/pages/reports';
 import { Shell } from '@/components/shell';
-import { SessionProvider, usePerms, errMsg } from '@/lib/session';
+import { SessionProvider, usePerms, useAuthSession, errMsg } from '@/lib/session';
 import { ErrorState } from '@/components/kit';
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } } });
+let readOnlySession = false;
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
+  mutationCache: new MutationCache({
+    onError: (e) => {
+      // Global feedback when a read-only support grant blocks a mutation server-side.
+      const status = (e as { status?: number } | null)?.status;
+      if (readOnlySession && status === 403) toast({ title: 'Read-only support session', description: 'This change was blocked. Exit and re-enter with write access if needed.' });
+    },
+  }),
+});
 
 function Splash() {
   return (
@@ -55,8 +70,39 @@ function Guard({ allow, children }: { allow: boolean; children: ReactNode }) {
   return <>{children}</>;
 }
 
+function PlatformRoutes() {
+  return (
+    <Switch>
+      <Route path="/" component={PlatformOverview} />
+      <Route path="/schools" component={Schools} />
+      <Route path="/schools/:id" component={PlatformSchool} />
+      <Route path="/platform/audit" component={PlatformAuditPage} />
+      <Route path="/account" component={Account} />
+      <Route><ErrorState msg="That page belongs to a school workspace. Open a school from the Schools list to enter it with a recorded reason." /></Route>
+    </Switch>
+  );
+}
+
+function TenantOnly({ children }: { children: ReactNode }) {
+  const s = useAuthSession();
+  if (!s.school) return <div><ErrorState msg="No school is bound to this session. The support grant may have ended." />{s.user.role === 'super_admin' && <PlatformRecovery />}</div>;
+  return <>{children}</>;
+}
+
+function ModeRoutes() {
+  const s = useAuthSession();
+  readOnlySession = s.mode === 'tenant' && !!s.tenantAccess && !s.tenantAccess.writeEnabled;
+  if (s.mode === 'platform') {
+    // Defence in depth: only the platform owner may ever render platform pages.
+    if (s.user.role !== 'super_admin') return <ErrorState msg="Your account has no school workspace. Ask your school administrator." />;
+    return <PlatformRoutes />;
+  }
+  return <TenantOnly><AppRoutes /></TenantOnly>;
+}
+
 function AppRoutes() {
   const p = usePerms();
+  const s = useAuthSession();
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
@@ -68,7 +114,9 @@ function AppRoutes() {
       <Route path="/staff"><Guard allow={p.manageSchool}><Staff /></Guard></Route>
       <Route path="/settings"><Guard allow={p.manageSchool}><SettingsPage /></Guard></Route>
       <Route path="/import"><Guard allow={p.importStudents}><ImportPage /></Guard></Route>
-      <Route path="/schools"><Guard allow={p.platform}><Schools /></Guard></Route>
+      <Route path="/schools">{s.user.role === 'super_admin' ? <div><ErrorState msg="Platform pages are unavailable inside a school workspace. Exit to the platform console first." /><PlatformRecovery /></div> : <Guard allow={false}><Schools /></Guard>}</Route>
+      <Route path="/schools/:id"><Guard allow={false}><span /></Guard></Route>
+      <Route path="/platform/audit"><Guard allow={false}><span /></Guard></Route>
       <Route path="/fees"><Guard allow={p.financeRead}><Fees /></Guard></Route>
       <Route path="/invoices"><Guard allow={p.financeRead}><Invoices /></Guard></Route>
       <Route path="/payments"><Guard allow={p.financeRead}><Payments /></Guard></Route>
@@ -101,13 +149,13 @@ function Gate() {
   if (me.isLoading) return <Splash />;
   if (me.isError) {
     if (me.error?.status === 401) return <LoginPage />;
-    return <div className="min-h-[100dvh] bg-background pt-24"><ErrorState msg={`${errMsg(me.error, 'Could not load your session.')} Your sign-in is kept; check the connection and retry.`} onRetry={() => me.refetch()} /></div>;
+    return <div className="min-h-[100dvh] bg-background pt-24"><ErrorState msg={`${errMsg(me.error, 'Could not load your session.')} Your sign-in is kept; check the connection and retry.`} onRetry={() => me.refetch()} />{me.error?.status === 403 && <PlatformRecovery />}</div>;
   }
   if (!me.data) return <LoginPage />;
   return (
     <SessionProvider session={me.data}>
       <Shell>
-        <RoutedErrorBoundary><AppRoutes /></RoutedErrorBoundary>
+        <RoutedErrorBoundary><ModeRoutes /></RoutedErrorBoundary>
       </Shell>
     </SessionProvider>
   );

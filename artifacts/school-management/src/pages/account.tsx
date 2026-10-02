@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useChangeOwnPassword, useListTeacherAssignments, getListTeacherAssignmentsQueryKey, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { KeyRound, Layers, Loader2 } from "lucide-react";
 import { PageHeader, Panel, Field, TextInput, FormError, FormActions, Btn, SkeletonRows, ErrorState, Empty } from "@/components/kit";
-import { useSession, usePerms, ROLE_LABEL, errMsg, fmtDateTime } from "@/lib/session";
+import { useAuthSession, useReadOnly, usePerms, ROLE_LABEL, errMsg, fmtDateTime } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 
 function PasswordForm() {
@@ -56,13 +56,16 @@ function MyStreams() {
 }
 
 export default function Account() {
-  const { user, school } = useSession();
+  const { user, school, mode, tenantAccess } = useAuthSession();
   const p = usePerms();
+  const ro = useReadOnly();
+  const where = mode === "platform" || !school ? "Platform console" : tenantAccess ? `${school.name} (support session)` : school.name;
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Your account" title={user.name} meta={<span data-testid="text-account-meta">{ROLE_LABEL[user.role]} at {school.name} · Last sign-in {fmtDateTime(user.lastLoginAt)} (Nairobi)</span>} />
-      <Panel className="w-full" title="Change password"><PasswordForm /></Panel>
-      {p.limitedToAssigned && <Panel className="w-full" title="My streams" note="Streams you can view as a teacher."><MyStreams /></Panel>}
+      <PageHeader eyebrow="Your account" title={user.name} meta={<span data-testid="text-account-meta">{ROLE_LABEL[user.role]} · {where} · Last sign-in {fmtDateTime(user.lastLoginAt)} (Nairobi)</span>} />
+      {ro ? <Panel className="w-full" title="Change password"><p data-testid="text-password-readonly" className="p-5 text-sm text-muted-foreground">Password changes are disabled during a read-only support session. Exit to the platform console to change your password.</p></Panel>
+        : <Panel className="w-full" title="Change password"><PasswordForm /></Panel>}
+      {p.limitedToAssigned && mode === "tenant" && <Panel className="w-full" title="My streams" note="Streams you can view as a teacher."><MyStreams /></Panel>}
     </div>
   );
 }

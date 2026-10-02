@@ -12,6 +12,7 @@ import { createRecord, decideRecord, invoiceBatch } from "../lib/finance/service
 import { createDocument } from "../lib/finance/documents";
 import { sum } from "../lib/finance/money";
 import { storedObject } from "../lib/school-files";
+import { z } from "zod";
 
 const router: IRouter = Router();
 router.get("/finance/records", async (req, res) => {
@@ -20,7 +21,15 @@ router.get("/finance/records", async (req, res) => {
   const studentId = typeof req.query.studentId === "string" ? req.query.studentId : undefined;
   if (studentId) await owned(db, "student", studentId, schoolId);
   const kind = typeof req.query.kind === "string" ? req.query.kind : undefined;
-  res.json(view(await db.financeRecord.findMany({ where: { schoolId, studentId, kind }, orderBy: { createdAt: "desc" }, take: 1000 })));
+  const query = body(z.object({ page: z.coerce.number().int().min(1).optional(), pageSize: z.coerce.number().int().min(1).max(100).default(50), status: z.string().optional(), search: z.string().optional(), id: z.string().uuid().optional() }), req.query);
+  const matches = query.search ? await db.student.findMany({ where: { schoolId, OR: ["firstName", "lastName", "admissionNo"].map(key => ({ [key]: { contains: query.search, mode: "insensitive" } })) }, select: { id: true } }) : [];
+  const where = { schoolId, studentId, kind, status: query.status || undefined, id: query.id, ...(query.search ? { OR: [{ studentId: { in: matches.map(s => s.id) } }, { data: { path: ["invoiceNo"], string_contains: query.search } }, { data: { path: ["receiptNo"], string_contains: query.search } }] } : {}) };
+  res.set("X-Total-Count", String(await db.financeRecord.count({ where })));
+  res.json(view(await db.financeRecord.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], ...(query.page ? { skip: (query.page - 1) * query.pageSize, take: query.pageSize } : {}) })));
+});
+router.get("/finance/records/:id", async (req, res) => {
+  allow(req, readers);
+  res.json(view(await record(db, req.actor.school.id, String(req.params.id))));
 });
 router.post("/finance/records", async (req, res) => {
   const input = body(CreateFinanceRecordBody, req.body);
@@ -62,7 +71,7 @@ router.post("/finance/invoices/preview", async (req, res) => {
 router.post("/finance/invoices/commit", async (req, res) => {
   allow(req, writers);
   const input = body(CommitFinanceInvoicesBody, req.body);
-  res.json(view(await financeTransaction(req.actor, tx => invoiceBatch(tx, req.actor, input, true))));
+  res.json(view(await financeTransaction(req.actor, tx => invoiceBatch(tx, req.actor, input, true, typeof req.body.previewToken === "string" ? req.body.previewToken : undefined))));
 });
 router.get("/finance/overview", async (req, res) => {
   allow(req, readers);

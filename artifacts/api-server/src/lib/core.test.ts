@@ -45,7 +45,7 @@ test("safe settings, image references and promotion confirmations validate at co
   assert.throws(() => body(z.AnonymizeGuardianBody, { confirmation: "yes" }));
   assert.throws(() => body(z.CommitPromotionBody, { previewToken: "test", confirmation: "yes" }));
   assert.throws(() => body(z.UpdatePlatformSchoolBody, { subscriptionEndDate: "2027-02-30" }));
-  assert.ok(streamAccess(randomUUID()).OR?.length === 2);
+  assert.ok(streamAccess(randomUUID(), randomUUID()).OR?.length === 3);
 });
 test("bcrypt passwords distinguish the complete password after the 72-byte boundary", async () => {
   const password = "a".repeat(90) + "secret";

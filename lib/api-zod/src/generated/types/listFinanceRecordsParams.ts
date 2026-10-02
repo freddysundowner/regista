@@ -9,4 +9,16 @@
 export type ListFinanceRecordsParams = {
 kind?: string;
 studentId?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+status?: string;
+search?: string;
+id?: string;
 };

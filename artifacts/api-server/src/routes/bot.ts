@@ -8,12 +8,13 @@ import { financeTransaction, view } from "../lib/finance/posting";
 import { queueMessage } from "../lib/integrations/messages";
 import { createDocument } from "../lib/finance/documents";
 import { createPlan } from "../lib/payments/plans";
-import { resolveException } from "../lib/payments/pipeline";
+import { resolveException, postedStkStatus } from "../lib/payments/pipeline";
 import { startStk } from "../lib/integrations/daraja";
 import * as schemas from "@workspace/api-zod";
 import { reportCardPdf, savePdf } from "../lib/academics/documents";
-import { termResults } from "../lib/academics/service";
 import { metadata } from "../lib/finance/posting";
+import { requirePublicationSnapshot } from "../lib/academics/snapshot";
+import type { Tx } from "../lib/core";
 
 declare global { namespace Express { interface Request { rawBody?: Buffer; botGuardianId?: string; botPhone?: string; botSecret?: string } } }
 const router = Router();
@@ -36,7 +37,12 @@ router.use("/bot/v1", async (req, _res, next) => {
     next();
   } catch (error) { next(error); }
 });
+async function currentGuardian(tx: Tx, req: Request) {
+  const guardian = await tx.guardian.findFirst({ where: { id: req.botGuardianId!, schoolId: req.actor.school.id, phone: req.botPhone!, anonymizedAt: null } });
+  if (!guardian) throw new ApiError(403, "Guardian identity changed; authenticate again");
+}
 async function child(req: Request, studentId: string, sensitive = false) {
+  await currentGuardian(db, req);
   const link = await db.studentGuardian.findFirst({ where: { schoolId: req.actor.school.id, guardianId: req.botGuardianId!, studentId }, include: { student: true } });
   if (!link) throw new ApiError(404, "Child not found");
   if (sensitive) {
@@ -52,6 +58,7 @@ router.post("/bot/v1/identify", async (req, res) => {
 router.post("/bot/v1/otp/request", async (req, res) => {
   await integration(req.actor.school.id, "africastalking");
   await financeTransaction(req.actor, async tx => {
+    await currentGuardian(tx, req);
     const prior = await tx.guardianVerification.findUnique({ where: { schoolId_guardianId: { schoolId: req.actor.school.id, guardianId: req.botGuardianId! } } });
     if (prior && prior.updatedAt.getTime() > Date.now() - 60000) throw new ApiError(429, "Wait one minute before requesting another code");
     const code = String(randomInt(100000, 1000000));
@@ -65,6 +72,7 @@ router.post("/bot/v1/otp/request", async (req, res) => {
 router.post("/bot/v1/otp/verify", async (req, res) => {
   const input = parse(schemas.VerifyBotOtpBody, req.body);
   const verified = await financeTransaction(req.actor, async tx => {
+    await currentGuardian(tx, req);
     const verification = await tx.guardianVerification.findUnique({ where: { schoolId_guardianId: { schoolId: req.actor.school.id, guardianId: req.botGuardianId! } } });
     if (!verification || verification.expiresAt < new Date() || verification.attempts >= 5) return false;
     const expected = createHmac("sha256", req.botSecret!).update(`${req.botGuardianId}:${input.code}`).digest("hex");
@@ -90,7 +98,7 @@ router.post("/bot/v1/students/:id/results", async (req, res) => {
   const input = parse(z.object({ termId: z.string().uuid() }), req.body);
   const card = await db.reportCard.findUnique({ where: { schoolId_studentId_termId: { schoolId: req.actor.school.id, studentId: String(req.params.id), termId: input.termId } } });
   if (card?.status !== "published") throw new ApiError(404, "Published term results not found");
-  res.json(view(card.resultSnapshot ?? await termResults(db, req.actor.school.id, String(req.params.id), input.termId)));
+  res.json(view(requirePublicationSnapshot(card.resultSnapshot).results));
 });
 router.get("/bot/v1/report-cards/:id", async (req, res) => {
   const card = await db.reportCard.findFirst({ where: { id: String(req.params.id), schoolId: req.actor.school.id, status: "published" } });
@@ -142,7 +150,7 @@ router.get("/bot/v1/payments/:id/status", async (req, res) => {
   if (!request) throw new ApiError(404, "STK request not found");
   await child(req, request.studentId);
   if (request.phone !== req.botPhone) throw new ApiError(404, "STK request not found");
-  res.json(view(request));
+  res.json(view(await postedStkStatus(db, request)));
 });
 router.get("/bot/v1/unmatched/pending", async (req, res) => {
   const payments = await db.incomingPayment.findMany({ where: { schoolId: req.actor.school.id, payerPhone: req.botPhone, status: "unmatched" }, select: { id: true } });

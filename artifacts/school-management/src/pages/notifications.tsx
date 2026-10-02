@@ -13,6 +13,10 @@ const TEMPLATES: Record<string, string> = { general: "General notice", fee_remin
 const STATUS: Record<string, { tone: string; label: string }> = {
   queued: { tone: "left", label: "Queued" }, submitted: { tone: "duplicate", label: "Submitted, not confirmed delivered" },
   delivered: { tone: "active", label: "Delivered" }, failed: { tone: "error", label: "Failed" }, read: { tone: "active", label: "Read" },
+  sending: { tone: "duplicate", label: "Claimed for submission — do not retry" },
+  uncertain: { tone: "error", label: "Outcome unknown — reconciliation required" },
+  rejected: { tone: "error", label: "Not delivered / not submitted" },
+  cancelled: { tone: "left", label: "Cancelled" },
 };
 
 function Compose({ onDone }: { onDone: () => void }) {
@@ -53,13 +57,13 @@ function Compose({ onDone }: { onDone: () => void }) {
 
 export default function Notifications() {
   const p = usePerms();
-  const q = useListMessageDeliveries({ query: { queryKey: getListMessageDeliveriesQueryKey() } });
+  const q = useListMessageDeliveries({ query: { queryKey: getListMessageDeliveriesQueryKey(), refetchInterval: 15000, staleTime: 0 } });
   const [st, setSt] = useState("");
   const [composing, setComposing] = useState(false);
   const list = (q.data ?? []).filter((x) => !st || x.status === st);
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Communication" title="Messages" meta="WhatsApp first, SMS fallback. Live delivery through LeadsIntel and Africa's Talking is not verified on this install.">
+      <PageHeader eyebrow="Communication" title="Messages" meta="SMS fallback is queued only when WhatsApp was not submitted or an authenticated gateway confirms non-delivery. Unknown outcomes are never automatically resent. Native provider delivery callbacks require an approved gateway; live delivery is not verified on this install.">
         <Btn variant="outline" onClick={() => q.refetch()} disabled={q.isFetching}><RefreshCw className="h-4 w-4" />Refresh</Btn>
         {p.notify && <Btn data-testid="button-compose-message" onClick={() => setComposing(true)}><Send className="h-4 w-4" /> Compose message</Btn>}
       </PageHeader>

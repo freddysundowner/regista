@@ -4,6 +4,7 @@ import { ApiError, audit, owned, type Actor, type Tx } from "../core";
 import { financeTransaction } from "../finance/posting";
 import { money, sum, zero, minimum } from "../finance/money";
 import { queueMessage } from "../integrations/messages";
+import { netPaymentCredits, planWindowCredits } from "../finance/review-invariants";
 
 export async function planView(tx: Tx, schoolId: string, id: string) {
   const plan = await tx.paymentPlan.findFirst({ where: { id, schoolId } });
@@ -16,11 +17,11 @@ export async function createPlan(actor: Actor, input: PlanInput, requestedVia = 
     await owned(tx, "student", input.studentId, schoolId); await owned(tx, "term", input.termId, schoolId);
     if (!input.installments.length || input.installments.length > 24 || input.installments.some(i => !money(i.amount).greaterThan(0))) throw new ApiError(400, "Plan needs 1–24 positive installments");
     if (new Set(input.installments.map(i => new Date(i.dueDate).toISOString())).size !== input.installments.length) throw new ApiError(400, "Installment dates must be unique");
-    if (await tx.paymentPlan.findFirst({ where: { schoolId, studentId: input.studentId, status: { in: ["proposed", "active"] } } })) throw new ApiError(409, "Student already has a proposed or active plan");
+    if (await tx.paymentPlan.findFirst({ where: { schoolId, studentId: input.studentId, status: { in: ["proposed", "active", "defaulted"] } } })) throw new ApiError(409, "Student already has an unresolved plan");
     const totalAmount = sum(input.installments.map(i => money(i.amount)));
     const balance = await tx.studentBalance.findFirst({ where: { schoolId, studentId: input.studentId } });
     if (!balance || totalAmount.greaterThan(balance.balance)) throw new ApiError(400, "Plan exceeds current outstanding balance");
-    const baselineCredits = sum((await tx.ledgerEntry.findMany({ where: { schoolId, studentId: input.studentId, type: { in: ["payment", "refund", "reversal", "adjustment"] } } })).map(e => e.credit.minus(e.debit)));
+    const baselineCredits = await paymentCredits(tx, schoolId, input.studentId);
     const threshold = (actor.school.settings as Record<string, any>).autoApprovePlanLimit;
     const automatic = typeof threshold === "string" && totalAmount.lte(money(threshold));
     const plan = await tx.paymentPlan.create({ data: { schoolId, studentId: input.studentId, termId: input.termId, totalAmount, baselineCredits, requestedVia, requestedBy: actor.user.id, status: automatic ? "active" : "proposed", approvedAt: automatic ? new Date() : null } });
@@ -43,9 +44,14 @@ export async function refreshPlans(actor: Actor) {
   return financeTransaction(actor, async tx => {
     const schoolId = actor.school.id, today = new Date(new Date(Date.now() + 10800000).toISOString().slice(0, 10));
     const settings = actor.school.settings as Record<string, any>;
-    for (const plan of await tx.paymentPlan.findMany({ where: { schoolId, status: { in: ["active", "defaulted"] } } })) {
-      const entries = await tx.ledgerEntry.findMany({ where: { schoolId, studentId: plan.studentId, type: { in: ["payment", "refund", "reversal", "adjustment"] } } });
-      let available = sum(entries.map(e => e.credit.minus(e.debit))).minus(plan.baselineCredits);
+    const plans = await tx.paymentPlan.findMany({ where: { schoolId, status: { in: ["proposed", "active", "defaulted", "completed"] } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+    for (const [index, plan] of plans.entries()) {
+      if (plan.status === "proposed") continue;
+      // Each agreement owns an exclusive payment-time window. Historical
+      // completed plans are revisited so a later cash reversal reopens arrears.
+      const next = plans.slice(index + 1).find(p => p.studentId === plan.studentId);
+      const entries = await tx.ledgerEntry.findMany({ where: { schoolId, studentId: plan.studentId } });
+      let available = planWindowCredits(entries, plan.createdAt, next?.createdAt);
       if (available.lessThan(0)) available = zero();
       let missed = 0, completed = true;
       for (const installment of await tx.planInstallment.findMany({ where: { schoolId, planId: plan.id }, orderBy: { dueDate: "asc" } })) {
@@ -63,4 +69,8 @@ export async function refreshPlans(actor: Actor) {
       await tx.paymentPlan.update({ where: { id: plan.id }, data: { status: completed ? "completed" : missed >= (settings.defaultAfterMissedInstallments ?? 2) ? "defaulted" : "active" } });
     }
   });
+}
+async function paymentCredits(tx: Tx, schoolId: string, studentId: string) {
+  const entries = await tx.ledgerEntry.findMany({ where: { schoolId, studentId } });
+  return netPaymentCredits(entries);
 }

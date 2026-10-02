@@ -8,5 +8,6 @@
 import type { InvoiceProposal } from './invoiceProposal';
 
 export interface InvoiceBatchResult {
+  previewToken?: string;
   invoices: InvoiceProposal[];
 }

@@ -83,16 +83,20 @@ export default function PaymentPlans() {
   const p = usePerms();
   const q = useListPaymentPlans({ query: { queryKey: getListPaymentPlansQueryKey() } });
   const [open, setOpen] = useState(false); const [st, setSt] = useState("");
-  const list = (q.data ?? []).filter((x) => !st || x.status === st);
+  const [page, setPage] = useState(1);
+  const filtered = (q.data ?? []).filter((x) => !st || x.status === st);
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 25)));
+  const list = filtered.slice((currentPage - 1) * 25, currentPage * 25);
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Collections" title="Payment plans" meta="Instalment agreements. Proposed by the bursar or a parent, approved by the principal or administrator.">
         {p.bursar && <Btn data-testid="button-new-plan" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />New plan</Btn>}
       </PageHeader>
-      {p.bursar && <FormDialog open={open} onOpenChange={setOpen} size="lg" title="Propose a payment plan" description="A learner can have one proposed or active plan. The total cannot exceed the outstanding balance."><NewPlan onDone={() => setOpen(false)} /></FormDialog>}
+      {p.bursar && <FormDialog open={open} onOpenChange={setOpen} size="lg" title="Propose a payment plan" description="A learner can have one unresolved plan, including a defaulted plan. Only net payments satisfy installments; waivers and invoice cancellations do not."><NewPlan onDone={() => setOpen(false)} /></FormDialog>}
       <Panel action={<NativeSelect aria-label="Status" className="h-8 w-36 text-xs" value={st} onChange={(e) => setSt(e.target.value)}><option value="">All plans</option>{["proposed", "active", "completed", "defaulted", "rejected"].map((s) => <option key={s} value={s}>{s}</option>)}</NativeSelect>} title="Plans">
         {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !list.length ? <Empty icon={<CalendarClock className="h-5 w-5" />} title="No plans" body="Plans that parents request through the bot also appear here." /> : <PlanTable plans={list} decide={p.planDecide} />}
       </Panel>
+      <div className="flex items-center justify-end gap-3"><span>{filtered.length} plans · page {currentPage}</span><Btn variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Btn><Btn variant="outline" disabled={currentPage * 25 >= filtered.length} onClick={() => setPage(currentPage + 1)}>Next</Btn></div>
     </div>
   );
 }

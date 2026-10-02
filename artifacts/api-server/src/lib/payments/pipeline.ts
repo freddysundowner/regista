@@ -41,6 +41,14 @@ export async function ingest(actor: Actor, input: IncomingInput, source = "manua
     throw error;
   }
 }
+export async function postedStkStatus<T extends { id: string; schoolId: string; studentId: string; checkoutRequestId: string | null; amount: Prisma.Decimal; status: string }>(tx: Tx, request: T): Promise<T> {
+  const link = await tx.financeRecord.findUnique({ where: { schoolId_kind_uniqueKey: { schoolId: request.schoolId, kind: "stk_confirmation", uniqueKey: request.id } } });
+  const payment = link ? await tx.incomingPayment.findFirst({ where: { schoolId: request.schoolId, id: (link.data as any).incomingPaymentId } })
+    : request.checkoutRequestId ? await tx.incomingPayment.findFirst({ where: { schoolId: request.schoolId, rawPayload: { path: ["Body", "stkCallback", "CheckoutRequestID"], equals: request.checkoutRequestId } } }) : null;
+  const allocation = payment && await tx.paymentStudentAllocation.findFirst({ where: { schoolId: request.schoolId, paymentId: payment.id, studentId: request.studentId, amount: request.amount } });
+  const posted = allocation && await tx.ledgerEntry.findFirst({ where: { schoolId: request.schoolId, referenceId: allocation.postingId, type: "payment", credit: request.amount } });
+  return { ...request, status: posted ? "paid" : request.status === "paid" ? "processing" : request.status };
+}
 export async function candidates(tx: Tx, actor: Actor, payment: { accountReference: string | null; payerPhone: string | null; payerName: string | null; bankAccountFrom: string | null; amount: Prisma.Decimal }) {
   const schoolId = actor.school.id, settings = actor.school.settings as Record<string, any>;
   const scores = { exact: 100, normalized: 95, alias: 90, guardian: 85, name: 70, typo: 65, bonus: 10, inactive: 30, ...(settings.matchingScores ?? {}) };
@@ -104,6 +112,16 @@ export async function postIncoming(tx: Tx, actor: Actor, paymentId: string, spli
   }
   await tx.incomingPayment.update({ where: { id: payment.id }, data: { status: "matched" } });
   await suspenseEntry(tx, actor, payment.id, "student_allocated", payment.amount.toFixed(2));
+  if (payment.channel === "mpesa_stk") {
+    const checkout = (payment.rawPayload as any)?.Body?.stkCallback?.CheckoutRequestID;
+    if (typeof checkout === "string") await tx.stkRequest.updateMany({ where: { schoolId, checkoutRequestId: checkout, studentId: payment.knownStudentId ?? undefined }, data: { status: "paid", resultCode: "0" } });
+  }
+  const confirmations = await tx.financeRecord.findMany({ where: { schoolId, kind: "stk_confirmation", data: { path: ["incomingPaymentId"], equals: payment.id } } });
+  for (const confirmation of confirmations) {
+    const requestId = (confirmation.data as any).requestId;
+    const split = splits.find(s => s.studentId === confirmation.studentId);
+    if (typeof requestId === "string") await tx.stkRequest.updateMany({ where: { schoolId, id: requestId }, data: { status: split && money(split.amount).equals(payment.amount) ? "paid" : "reconciliation_required", resultCode: "0" } });
+  }
   await audit(tx, actor, "allocated", "incoming_payment", paymentId, undefined, { allocations: splits, reason });
   return result;
 }

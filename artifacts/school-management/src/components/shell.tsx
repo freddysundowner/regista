@@ -1,30 +1,38 @@
 import { useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
-import { Building2 , CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug } from "lucide-react";
+import { Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLogout } from "@workspace/api-client-react";
 import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Menu, X, Settings, Users, UserCog } from "lucide-react";
-import { useSession, usePerms, ROLE_LABEL, initials } from "@/lib/session";
+import { useAuthSession, useReadOnly, usePerms, ROLE_LABEL, initials } from "@/lib/session";
+import { TenantAccessBanner, hardReset } from "@/components/platform-kit";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ChevronsUpDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { user, school } = useSession();
+  const { user, school, mode, tenantAccess } = useAuthSession();
   const p = usePerms();
+  const platformMode = mode === "platform";
+  const ro = useReadOnly();
+  const { toast } = useToast();
   const [loc] = useLocation();
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
-  const logout = useLogout({ mutation: { onSuccess: async () => {
-    await qc.cancelQueries();
-    qc.clear();
-    // Clearing a query cache does not reset mounted observers. A new document
-    // also discards in-memory learner drafts when changing staff accounts.
-    window.location.replace(import.meta.env.BASE_URL);
-  } } });
+  // Clearing a query cache does not reset mounted observers. A new document
+  // also discards in-memory learner drafts when changing staff accounts.
+  const logout = useLogout({ mutation: { onSuccess: () => hardReset(qc) } });
 
-  const nav = [
+  const platformNav = [
+    { href: "/", label: "Platform overview", icon: LayoutDashboard, show: true },
+    { href: "/schools", label: "Schools", icon: Building2, show: true },
+    { href: "/platform/audit", label: "Platform audit", icon: ScrollText, show: true },
+    { href: "/account", label: "My account", icon: KeyRound, show: true },
+  ];
+
+  const tenantNav = [
     { href: "/", label: "Overview", icon: LayoutGrid, show: true },
     { href: "/students", label: "Students", icon: GraduationCap, show: true },
     { href: "/guardians", label: "Guardians & families", icon: Users, show: p.viewGuardians },
@@ -48,16 +56,19 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: "/staff", label: "Staff", icon: UserCog, show: p.manageSchool },
     { href: "/audit", label: "Audit history", icon: ClipboardList, show: p.viewAudit },
     { href: "/settings", label: "School profile", icon: Settings, show: p.manageSchool },
-    { href: "/schools", label: "Platform schools", icon: Building2, show: p.platform },
     { href: "/account", label: "My account", icon: KeyRound, show: true },
-  ].filter((n) => n.show);
+  ];
+  const nav = (platformMode ? platformNav : tenantNav).filter((n) => n.show);
 
-  const groups = [
+  const groups = platformMode ? [
+    { label: "Platform", paths: ["/", "/schools", "/platform/audit"] },
+    { label: "Account", paths: ["/account"] },
+  ].map(group => ({ label: group.label, items: group.paths.flatMap(path => nav.filter(item => item.href === path)) })) : [
     { label: "School", paths: ["/", "/students", "/guardians", "/import"] },
     { label: "Finance", paths: ["/fees", "/invoices", "/payments", "/reconciliation", "/payment-plans", "/sponsors", "/approvals"] },
     { label: "Academics", paths: ["/academics", "/curriculum", "/assessments", "/attendance", "/report-cards"] },
     { label: "Communication & reports", paths: ["/notifications", "/reports"] },
-    { label: "Administration", paths: ["/staff", "/settings", "/integrations", "/jobs", "/audit", "/schools", "/account"] },
+    { label: "Administration", paths: ["/staff", "/settings", "/integrations", "/jobs", "/audit", "/account"] },
   ].map(group => ({
     label: group.label,
     items: group.paths.flatMap(path => nav.filter(item => item.href === path)),
@@ -73,8 +84,14 @@ export function Shell({ children }: { children: ReactNode }) {
           <span className="font-display text-lg font-semibold tracking-tight text-sidebar-accent-foreground">Rejista</span>
         </Link>
         <div className="mt-4 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5">
-          <div data-testid="text-school-name" className="truncate text-sm font-semibold text-sidebar-accent-foreground">{school.name}</div>
-          <div className="font-mono text-[11px] text-sidebar-foreground/60">{school.code}{school.county ? ` · ${school.county}` : ""}</div>
+          {platformMode || !school ? (<>
+            <div data-testid="text-school-name" className="truncate text-sm font-semibold text-sidebar-accent-foreground">Platform console</div>
+            <div className="font-mono text-[11px] text-sidebar-foreground/60">All schools · no tenant</div>
+          </>) : (<>
+            <div data-testid="text-school-name" className="truncate text-sm font-semibold text-sidebar-accent-foreground">{school.name}</div>
+            <div className="font-mono text-[11px] text-sidebar-foreground/60">{school.code}{school.county ? ` · ${school.county}` : ""}</div>
+            {tenantAccess && <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-sidebar-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-primary"><Eye className="h-3 w-3" />{tenantAccess.writeEnabled ? "Support · write" : "Support · read-only"}</div>}
+          </>)}
         </div>
       </div>
       <nav aria-label="Main navigation" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -139,7 +156,15 @@ export function Shell({ children }: { children: ReactNode }) {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-      <main className="w-full min-w-0 px-4 py-6 md:py-8">{children}</main>
+      <TenantAccessBanner />
+      <main data-readonly={ro ? "true" : undefined} className="w-full min-w-0 px-4 py-6 md:py-8"
+        onSubmitCapture={ro ? (e) => {
+          // Read-only support session: block every form save before it reaches the API (which also refuses).
+          // Forms explicitly marked data-readonly-safe run server-allowlisted read-only POSTs (report runs).
+          if (e.target instanceof HTMLFormElement && e.target.hasAttribute("data-readonly-safe")) return;
+          e.preventDefault(); e.stopPropagation();
+          toast({ title: "Read-only support session", description: "Saving is disabled. Exit and re-enter with write access if the school asked for a change." });
+        } : undefined}>{children}</main>
     </div>
   );
 }

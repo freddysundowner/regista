@@ -7,5 +7,16 @@
  */
 
 export type ListIncomingPaymentsParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+search?: string;
+id?: string;
 status?: string;
 };

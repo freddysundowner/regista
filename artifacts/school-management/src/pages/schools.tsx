@@ -1,126 +1,81 @@
-import { useState, type FormEvent } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useListSchools, useCreateSchool, useUpdatePlatformSchool, getListSchoolsQueryKey, getGetCurrentUserQueryKey, getGetSchoolQueryKey, SchoolType, PlatformSchoolUpdateStatus, PlatformSchoolUpdateSubscriptionStatus, type School } from "@workspace/api-client-react";
-import { Building2, KeyRound, Loader2, Pencil, Plus } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
-import { COUNTIES } from "@/pages/auth";
-import { useSession, errMsg, fmtDate } from "@/lib/session";
-import { useToast } from "@/hooks/use-toast";
+import { useMemo, useState } from "react";
+import { Link } from "wouter";
+import { useListPlatformSchools, getListPlatformSchoolsQueryKey, type School } from "@workspace/api-client-react";
+import { Building2, ChevronRight, DoorOpen, KeyRound, Pencil, Plus, Search } from "lucide-react";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, TextInput, NativeSelect, Pill } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
-
-const EMPTY = { schoolName: "", schoolCode: "", county: "", schoolType: "primary" as SchoolType, adminName: "", email: "", phone: "", password: "" };
-
-function ProvisionForm({ onDone }: { onDone: (msg: string) => void }) {
-  const qc = useQueryClient();
-  const m = useCreateSchool();
-  const [f, setF] = useState(EMPTY);
-  const [err, setErr] = useState<string | null>(null);
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
-  const submit = (e: FormEvent) => {
-    e.preventDefault(); setErr(null);
-    if (!f.email.trim() && !f.phone.trim()) return setErr("The school administrator needs an email or phone to sign in.");
-    if (f.password.length < 10) return setErr("Initial password must be at least 10 characters.");
-    m.mutate({ data: { schoolName: f.schoolName.trim(), schoolCode: f.schoolCode.trim().toUpperCase(), county: f.county || undefined, schoolType: f.schoolType, adminName: f.adminName.trim(), email: f.email.trim() || undefined, phone: f.phone.trim() || undefined, password: f.password } }, {
-      onSuccess: (s) => { qc.invalidateQueries({ queryKey: getListSchoolsQueryKey() }); onDone(`${s.name} provisioned. ${f.adminName.trim()} signs in with ${f.email.trim() || f.phone.trim()}.`); },
-      onError: (x) => setErr(errMsg(x)),
-    });
-  };
-  return (
-    <form onSubmit={submit} className="space-y-5 p-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="School name" required className="sm:col-span-2"><TextInput data-testid="input-new-school-name" required minLength={2} value={f.schoolName} onChange={set("schoolName")} /></Field>
-        <Field label="School code" required><TextInput data-testid="input-new-school-code" required minLength={2} className="font-mono uppercase" value={f.schoolCode} onChange={set("schoolCode")} /></Field>
-        <Field label="Level"><NativeSelect data-testid="select-new-school-type" value={f.schoolType} onChange={set("schoolType")}>{Object.values(SchoolType).map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</NativeSelect></Field>
-        <Field label="County"><NativeSelect data-testid="select-new-county" value={f.county} onChange={set("county")}><option value="">Select county</option>{COUNTIES.map((c) => <option key={c}>{c}</option>)}</NativeSelect></Field>
-      </div>
-      <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"><span>Initial school administrator</span><span className="h-px flex-1 bg-border" /></div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name" required><TextInput data-testid="input-new-admin-name" required minLength={2} value={f.adminName} onChange={set("adminName")} /></Field>
-        <Field label="Email" hint="Email or phone required"><TextInput data-testid="input-new-admin-email" type="email" value={f.email} onChange={set("email")} /></Field>
-        <Field label="Phone"><TextInput data-testid="input-new-admin-phone" type="tel" value={f.phone} onChange={set("phone")} /></Field>
-        <Field label="Initial password" required hint="Share privately; at least 10 characters"><TextInput data-testid="input-new-admin-password" type="password" required value={f.password} onChange={set("password")} /></Field>
-      </div>
-      <FormError msg={err} />
-      <FormActions>
-        <Btn data-testid="button-provision-school" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Provision school</Btn>
-        <Btn type="button" variant="ghost" onClick={() => onDone("")}>Cancel</Btn>
-      </FormActions>
-    </form>
-  );
-}
-
-function SubscriptionForm({ school, isMine, onDone }: { school: School; isMine: boolean; onDone: () => void }) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const m = useUpdatePlatformSchool();
-  const [f, setF] = useState({ status: school.status as string, plan: school.subscriptionPlan ?? "", subStatus: (school.subscriptionStatus ?? "trial") as string, start: school.subscriptionStartDate?.slice(0, 10) ?? "", end: school.subscriptionEndDate?.slice(0, 10) ?? "" });
-  const [err, setErr] = useState<string | null>(null);
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
-  const submit = (e: FormEvent) => {
-    e.preventDefault(); setErr(null);
-    if (isMine && f.status === "suspended") return setErr("You cannot suspend the school your own session is bound to.");
-    if (!f.plan.trim()) return setErr("Enter a plan name.");
-    if (f.start && f.end && f.end < f.start) return setErr("End date must be on or after the start date.");
-    m.mutate({ schoolId: school.id, data: { status: f.status as PlatformSchoolUpdateStatus, subscriptionPlan: f.plan.trim(), subscriptionStatus: f.subStatus as PlatformSchoolUpdateSubscriptionStatus, subscriptionStartDate: f.start || null, subscriptionEndDate: f.end || null } }, {
-      onSuccess: (s) => { qc.invalidateQueries({ queryKey: getListSchoolsQueryKey() }); if (isMine) { qc.invalidateQueries({ queryKey: getGetSchoolQueryKey() }); qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); } toast({ title: `${s.name} updated` }); onDone(); },
-      onError: (x) => setErr(errMsg(x)),
-    });
-  };
-  return (
-    <form onSubmit={submit} className="space-y-4 p-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="School status" className="sm:col-span-2"><NativeSelect data-testid="select-school-status" value={f.status} onChange={set("status")}>{Object.values(PlatformSchoolUpdateStatus).map((v) => <option key={v} value={v} disabled={isMine && v === "suspended"}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect></Field>
-        <Field label="Plan" required><TextInput data-testid="input-subscription-plan" required maxLength={80} value={f.plan} onChange={set("plan")} placeholder="Standard" /></Field>
-        <Field label="Subscription"><NativeSelect data-testid="select-subscription-status" value={f.subStatus} onChange={set("subStatus")}>{Object.values(PlatformSchoolUpdateSubscriptionStatus).map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect></Field>
-        <Field label="Start date"><TextInput data-testid="input-subscription-start" type="date" value={f.start} onChange={set("start")} /></Field>
-        <Field label="End date"><TextInput data-testid="input-subscription-end" type="date" value={f.end} onChange={set("end")} /></Field>
-      </div>
-      <p className="text-xs text-muted-foreground">Operational tracking only; no card billing. Suspending a school blocks its staff from signing in.</p>
-      <FormError msg={err} />
-      <FormActions>
-        <Btn data-testid="button-save-subscription" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Save subscription</Btn>
-        <Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn>
-      </FormActions>
-    </form>
-  );
-}
+import { ProvisionForm, SchoolEditForm } from "@/components/platform-forms";
+import { EnterSchoolDialog } from "@/components/platform-kit";
+import { errMsg, fmtDate } from "@/lib/session";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Schools() {
-  const { school: mine } = useSession();
-  const q = useListSchools({ query: { queryKey: getListSchoolsQueryKey() } });
+  const q = useListPlatformSchools({ query: { queryKey: getListPlatformSchoolsQueryKey() } });
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [editId, setEditId] = useState<string | null>(null);
-  const editSchool = q.data?.find((s) => s.id === editId);
+  const [edit, setEdit] = useState<School | null>(null);
+  const [enter, setEnter] = useState<School | null>(null);
+  const [term, setTerm] = useState("");
+  const [status, setStatus] = useState("all");
+  const [sub, setSub] = useState("all");
+
+  const rows = useMemo(() => {
+    const t = term.trim().toLowerCase();
+    return (q.data ?? []).filter((s) =>
+      (status === "all" || s.status === status) &&
+      (sub === "all" || s.subscriptionStatus === sub) &&
+      (!t || [s.name, s.code, s.county, s.email, s.subscriptionPlan].some((v) => v?.toLowerCase().includes(t))));
+  }, [q.data, term, status, sub]);
+
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Platform owner" title="Schools" meta="Each school is a separate register. Its administrators sign in on their own; there is no switching between schools.">
-        {<Btn data-testid="button-new-school" onClick={() => { setCreating(true); setNotice(null); }}><Plus className="h-4 w-4" /> Provision school</Btn>}
+      <PageHeader eyebrow="Platform console" title="Schools" meta="Every school is an isolated register. Provision, adjust subscriptions, manage administrators, or open an audited support session.">
+        <Btn data-testid="button-new-school" onClick={() => { setCreating(true); setNotice(null); }}><Plus className="h-4 w-4" /> Provision school</Btn>
       </PageHeader>
       {notice && <div data-testid="text-provision-notice" className="rise flex items-start gap-2 rounded-md border border-primary/25 bg-primary/5 px-4 py-3 text-sm"><KeyRound className="mt-0.5 h-4 w-4 text-primary" />{notice}</div>}
+
       <FormDialog open={creating} onOpenChange={setCreating} size="lg" title="Provision a new school" description="Creates the school and its first school administrator.">
-        <ProvisionForm onDone={(msg) => { setCreating(false); if (msg) { setNotice(msg); toast({ title: "School provisioned" }); } }} />
+        <ProvisionForm onCancel={() => setCreating(false)} onDone={(s, signIn) => { setCreating(false); setNotice(`${s.name} provisioned. The administrator signs in with ${signIn}.`); toast({ title: "School provisioned" }); }} />
       </FormDialog>
-      <FormDialog open={!!editId} onOpenChange={(o) => { if (!o) setEditId(null); }} title={`Status and subscription${editSchool ? `: ${editSchool.name}` : ""}`} description="Operational tracking only; no card billing.">
-        {editSchool && <SubscriptionForm key={editSchool.id} school={editSchool} isMine={editSchool.id === mine.id} onDone={() => setEditId(null)} />}
+      <FormDialog open={!!edit} onOpenChange={(o) => { if (!o) setEdit(null); }} size="lg" title={`Edit ${edit?.name ?? "school"}`} description="Profile, status and operational subscription.">
+        {edit && <SchoolEditForm key={edit.id} school={edit} onDone={() => setEdit(null)} />}
       </FormDialog>
+      <EnterSchoolDialog school={enter} open={!!enter} onOpenChange={(o) => { if (!o) setEnter(null); }} />
+
+      <div className="rise-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <TextInput data-testid="input-search-schools" aria-label="Search schools" placeholder="Search name, code, county, email or plan" className="pl-9" value={term} onChange={(e) => setTerm(e.target.value)} />
+        </div>
+        <NativeSelect data-testid="select-filter-status" aria-label="School status" className="sm:w-40" value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></NativeSelect>
+        <NativeSelect data-testid="select-filter-subscription" aria-label="Subscription" className="sm:w-44" value={sub} onChange={(e) => setSub(e.target.value)}><option value="all">All subscriptions</option>{["trial", "active", "expired", "cancelled"].map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect>
+      </div>
+
       <Panel className="rise-1">
-        {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<Building2 className="h-5 w-5" />} title="No schools listed" body="Provisioned schools appear here." /> : (
+        {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? (
+          <Empty icon={<Building2 className="h-5 w-5" />} title="No schools yet" body="Provision the first school to give its administrator a register."><Btn onClick={() => setCreating(true)}><Plus className="h-4 w-4" />Provision school</Btn></Empty>
+        ) : !rows.length ? <Empty icon={<Search className="h-5 w-5" />} title="No matches" body="Try a different search or clear the filters." /> : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
-            <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2.5">School</th><th className="px-3 py-2.5">Code</th><th className="hidden px-3 py-2.5 md:table-cell">County · level</th><th className="hidden px-3 py-2.5 md:table-cell">Registered</th><th className="px-3 py-2.5">Subscription</th><th className="px-3 py-2.5">Status</th><th className="px-3 py-2.5"><span className="sr-only">Actions</span></th></tr></thead>
-            <tbody>{q.data.map((s) => (
+            <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2.5">School</th><th className="px-3 py-2.5">Code</th><th className="hidden px-3 py-2.5 md:table-cell">County · level</th><th className="hidden px-3 py-2.5 lg:table-cell">Registered</th><th className="px-3 py-2.5">Subscription</th><th className="px-3 py-2.5">Status</th><th className="px-3 py-2.5"><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>{rows.map((s) => (
               <tr key={s.id} data-testid={`row-school-${s.id}`} className="border-b border-border/50 last:border-0 hover:bg-accent/30">
-                <td className="px-5 py-3"><span className="font-semibold">{s.name}</span>{s.id === mine.id && <span className="ml-2 text-xs text-muted-foreground">(your school)</span>}{s.email && <div className="text-[11px] text-muted-foreground">{s.email}</div>}</td>
+                <td className="px-5 py-3"><Link href={`/schools/${s.id}`} data-testid={`link-school-${s.id}`} className="font-semibold hover:text-primary hover:underline">{s.name}</Link>{s.email && <div className="text-[11px] text-muted-foreground">{s.email}</div>}</td>
                 <td className="px-3 py-3 font-mono text-xs">{s.code}</td>
-                <td className="hidden px-3 py-3 capitalize md:table-cell">{s.county ?? "—"} · {s.type}</td>
-                <td className="hidden px-3 py-3 font-mono text-xs text-muted-foreground md:table-cell">{fmtDate(s.createdAt)}</td>
+                <td className="hidden px-3 py-3 capitalize md:table-cell">{s.county ?? "\u2014"} · {s.type}</td>
+                <td className="hidden px-3 py-3 font-mono text-xs text-muted-foreground lg:table-cell">{fmtDate(s.createdAt)}</td>
                 <td className="px-3 py-3 text-xs"><div className="font-semibold">{s.subscriptionPlan || "\u2014"}</div><div className="capitalize text-muted-foreground">{s.subscriptionStatus ?? "\u2014"}{s.subscriptionEndDate && ` · to ${fmtDate(s.subscriptionEndDate)}`}</div></td>
                 <td className="px-3 py-3"><Pill tone={s.status === "active" ? "active" : "error"}>{s.status}</Pill></td>
-                <td className="px-3 py-3"><button data-testid={`button-edit-school-${s.id}`} aria-label={`Edit status and subscription for ${s.name}`} onClick={() => setEditId(s.id)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button></td>
+                <td className="px-3 py-3"><div className="flex items-center justify-end gap-0.5">
+                  <button data-testid={`button-enter-school-${s.id}`} aria-label={`Enter ${s.name}`} title="Enter school" onClick={() => setEnter(s)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><DoorOpen className="h-3.5 w-3.5" /></button>
+                  <button data-testid={`button-edit-school-${s.id}`} aria-label={`Edit ${s.name}`} title="Edit" onClick={() => setEdit(s)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                  <Link href={`/schools/${s.id}`} aria-label={`Manage ${s.name}`} title="Manage" className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><ChevronRight className="h-3.5 w-3.5" /></Link>
+                </div></td>
               </tr>
-              ))}</tbody>
-          </table></div>
+            ))}</tbody>
+          </table>
+          <div className="border-t border-border/60 px-5 py-2 text-xs text-muted-foreground" data-testid="text-school-count">{rows.length} of {q.data.length} schools</div>
+          </div>
         )}
       </Panel>
     </div>
