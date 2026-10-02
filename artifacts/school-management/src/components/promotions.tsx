@@ -5,8 +5,23 @@ import { ArrowRight, GraduationCap, Loader2 } from "lucide-react";
 import { Panel, Btn, Field, NativeSelect, TextInput, FormError, FormActions } from "@/components/kit";
 import { errMsg } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 export function PromotionsPanel() {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Panel title="Year-end promotion" note="Preview the exact roster, then commit. Previews expire after 15 minutes; history is kept."
+      action={<Btn variant="outline" className="h-8" data-testid="button-start-promotion" onClick={() => setOpen(true)}><GraduationCap className="h-3.5 w-3.5" /> Start promotion</Btn>}>
+      <p className="px-5 py-4 text-sm text-muted-foreground">Move a stream's learners into the next grade, or graduate a final-year class. Opens a guided preview-then-commit workflow.</p>
+      <FormDialog open={open} onOpenChange={setOpen} busy={busy} size="full" title="Year-end promotion" description="Preview the exact roster, then commit. Previews expire after 15 minutes; history is kept.">
+        <PromotionWorkflow onBusy={setBusy} onDone={() => setOpen(false)} />
+      </FormDialog>
+    </Panel>
+  );
+}
+
+function PromotionWorkflow({ onBusy, onDone }: { onBusy: (b: boolean) => void; onDone: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const years = useListAcademicYears({ query: { queryKey: getListAcademicYearsQueryKey() } });
@@ -37,19 +52,20 @@ export function PromotionsPanel() {
     if (!p) return;
     setErr(null);
     if (Date.now() - at > 15 * 60_000) { setP(null); return setErr("This preview has expired. Preview again."); }
+    onBusy(true);
     commit.mutate({ data: { previewToken: p.previewToken, confirmation: "PROMOTE" } }, {
       onSuccess: (r) => {
         [getListStudentsQueryKey(), getListGradesQueryKey(), getListStreamsQueryKey(), getListFamiliesQueryKey(), getGetDashboardSummaryQueryKey(), getListAuditLogsQueryKey()].forEach((k) => qc.invalidateQueries({ queryKey: k }));
         qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("/api/students") });
         toast({ title: f.action === "promote" ? "Promotion committed" : "Graduation committed", description: `${r.updatedStudents} learner record${r.updatedStudents === 1 ? "" : "s"} updated.` });
-        setP(null); setTyped("");
+        setP(null); setTyped(""); onBusy(false); onDone();
       },
-      onError: (x) => { setErr(`${errMsg(x)} Preview again if the roster changed.`); setP(null); },
+      onError: (x) => { onBusy(false); setErr(`${errMsg(x)} Preview again if the roster changed.`); setP(null); },
     });
   };
 
   return (
-    <Panel title="Year-end promotion" note="Preview the exact roster, then commit. Previews expire after 15 minutes; history is kept.">
+    <div>
       <form onSubmit={runPreview} className="space-y-4 p-5">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Field label="Action" required><NativeSelect data-testid="select-promotion-action" value={f.action} onChange={set("action")}><option value="promote">Promote to next grade</option><option value="graduate">Graduate (final grade)</option></NativeSelect></Field>
@@ -61,6 +77,7 @@ export function PromotionsPanel() {
         {(years.isError || streams.isError) && <FormError msg={errMsg(years.error ?? streams.error)} />}
         {!p && <FormError msg={err} />}
         <FormActions>
+          <Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn>
           <Btn type="submit" variant="outline" data-testid="button-preview-promotion" disabled={preview.isPending}>{preview.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Preview roster</Btn>
         </FormActions>
       </form>
@@ -85,11 +102,12 @@ export function PromotionsPanel() {
               <FormActions>
                 <Btn data-testid="button-commit-promotion" disabled={typed !== "PROMOTE" || commit.isPending} onClick={runCommit}>{commit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <GraduationCap className="h-4 w-4" />}Commit {f.action === "promote" ? "promotion" : "graduation"}</Btn>
                 <Btn variant="ghost" onClick={() => { setP(null); setTyped(""); }}>Discard preview</Btn>
+                <Btn variant="ghost" onClick={onDone}>Cancel</Btn>
               </FormActions>
             </div>
           )}
         </div>
       )}
-    </Panel>
+    </div>
   );
 }

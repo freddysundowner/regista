@@ -1,1 +1,2 @@
 - [School product scope](school-product-scope.md) — Kenyan schools; follow the supplied seven-phase specification and keep excluded modules out.
+- [Form presentation](form-presentation.md) — use dedicated pages or dialogs, never inline create/edit forms.

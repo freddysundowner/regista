@@ -8,6 +8,7 @@ import { KeyRound, Loader2, PlugZap, ShieldAlert } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
 import { errMsg } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 type Spec = { label: string; purpose: string; secrets: { key: string; label: string; hint?: string; min?: number }[]; pub?: { key: "shortcode" | "accountNumber" | "connectionId"; label: string } };
 const SPECS: Record<IntegrationInputProvider, Spec> = {
@@ -52,8 +53,8 @@ function ConfigForm({ s, onDone }: { s: IntegrationStatus; onDone: () => void })
     });
   };
   return (
-    <form onSubmit={submit} autoComplete="off" className="space-y-4 border-t border-border/70 p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <form onSubmit={submit} autoComplete="off" className="space-y-4 p-5">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Environment" required><NativeSelect value={env} onChange={(e) => setEnv(e.target.value as IntegrationInputEnvironment)}><option value="sandbox">Sandbox</option><option value="production">Production</option></NativeSelect></Field>
         {spec.pub && <Field label={spec.pub.label} required={provider !== "bank"}><TextInput className="font-mono" value={pub} onChange={(e) => setPub(e.target.value)} /></Field>}
         {spec.secrets.map((x) => (
@@ -101,10 +102,12 @@ export default function Integrations() {
                     {s.provider === "daraja" && s.configured && <Btn variant="outline" disabled={reg.isPending} data-testid="button-register-callbacks" onClick={() => reg.mutate(undefined, {
                       onSuccess: (r) => toast({ title: "Callback registration sent", description: r.message ?? "Accepted by the server. This does not verify payments." }),
                       onError: (x) => toast({ title: "Registration failed", description: errMsg(x), variant: "destructive" }) })}>{reg.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Register callbacks</Btn>}
-                    {edit !== s.provider && <Btn variant="outline" data-testid={`button-configure-${s.provider}`} onClick={() => setEdit(s.provider)}><KeyRound className="h-4 w-4" />{s.configured ? "Replace credentials" : "Configure"}</Btn>}
+                    {<Btn variant="outline" data-testid={`button-configure-${s.provider}`} onClick={() => setEdit(s.provider)}><KeyRound className="h-4 w-4" />{s.configured ? "Replace credentials" : "Configure"}</Btn>}
                   </div>
                 </div>
-                {edit === s.provider && spec && <ConfigForm s={s} onDone={() => setEdit(null)} />}
+                {spec && <FormDialog open={edit === s.provider} onOpenChange={(o) => { if (!o) setEdit(null); }} size="lg" title={`${s.configured ? "Replace" : "Configure"} ${spec.label} credentials`} description="Write-only. Saved secrets are encrypted and never shown again, so every required secret must be entered.">
+                  <ConfigForm s={s} onDone={() => setEdit(null)} />
+                </FormDialog>}
               </li>
             );
           })}</ul>

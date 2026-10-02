@@ -5,7 +5,8 @@ import {
   getListCollectionRefundsQueryKey, getListSponsorBatchesQueryKey, getListApprovalInboxQueryKey, type CollectionRefundView, type ModuleDecisionInputDecision,
 } from "@workspace/api-client-react";
 import { Download, Loader2, Undo2, Users } from "lucide-react";
-import { Panel, SkeletonRows, ErrorState, Empty, Btn, TextInput, NativeSelect, Pill } from "@/components/kit";
+import { Panel, SkeletonRows, ErrorState, Empty, Btn, TextInput, NativeSelect, Pill, Field, FormError, FormActions } from "@/components/kit";
+import { FormDialog } from "@/components/form-dialog";
 import { Money, Table, td, useStudentNames, useFinanceRecords } from "@/components/finance-kit";
 import { usePerms, useSession, errMsg, fmtDateTime } from "@/lib/session";
 import { useFinanceInvalidate } from "@/lib/finance";
@@ -23,24 +24,35 @@ function RefundActions({ r }: { r: CollectionRefundView }) {
   const p = usePerms(); const me = useSession().user; const { toast } = useToast(); const inv = useInv();
   const decide = useDecideCollectionRefund(); const pay = usePayCollectionRefund();
   const [d, setD] = useState<"" | ModuleDecisionInputDecision>(""); const [text, setText] = useState("");
+  const [open, setOpen] = useState(false); const [err, setErr] = useState<string | null>(null);
   const pending = ["pending", "requested"].includes(r.status);
+  const openDlg = () => { setD(""); setText(""); setErr(null); setOpen(true); };
   if (pending && p.financeDecide) {
     if (r.requestedBy === me.id) return <Pill tone="left">Your request</Pill>;
-    return (
-      <form className="flex flex-wrap items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (!d || text.trim().length < 3) return void toast({ title: "Choose a decision and give a reason", variant: "destructive" });
-        decide.mutate({ id: r.id, data: { decision: d, reason: text.trim() } }, { onSuccess: () => { inv(); setD(""); setText(""); toast({ title: `Refund ${d}` }); }, onError: (x) => toast({ title: "Could not decide", description: errMsg(x), variant: "destructive" }) }); }}>
-        <NativeSelect aria-label="Decision" className="h-7 w-28 text-xs" value={d} onChange={(e) => setD(e.target.value as typeof d)}><option value="">Decide</option><option value="approved">Approve</option><option value="rejected">Reject</option></NativeSelect>
-        {d && <><TextInput aria-label="Reason" placeholder="Reason" className="h-7 w-32 text-xs" value={text} onChange={(e) => setText(e.target.value)} /><Btn type="submit" className="h-7 px-2 text-xs" disabled={decide.isPending}>Save</Btn></>}
-      </form>
-    );
+    return <>
+      <Btn variant="outline" className="h-7 px-2 text-xs" data-testid={`button-decide-refund-${r.id}`} onClick={openDlg}>Decide refund</Btn>
+      <FormDialog open={open} onOpenChange={setOpen} busy={decide.isPending} title="Decide refund to payer" description={`KES ${r.amount}${r.reason ? ` · ${r.reason}` : ""}`}>
+        <form className="space-y-4 p-5" onSubmit={(e) => { e.preventDefault(); setErr(null); if (!d || text.trim().length < 3) return setErr("Choose a decision and give a reason of at least 3 characters.");
+          decide.mutate({ id: r.id, data: { decision: d, reason: text.trim() } }, { onSuccess: () => { inv(); setOpen(false); toast({ title: `Refund ${d}` }); }, onError: (x) => setErr(errMsg(x)) }); }}>
+          <Field label="Decision" required><NativeSelect data-testid="select-refund-decision" value={d} onChange={(e) => setD(e.target.value as typeof d)}><option value="">Select decision</option><option value="approved">Approve</option><option value="rejected">Reject</option></NativeSelect></Field>
+          <Field label="Reason" required><TextInput data-testid="input-refund-decision-reason" value={text} onChange={(e) => setText(e.target.value)} /></Field>
+          <FormError msg={err} />
+          <FormActions><Btn type="submit" data-testid="button-save-refund-decision" disabled={decide.isPending}>{decide.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Save decision</Btn><Btn type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Btn></FormActions>
+        </form>
+      </FormDialog>
+    </>;
   }
-  if (r.status === "approved" && p.collect) return (
-    <form className="flex flex-wrap items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (text.trim().length < 3) return void toast({ title: "Enter the disbursement reference", variant: "destructive" });
-      pay.mutate({ id: r.id, data: { reference: text.trim() } }, { onSuccess: () => { inv(); setText(""); toast({ title: "Refund recorded as paid" }); }, onError: (x) => toast({ title: "Could not record payout", description: errMsg(x), variant: "destructive" }) }); }}>
-      <TextInput aria-label="Disbursement reference" placeholder="M-Pesa / bank ref" className="h-7 w-36 font-mono text-xs" value={text} onChange={(e) => setText(e.target.value)} />
-      <Btn type="submit" className="h-7 px-2 text-xs" disabled={pay.isPending}>{pay.isPending && <Loader2 className="h-3 w-3 animate-spin" />}Mark paid</Btn>
-    </form>
-  );
+  if (r.status === "approved" && p.collect) return <>
+    <Btn variant="outline" className="h-7 px-2 text-xs" data-testid={`button-pay-refund-${r.id}`} onClick={openDlg}>Record payout</Btn>
+    <FormDialog open={open} onOpenChange={setOpen} busy={pay.isPending} size="sm" title="Record refund payout" description={`KES ${r.amount} approved. Enter the disbursement reference once money has left.`}>
+      <form className="space-y-4 p-5" onSubmit={(e) => { e.preventDefault(); setErr(null); if (text.trim().length < 3) return setErr("Enter the disbursement reference.");
+        pay.mutate({ id: r.id, data: { reference: text.trim() } }, { onSuccess: () => { inv(); setOpen(false); toast({ title: "Refund recorded as paid" }); }, onError: (x) => setErr(errMsg(x)) }); }}>
+        <Field label="Disbursement reference" required hint="M-Pesa or bank reference"><TextInput data-testid="input-refund-payout-ref" className="font-mono" value={text} onChange={(e) => setText(e.target.value)} /></Field>
+        <FormError msg={err} />
+        <FormActions><Btn type="submit" data-testid="button-save-refund-payout" disabled={pay.isPending}>{pay.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Mark refund paid</Btn><Btn type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Btn></FormActions>
+      </form>
+    </FormDialog>
+  </>;
   return null;
 }
 

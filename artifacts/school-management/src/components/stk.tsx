@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { useStartStkPayment, useGetStkPaymentStatus, getGetStkPaymentStatusQueryKey } from "@workspace/api-client-react";
 import { Loader2, Smartphone } from "lucide-react";
-import { Panel, Btn, Field, TextInput, FormError, FormActions, Pill } from "@/components/kit";
+import { Btn, Field, TextInput, FormError, FormActions, Pill } from "@/components/kit";
 import { StudentPicker, MoneyInput, Money } from "@/components/finance-kit";
 import { errMsg } from "@/lib/session";
+import { FormDialog } from "@/components/form-dialog";
+
 import { useFinanceInvalidate, useIdemKey, validMoney } from "@/lib/finance";
 
 const WAITING = ["submitting", "pending", "awaiting_receipt"];
@@ -35,6 +37,16 @@ function Status({ id, startedAt }: { id: string; startedAt: number }) {
 
 /** M-Pesa STK push for a learner already on the register. Acceptance is never treated as payment. */
 export function StkPanel() {
+  const [open, setOpen] = useState(false);
+  return <>
+    <Btn variant="outline" data-testid="button-open-stk" onClick={() => setOpen(true)}><Smartphone className="h-4 w-4" /> Send M-Pesa prompt</Btn>
+    <FormDialog open={open} onOpenChange={setOpen} size="lg" title="Send an M-Pesa prompt" description="Sends an STK push to the payer's phone. Daraja sandbox and live acceptance are not verified on this install.">
+      <StkForm onClose={() => setOpen(false)} />
+    </FormDialog>
+  </>;
+}
+
+function StkForm({ onClose }: { onClose: () => void }) {
   const m = useStartStkPayment();
   const [f, setF] = useState({ studentId: "", phone: "", amount: "" });
   const [req, setReq] = useState<{ id: string; at: number } | null>(null);
@@ -51,17 +63,17 @@ export function StkPanel() {
     });
   };
   return (
-    <Panel title="M-Pesa prompt" note="Sends an STK push to the payer's phone. Daraja sandbox and live acceptance are not verified on this install.">
+    <div>
       <form onSubmit={submit} className="space-y-4 p-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <StudentPicker label="Pay for learner" value={f.studentId} onChange={(v) => setF({ ...f, studentId: v })} />
           <Field label="Payer phone" required><TextInput type="tel" data-testid="input-stk-phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="0712 345 678" /></Field>
           <Field label="Amount (KES)" required><MoneyInput testid="input-stk-amount" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
         </div>
         <FormError msg={err} />
-        <FormActions><Btn type="submit" disabled={m.isPending}>{m.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}Send prompt</Btn>{req && <Btn type="button" variant="ghost" onClick={() => { setReq(null); setF({ studentId: "", phone: "", amount: "" }); }}>New prompt</Btn>}</FormActions>
+        <FormActions><Btn type="submit" data-testid="button-send-stk" disabled={m.isPending || !!req}>{m.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}Send prompt</Btn>{req && <Btn type="button" variant="ghost" onClick={() => { setReq(null); setF({ studentId: "", phone: "", amount: "" }); }}>New prompt</Btn>}<Btn type="button" variant="ghost" onClick={onClose}>{req ? "Done" : "Cancel"}</Btn></FormActions>
       </form>
       {req && <Status id={req.id} startedAt={req.at} />}
-    </Panel>
+    </div>
   );
 }

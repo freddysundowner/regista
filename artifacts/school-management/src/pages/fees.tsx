@@ -6,6 +6,7 @@ import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, Stat
 import { usePerms, errMsg, fmtDate, nairobiToday } from "@/lib/session";
 import { useIdemKey, useFinanceInvalidate, validMoney, rd, recLines, type Line } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 import { useListGrades, useListAcademicYears, getListGradesQueryKey, getListAcademicYearsQueryKey } from "@workspace/api-client-react";
 
 function FeeItems({ canEdit }: { canEdit: boolean }) {
@@ -35,10 +36,10 @@ function FeeItems({ canEdit }: { canEdit: boolean }) {
   };
   const items = [...(q.data ?? [])].sort((a, b) => Number(a.data?.priority ?? 0) - Number(b.data?.priority ?? 0));
   return (
-    <Panel title="Fee items" note="Vote heads in allocation priority. Optional items are assigned per student." action={canEdit && !mode ? <Btn variant="outline" className="h-8" data-testid="button-new-fee-item" onClick={() => open()}><Plus className="h-3.5 w-3.5" /> Item</Btn> : undefined}>
-      {mode && (
-        <form onSubmit={submit} className="space-y-4 border-b border-border/70 bg-accent/20 p-5">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <Panel title="Fee items" note="Vote heads in allocation priority. Optional items are assigned per student." action={canEdit ? <Btn variant="outline" className="h-8" data-testid="button-new-fee-item" onClick={() => open()}><Plus className="h-3.5 w-3.5" /> Add fee item</Btn> : undefined}>
+      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Add a fee item" : mode ? `Edit ${rd(mode, "name") ?? "fee item"}` : "Fee item"} description="Vote heads are allocated in priority order; 1 is paid first.">
+        <form onSubmit={submit} className="space-y-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name" required><TextInput data-testid="input-fee-name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Tuition" /></Field>
             <Field label="Code" required hint={mode !== "new" ? "Fixed after creation" : undefined}><TextInput data-testid="input-fee-code" disabled={mode !== "new"} required value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.toUpperCase() })} placeholder="TUI" className="font-mono" /></Field>
             <Field label="Priority" required hint="1 is paid first"><TextInput data-testid="input-fee-priority" type="number" min={1} value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })} /></Field>
@@ -46,9 +47,9 @@ function FeeItems({ canEdit }: { canEdit: boolean }) {
               : <Field label="Reason for change" required><TextInput data-testid="input-fee-reason" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} /></Field>}
           </div>
           <FormError msg={err} />
-          <FormActions><Btn type="submit" data-testid="button-save-fee-item" disabled={create.isPending || upd.isPending}>{(create.isPending || upd.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "new" ? "Create item" : "Save item"}</Btn><Btn type="button" variant="ghost" onClick={() => setMode(null)}>Cancel</Btn></FormActions>
+          <FormActions><Btn type="submit" data-testid="button-save-fee-item" disabled={create.isPending || upd.isPending}>{(create.isPending || upd.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "new" ? "Create fee item" : "Save fee item"}</Btn><Btn type="button" variant="ghost" onClick={() => setMode(null)}>Cancel</Btn></FormActions>
         </form>
-      )}
+      </FormDialog>
       {q.isLoading ? <SkeletonRows rows={3} cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !items.length ? <Empty icon={<Tag className="h-5 w-5" />} title="No fee items" body="Start with Tuition, Lunch, Transport and Activity." /> : (
         <ul className="divide-y divide-border/60">{items.map((r) => (
           <li key={r.id} data-testid={`row-fee-item-${r.id}`} className="flex flex-wrap items-center gap-3 px-5 py-2.5 text-sm">
@@ -95,13 +96,13 @@ function Structures({ canEdit }: { canEdit: boolean }) {
   };
   const locked = !!mode?.parent;
   return (
-    <Panel title="Fee structures" note="Drafts await approval. Approved structures are never edited; create a new version instead." action={canEdit && !mode ? <Btn variant="outline" className="h-8" data-testid="button-new-structure" onClick={() => { setF(emptyS); setErr(null); setMode({}); }}><Plus className="h-3.5 w-3.5" /> Draft structure</Btn> : undefined}>
-      {mode && (
-        <form onSubmit={submit} className="space-y-4 border-b border-border/70 bg-accent/20 p-5">
+    <Panel title="Fee structures" note="Drafts await approval. Approved structures are never edited; create a new version instead." action={canEdit ? <Btn variant="outline" className="h-8" data-testid="button-new-structure" onClick={() => { setF(emptyS); setErr(null); setMode({}); }}><Plus className="h-3.5 w-3.5" /> Draft structure</Btn> : undefined}>
+      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} busy={create.isPending} size="lg" title={locked ? "New fee structure version" : "Draft a fee structure"} description="Drafts await approval. Approved structures are never edited.">
+        <form onSubmit={submit} className="space-y-4 p-5">
           {locked && <p className="text-sm text-muted-foreground">New version of <strong>{rd(mode.parent!, "name")}</strong> ({versionOf(mode.parent!)}). Scope stays the same.</p>}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Name" required><TextInput data-testid="input-structure-name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Grade 4 Day, Term 1" /></Field>
-            {locked ? <div className="text-sm sm:col-span-1 lg:col-span-3 self-end pb-2 text-muted-foreground">{yname(f.academicYearId)} · {term(f.termId)} · {gname(f.gradeId)} · {f.boardingStatus || "All learners"}</div> : <>
+            {locked ? <div className="self-end pb-2 text-sm text-muted-foreground">{yname(f.academicYearId)} · {term(f.termId)} · {gname(f.gradeId)} · {f.boardingStatus || "All learners"}</div> : <>
               <YearSelect value={f.academicYearId} onChange={(v) => setF({ ...f, academicYearId: v })} />
               <TermSelect required value={f.termId} onChange={(v) => setF({ ...f, termId: v })} />
               <GradeSelect required value={f.gradeId} onChange={(v) => setF({ ...f, gradeId: v })} />
@@ -112,7 +113,7 @@ function Structures({ canEdit }: { canEdit: boolean }) {
           <FormError msg={err} />
           <FormActions><Btn type="submit" data-testid="button-save-structure" disabled={create.isPending}>{create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Submit for approval</Btn><Btn type="button" variant="ghost" onClick={() => setMode(null)}>Cancel</Btn></FormActions>
         </form>
-      )}
+      </FormDialog>
       {q.isLoading ? <SkeletonRows rows={3} cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !sorted.length ? <Empty icon={<Layers className="h-5 w-5" />} title="No fee structures" body="Draft one per term and grade; invoices are generated from approved structures." /> : (
         <Table head={["Structure", "Scope", "Version", "Lines", "Total", "Status", ""]}>{sorted.map((r) => (
           <tr key={r.id} data-testid={`row-structure-${r.id}`} className={r.status === "archived" || r.status === "rejected" ? "opacity-60" : ""}>
@@ -140,6 +141,8 @@ function OptionalCharges({ canEdit }: { canEdit: boolean }) {
   const [f, setF] = useState({ studentId: "", feeItemId: "", amount: "", startDate: nairobiToday(), termId: "", endDate: "" });
   const [err, setErr] = useState<string | null>(null);
   const [ending, setEnding] = useState<{ id: string; endDate: string; reason: string } | null>(null);
+  const [endErr, setEndErr] = useState<string | null>(null);
+  const endingRec = q.data?.find((r) => r.id === ending?.id);
   const idem = useIdemKey(JSON.stringify(f));
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
@@ -152,10 +155,10 @@ function OptionalCharges({ canEdit }: { canEdit: boolean }) {
     });
   };
   return (
-    <Panel title="Optional student charges" note="Lunch, transport, clubs: per-student items billed on invoice generation." action={canEdit && !open ? <Btn variant="outline" className="h-8" data-testid="button-new-charge" onClick={() => setOpen(true)}><Plus className="h-3.5 w-3.5" /> Charge</Btn> : undefined}>
-      {open && (
-        <form onSubmit={submit} className="space-y-4 border-b border-border/70 bg-accent/20 p-5">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <Panel title="Optional student charges" note="Lunch, transport, clubs: per-student items billed on invoice generation." action={canEdit ? <Btn variant="outline" className="h-8" data-testid="button-new-charge" onClick={() => { setErr(null); setOpen(true); }}><Plus className="h-3.5 w-3.5" /> Add charge</Btn> : undefined}>
+      <FormDialog open={open} onOpenChange={setOpen} busy={create.isPending} size="lg" title="Add an optional charge" description="Billed on future invoices within its date range.">
+        <form onSubmit={submit} className="space-y-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
             <StudentPicker value={f.studentId} onChange={(v) => setF({ ...f, studentId: v })} />
             <FeeItemSelect optional value={f.feeItemId} onChange={(v) => setF({ ...f, feeItemId: v })} />
             <Field label="Amount per term (KES)" required><MoneyInput testid="input-charge-amount" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
@@ -166,19 +169,22 @@ function OptionalCharges({ canEdit }: { canEdit: boolean }) {
           <FormError msg={err} />
           <FormActions><Btn type="submit" data-testid="button-save-charge" disabled={create.isPending}>{create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Add charge</Btn><Btn type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Btn></FormActions>
         </form>
-      )}
+      </FormDialog>
+      <FormDialog open={!!ending} onOpenChange={(o) => { if (!o) setEnding(null); }} busy={upd.isPending} size="sm" title="Set charge end date" description={endingRec ? `${sname(endingRec.studentId)} · ${item(rd(endingRec, "feeItemId"))}` : undefined}>
+        {ending && <form className="space-y-4 p-5" onSubmit={(e) => { e.preventDefault(); if (ending.reason.trim().length < 3 || !ending.endDate) return setEndErr("End date and a reason of at least 3 characters are required."); setEndErr(null); upd.mutate({ id: ending.id, data: { endDate: ending.endDate, reason: ending.reason.trim() } }, { onSuccess: () => { inv(); setEnding(null); toast({ title: "Charge end date set" }); }, onError: (x) => setEndErr(errMsg(x)) }); }}>
+          <Field label="End date" required><TextInput data-testid="input-charge-end" type="date" value={ending.endDate} onChange={(e) => setEnding({ ...ending, endDate: e.target.value })} /></Field>
+          <Field label="Reason" required><TextInput data-testid="input-charge-end-reason" value={ending.reason} onChange={(e) => setEnding({ ...ending, reason: e.target.value })} /></Field>
+          <FormError msg={endErr} />
+          <FormActions><Btn type="submit" data-testid="button-save-charge-end" disabled={upd.isPending}>{upd.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Set end date</Btn><Btn type="button" variant="ghost" onClick={() => setEnding(null)}>Cancel</Btn></FormActions>
+        </form>}
+      </FormDialog>
       {q.isLoading ? <SkeletonRows rows={3} cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<Receipt className="h-5 w-5" />} title="No optional charges" body="Create an optional fee item first, then assign it to learners." /> : (
         <Table head={["Student", "Item", "Amount", "Period", "Status", ""]}>{q.data.map((r) => (
           <tr key={r.id} data-testid={`row-charge-${r.id}`}>
             <td className={td}>{sname(r.studentId)}</td><td className={td}>{item(rd(r, "feeItemId"))}</td><td className={td}><Money v={r.amount} /></td>
             <td className={`${td} text-xs`}>{fmtDate(rd(r, "startDate"))} to {rd(r, "endDate") ? fmtDate(rd(r, "endDate")) : "open"}{r.termId && <div className="text-muted-foreground">{term(r.termId)}</div>}</td>
             <td className={td}><StatusPill status={r.status} /></td>
-            <td className={td}>{canEdit && (ending?.id === r.id ? (
-              <form className="flex flex-wrap items-end gap-1" onSubmit={(e) => { e.preventDefault(); if (ending.reason.trim().length < 3 || !ending.endDate) return void toast({ title: "End date and reason required", variant: "destructive" }); upd.mutate({ id: r.id, data: { endDate: ending.endDate, reason: ending.reason.trim() } }, { onSuccess: () => { inv(); setEnding(null); toast({ title: "Charge end date set" }); }, onError: (x) => toast({ title: "Could not update", description: errMsg(x), variant: "destructive" }) }); }}>
-                <TextInput aria-label="End date" type="date" className="h-7 w-36 text-xs" value={ending.endDate} onChange={(e) => setEnding({ ...ending, endDate: e.target.value })} />
-                <TextInput aria-label="Reason" placeholder="Reason" className="h-7 w-28 text-xs" value={ending.reason} onChange={(e) => setEnding({ ...ending, reason: e.target.value })} />
-                <Btn type="submit" className="h-7 px-2 text-xs" disabled={upd.isPending}>Save</Btn><Btn type="button" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEnding(null)}>Cancel</Btn>
-              </form>) : <Btn variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEnding({ id: r.id, endDate: nairobiToday(), reason: "" })}>Set end</Btn>)}</td>
+            <td className={td}>{canEdit && <Btn variant="ghost" className="h-7 px-2 text-xs" data-testid={`button-end-charge-${r.id}`} onClick={() => { setEndErr(null); setEnding({ id: r.id, endDate: nairobiToday(), reason: "" }); }}>Set end date</Btn>}</td>
           </tr>))}</Table>
       )}
     </Panel>

@@ -5,6 +5,7 @@ import { Layers, Loader2, Plus, Trash2 } from "lucide-react";
 import { Panel, SkeletonRows, ErrorState, Empty, Btn, Field, NativeSelect, FormError, FormActions } from "@/components/kit";
 import { ROLE_LABEL, errMsg } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 /** Admin-only: grants teachers read access to a stream. Independent of the class teacher field. */
 export function TeacherAssignmentsPanel() {
@@ -35,9 +36,9 @@ export function TeacherAssignmentsPanel() {
 
   return (
     <Panel title="Teacher stream assignments" note="Gives a teacher read access to a stream's learners. Separate from the class teacher; subjects come later."
-      action={!adding ? <Btn variant="outline" className="h-8" data-testid="button-new-assignment" onClick={() => setAdding(true)}><Plus className="h-3.5 w-3.5" /> Assign</Btn> : undefined}>
-      {adding && (
-        <form onSubmit={submit} className="space-y-4 border-b border-border/70 bg-accent/20 p-5">
+      action={<Btn variant="outline" className="h-8" data-testid="button-new-assignment" onClick={() => { setF({ userId: "", streamId: "" }); setErr(null); setAdding(true); }}><Plus className="h-3.5 w-3.5" /> Assign teacher</Btn>}>
+      <FormDialog open={adding} onOpenChange={(o) => { setAdding(o); if (!o) setErr(null); }} busy={create.isPending} title="Assign a teacher to a stream" description="Gives read access to that stream's learners. Separate from the class teacher.">
+        <form onSubmit={submit} className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Teacher" required><NativeSelect data-testid="select-assignment-teacher" value={f.userId} onChange={(e) => setF({ ...f, userId: e.target.value })}><option value="">{users.isLoading ? "Loading staff" : teachers.length ? "Select teacher" : "No active teachers"}</option>{teachers.map((u) => <option key={u.id} value={u.id}>{u.name} ({ROLE_LABEL[u.role]})</option>)}</NativeSelect></Field>
             <Field label="Stream" required><NativeSelect data-testid="select-assignment-stream" value={f.streamId} onChange={(e) => setF({ ...f, streamId: e.target.value })}><option value="">{streams.isLoading ? "Loading streams" : "Select stream"}</option>{streams.data?.map((s) => <option key={s.id} value={s.id}>{s.gradeName} · {s.name}</option>)}</NativeSelect></Field>
@@ -48,7 +49,7 @@ export function TeacherAssignmentsPanel() {
             <Btn type="button" variant="ghost" onClick={() => { setAdding(false); setErr(null); }}>Cancel</Btn>
           </FormActions>
         </form>
-      )}
+      </FormDialog>
       {q.isLoading ? <SkeletonRows rows={3} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<Layers className="h-5 w-5" />} title="No assignments yet" body="Teachers without assignments only see streams where they are class teacher." /> : (
         <ul className="divide-y divide-border/60">{q.data.map((a) => (
           <li key={a.id} data-testid={`row-assignment-${a.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">

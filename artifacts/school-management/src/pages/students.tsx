@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useListStudents, useCreateStudent, useListGrades, getListStudentsQueryKey, getGetDashboardSummaryQueryKey, getListGuardiansQueryKey, getListFamiliesQueryKey, getListGradesQueryKey, StudentStatus, type ListStudentsParams } from "@workspace/api-client-react";
 import { GraduationCap, Plus, Search, Users } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Pill, Btn, NativeSelect } from "@/components/kit";
+import { FormDialog } from "@/components/form-dialog";
 import { StudentForm, fromStudent, toPayload } from "@/components/student-form";
 import { usePerms, errMsg } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
@@ -30,11 +31,11 @@ export default function Students() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Admission register" title="Students" meta={p.limitedToAssigned ? "Showing learners in your assigned streams" : q.data ? `${q.data.length} record${q.data.length === 1 ? "" : "s"} match` : undefined}>
-        {p.writeStudents && !creating && <Btn data-testid="button-new-student" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Admit student</Btn>}
+        {p.writeStudents && <Btn data-testid="button-new-student" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Admit student</Btn>}
       </PageHeader>
 
-      {creating && (
-        <Panel title="Admit a student" note="Essential details only — you can complete the record later.">
+      {p.writeStudents && (
+        <FormDialog open={creating} onOpenChange={(o) => { setCreating(o); if (!o) setErr(null); }} busy={create.isPending} size="lg" title="Admit a student" description="Essential details only — you can complete the record later.">
           <div className="p-5">
             <StudentForm initial={fromStudent()} withGuardian submitLabel="Save student" pending={create.isPending} error={err}
               onCancel={() => { setCreating(false); setErr(null); }}
@@ -52,7 +53,7 @@ export default function Students() {
                 });
               }} />
           </div>
-        </Panel>
+        </FormDialog>
       )}
 
       <Panel className="rise-1">

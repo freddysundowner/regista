@@ -12,6 +12,7 @@ import { usePerms, errMsg } from "@/lib/session";
 import { MONEY_RE, toCents } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { CurriculumEditor, type EditTarget } from "@/components/curriculum-edit";
+import { FormDialog } from "@/components/form-dialog";
 
 export function useCurriculum() { return useGetCurriculum({ query: { queryKey: getGetCurriculumQueryKey() } }); }
 
@@ -25,9 +26,10 @@ function useSave(onDone: () => void) {
   return { save, err, setErr, pending: m.isPending };
 }
 
-function Adder({ label, children }: { label: string; children: (close: () => void) => ReactNode }) {
+function Adder({ label, title, description, size = "md", children }: { label: string; title: string; description?: string; size?: "md" | "lg"; children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false);
-  return open ? <div className="border-t border-border/70">{children(() => setOpen(false))}</div> : <div className="border-t border-border/70 px-5 py-3"><Btn variant="ghost" className="h-8" onClick={() => setOpen(true)}><Plus className="h-3.5 w-3.5" />{label}</Btn></div>;
+  return <div className="border-t border-border/70 px-5 py-3"><Btn variant="ghost" className="h-8" onClick={() => setOpen(true)}><Plus className="h-3.5 w-3.5" />{label}</Btn>
+    <FormDialog open={open} onOpenChange={setOpen} size={size} title={title} description={description}>{children(() => setOpen(false))}</FormDialog></div>;
 }
 
 function Actions({ pending, close, label }: { pending: boolean; close: () => void; label: string }) {
@@ -37,7 +39,7 @@ function Actions({ pending, close, label }: { pending: boolean; close: () => voi
 function AreaForm({ close }: { close: () => void }) {
   const s = useSave(close); const [f, setF] = useState({ gradeId: "", name: "", code: "" });
   const submit = (e: FormEvent) => { e.preventDefault(); if (!f.gradeId || !f.name.trim() || !f.code.trim()) return s.setErr("Grade, name and code are required."); s.save({ kind: "learning_area", gradeId: f.gradeId, name: f.name.trim(), code: f.code.trim().toUpperCase() }, "Learning area added"); };
-  return <form onSubmit={submit} className="space-y-4 p-5"><div className="grid gap-3 sm:grid-cols-3"><GradeSelect required value={f.gradeId} onChange={(v) => setF({ ...f, gradeId: v })} /><Field label="Name" required><TextInput value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Mathematics" /></Field><Field label="Code" required><TextInput className="font-mono" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="MATH" /></Field></div><FormError msg={s.err} /><Actions pending={s.pending} close={close} label="Add learning area" /></form>;
+  return <form onSubmit={submit} className="space-y-4 p-5"><div className="grid gap-3 sm:grid-cols-2"><GradeSelect required value={f.gradeId} onChange={(v) => setF({ ...f, gradeId: v })} /><Field label="Name" required><TextInput value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Mathematics" /></Field><Field label="Code" required><TextInput className="font-mono" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="MATH" /></Field></div><FormError msg={s.err} /><Actions pending={s.pending} close={close} label="Add learning area" /></form>;
 }
 
 function StrandForm({ c, close }: { c: CurriculumView; close: () => void }) {
@@ -45,7 +47,7 @@ function StrandForm({ c, close }: { c: CurriculumView; close: () => void }) {
   const tops = c.strands.filter((x) => x.learningAreaId === f.learningAreaId && !x.parentId);
   const submit = (e: FormEvent) => { e.preventDefault(); if (!f.learningAreaId || !f.name.trim()) return s.setErr("Learning area and name are required.");
     s.save({ kind: f.parentId ? "sub_strand" : "strand", learningAreaId: f.learningAreaId, ...(f.parentId ? { parentId: f.parentId } : {}), name: f.name.trim(), order: Number(f.order) || 1 }, f.parentId ? "Sub-strand added" : "Strand added"); };
-  return <form onSubmit={submit} className="space-y-4 p-5"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  return <form onSubmit={submit} className="space-y-4 p-5"><div className="grid gap-3 sm:grid-cols-2">
     <Field label="Learning area" required><NativeSelect value={f.learningAreaId} onChange={(e) => setF({ ...f, learningAreaId: e.target.value, parentId: "" })}><option value="">Select</option>{c.learningAreas.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.code})</option>)}</NativeSelect></Field>
     <Field label="Under strand" hint="Leave blank for a top-level strand"><NativeSelect value={f.parentId} disabled={!tops.length} onChange={(e) => setF({ ...f, parentId: e.target.value })}><option value="">Top-level strand</option>{tops.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</NativeSelect></Field>
     <Field label="Name" required><TextInput value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
@@ -66,7 +68,7 @@ function ScaleForm({ close }: { close: () => void }) {
     s.save({ kind: "scale", name: name.trim(), levels: levels.map((l) => ({ ...l, code: l.code.trim(), label: l.label.trim() })) }, "Scale saved");
   };
   return <form onSubmit={submit} className="space-y-4 p-5">
-    <div className="grid gap-3 sm:grid-cols-3"><Field label="Scale name" required><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Junior School 8-level" /></Field>
+    <div className="grid gap-3 sm:grid-cols-2"><Field label="Scale name" required><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Junior School 8-level" /></Field>
       <Field label="Levels" required><NativeSelect value={levels.length} onChange={(e) => setLevels(blankLevels(Number(e.target.value)))}><option value={4}>4 levels (EE, ME, AE, BE)</option><option value={8}>8 levels (EE1 to BE2)</option></NativeSelect></Field></div>
     <div className="space-y-2">{levels.map((l, i) => (
       <div key={i} className="grid gap-2 rounded-md border border-border/70 p-2 sm:grid-cols-5">
@@ -92,12 +94,12 @@ function AssignForm({ c, close }: { c: CurriculumView; close: () => void }) {
   const stream = streams.data?.find((x) => x.id === f.streamId);
   const areas = c.learningAreas.filter((a) => !stream || a.gradeId === stream.gradeId);
   const submit = (e: FormEvent) => { e.preventDefault(); if (Object.values(f).some((v) => !v)) return s.setErr("Choose teacher, stream, learning area and term."); s.save({ kind: "assignment", ...f }, "Teacher assigned"); };
-  return <form onSubmit={submit} className="space-y-4 p-5"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  return <form onSubmit={submit} className="space-y-4 p-5"><div className="grid gap-3 sm:grid-cols-2">
     <Field label="Teacher" required><NativeSelect value={f.userId} onChange={(e) => setF({ ...f, userId: e.target.value })}><option value="">Select</option>{(users.data ?? []).filter((u) => u.isActive && ["teacher", "class_teacher"].includes(u.role)).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</NativeSelect></Field>
     <Field label="Stream" required><NativeSelect value={f.streamId} onChange={(e) => setF({ ...f, streamId: e.target.value, learningAreaId: "" })}><option value="">Select</option>{streams.data?.map((x) => <option key={x.id} value={x.id}>{x.gradeName} {x.name}</option>)}</NativeSelect></Field>
     <Field label="Learning area" required><NativeSelect value={f.learningAreaId} disabled={!stream} onChange={(e) => setF({ ...f, learningAreaId: e.target.value })}><option value="">{stream ? "Select" : "Choose stream first"}</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</NativeSelect></Field>
     <TermSelect required value={f.termId} onChange={(v) => setF({ ...f, termId: v })} />
-  </div><FormError msg={s.err} /><Actions pending={s.pending} close={close} label="Assign" /></form>;
+  </div><FormError msg={s.err} /><Actions pending={s.pending} close={close} label="Assign teacher" /></form>;
 }
 
 export default function Curriculum() {
@@ -111,8 +113,7 @@ export default function Curriculum() {
   const [area, setArea] = useState("");
   const [editing, setEditing] = useState<EditTarget | null>(null);
   const ed = (kind: EditTarget["kind"], id: string) => p.academicAdmin ? <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setEditing({ kind, id }); }}>Edit</button> : null;
-  const editor = (kind: EditTarget["kind"]) => editing?.kind === kind && c ? <CurriculumEditor key={editing.id} t={editing} c={c} close={() => setEditing(null)} /> : null;
-  const c = q.data;
+    const c = q.data;
   const gname = useMemo(() => new Map(grades.data?.map((g) => [g.id, g.name])), [grades.data]);
   const aname = useMemo(() => new Map(c?.learningAreas.map((a) => [a.id, a.name])), [c]);
   const shown = area || c?.learningAreas[0]?.id || "";
@@ -128,16 +129,14 @@ export default function Curriculum() {
               <Table head={["Grade", "Learning area", "Code", "Strands", ""]}>{[...c.learningAreas].sort((a, b) => (gname.get(a.gradeId) ?? "").localeCompare(gname.get(b.gradeId) ?? "")).map((a) => (
                 <tr key={a.id} className={`cursor-pointer ${shown === a.id ? "bg-primary/5" : ""}`} onClick={() => setArea(a.id)}><td className={`${td} text-xs`}>{gname.get(a.gradeId) ?? "Grade"}</td><td className={td}>{a.name}</td><td className={`${td} font-mono text-xs`}>{a.code}</td><td className={td}>{c.strands.filter((s) => s.learningAreaId === a.id && !s.parentId).length}</td><td className={td}>{ed("learning-area", a.id)}</td></tr>))}</Table>
             )}
-            {editor("learning-area")}
-            {p.academicAdmin && <Adder label="Add learning area">{(close) => <AreaForm close={close} />}</Adder>}
+                        {p.academicAdmin && <Adder label="Add learning area" title="Add a learning area">{(close) => <AreaForm close={close} />}</Adder>}
           </Panel>
           <Panel title={`Strands${shown ? ` · ${aname.get(shown) ?? ""}` : ""}`} note="Select a learning area to see its strands and sub-strands.">
             {!c.strands.some((s) => s.learningAreaId === shown) ? <p className="p-5 text-sm text-muted-foreground">No strands yet.</p> : (
               <ol className="space-y-2 p-5 text-sm">{c.strands.filter((s) => s.learningAreaId === shown && !s.parentId).sort((a, b) => a.order - b.order).map((s) => (
                 <li key={s.id}><span className="font-semibold">{s.order}. {s.name}</span> {ed("strand", s.id)}<ul className="ml-5 mt-1 list-disc text-muted-foreground">{c.strands.filter((x) => x.parentId === s.id).sort((a, b) => a.order - b.order).map((x) => <li key={x.id}>{x.name} {ed("strand", x.id)}</li>)}</ul></li>))}</ol>
             )}
-            {editor("strand")}
-            {p.academicAdmin && <Adder label="Add strand or sub-strand">{(close) => <StrandForm c={c} close={close} />}</Adder>}
+                        {p.academicAdmin && <Adder label="Add strand or sub-strand" title="Add a strand or sub-strand">{(close) => <StrandForm c={c} close={close} />}</Adder>}
           </Panel>
         </div>
         <Panel title="Performance scales" note="Percentage bands map marks to levels. Each grade uses one scale.">
@@ -148,19 +147,20 @@ export default function Curriculum() {
                 <table className="w-full text-xs"><tbody>{[...s.levels].sort((a, b) => a.order - b.order).map((l) => <tr key={l.id} className="border-b border-border/40 last:border-0"><td className="px-3 py-1 font-mono font-semibold">{l.code}</td><td className="px-3 py-1">{l.label}</td><td className="px-3 py-1 tabular-nums">{l.minPercent}–{l.maxPercent}%</td><td className="px-3 py-1 tabular-nums">{l.points} pts</td></tr>)}</tbody></table>
               </div>))}</div>
           )}
-          {editor("scale")}
-          {p.academicAdmin && <Adder label="New scale">{(close) => <ScaleForm close={close} />}</Adder>}
-          {p.academicAdmin && c.scales.length > 0 && <Adder label="Assign scale to grade">{(close) => <GradeScaleForm c={c} close={close} />}</Adder>}
+                    {p.academicAdmin && <Adder label="New scale" title="Create a performance scale" description="Bands must run 0 to 100 with no gaps or overlaps." size="lg">{(close) => <ScaleForm close={close} />}</Adder>}
+          {p.academicAdmin && c.scales.length > 0 && <Adder label="Assign scale to grade" title="Assign a scale to a grade">{(close) => <GradeScaleForm c={c} close={close} />}</Adder>}
         </Panel>
         <Panel title="Subject teaching assignments" note="Teachers only see and mark learners in the streams and learning areas assigned to them.">
           {!c.assignments.length ? <p className="p-5 text-sm text-muted-foreground">No assignments.</p> : (
             <Table head={["Teacher", "Stream", "Learning area", "Term", ""]}>{c.assignments.map((a) => { const st = streams.data?.find((x) => x.id === a.streamId); const t = terms.data?.find((x) => x.id === a.termId); return (
               <tr key={a.id}><td className={td}>{users.data?.find((u) => u.id === a.userId)?.name ?? (p.academicAdmin ? "Teacher" : "You")}</td><td className={td}>{st ? `${st.gradeName} ${st.name}` : "Stream"}</td><td className={td}>{aname.get(a.learningAreaId) ?? "Learning area"}</td><td className={`${td} text-xs`}>{t ? `${t.name} ${t.academicYearName}` : "Term"}</td><td className={td}>{ed("assignment", a.id)}</td></tr>); })}</Table>
           )}
-          {editor("assignment")}
-          {p.academicAdmin && <Adder label="Assign teacher">{(close) => <AssignForm c={c} close={close} />}</Adder>}
+                    {p.academicAdmin && <Adder label="Assign teacher" title="Assign a subject teacher" description="Teachers only see and mark learners in the streams and learning areas assigned to them.">{(close) => <AssignForm c={c} close={close} />}</Adder>}
         </Panel>
       </>}
+      {p.academicAdmin && c && <FormDialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }} size={editing?.kind === "scale" ? "lg" : "md"} title={editing ? `Edit ${editing.kind.replace("-", " ")}` : "Edit"}>
+        {editing && <CurriculumEditor key={editing.id} t={editing} c={c} close={() => setEditing(null)} />}
+      </FormDialog>}
     </div>
   );
 }

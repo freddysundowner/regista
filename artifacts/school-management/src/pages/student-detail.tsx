@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGetStudent, useUpdateStudent, useLinkStudentGuardian, useListGuardians, getListGuardiansQueryKey, type Student, getGetStudentQueryKey, getListStudentsQueryKey, getGetDashboardSummaryQueryKey, getListFamiliesQueryKey, getListGradesQueryKey } from "@workspace/api-client-react";
 import { ArrowLeft, Loader2, Pencil, Phone, Plus, Users } from "lucide-react";
 import { Panel, ErrorState, Pill, Btn, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
+import { FormDialog } from "@/components/form-dialog";
 import { StudentForm, fromStudent, toPayload } from "@/components/student-form";
 import { usePerms, errMsg, fmtDate, initials, blank } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
@@ -39,7 +40,7 @@ function LinkGuardianForm({ student, canSearch, onDone }: { student: Student; ca
     });
   };
   return (
-    <form onSubmit={submit} className="space-y-4 border-b border-border/70 bg-accent/20 p-5">
+    <form onSubmit={submit} className="space-y-4 p-5">
       {canSearch && !!existing.data?.length && (
         <Field label="Existing guardian" hint="Prefills details; matching phone links siblings"><NativeSelect data-testid="select-existing-guardian" defaultValue="" onChange={(e) => pick(e.target.value)}><option value="">New guardian…</option>{existing.data.filter((g) => !g.anonymizedAt).map((g) => <option key={g.id} value={g.id}>{g.name} · {g.phone}</option>)}</NativeSelect></Field>
       )}
@@ -100,11 +101,11 @@ export default function StudentDetail() {
           <h1 data-testid="text-student-name" className="font-display text-3xl font-semibold md:text-4xl">{s.fullName}</h1>
           <div className="mt-1 flex items-center gap-2"><Pill tone={s.status}>{s.status}</Pill>{s.siblingCount > 0 && <span className="text-xs text-muted-foreground">{s.siblingCount} sibling{s.siblingCount > 1 ? "s" : ""} in school</span>}</div>
         </div>
-        {p.writeStudents && !editing && <Btn data-testid="button-edit-student" variant="outline" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit record</Btn>}
+        {p.writeStudents && <Btn data-testid="button-edit-student" variant="outline" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit record</Btn>}
       </header>
 
-      {editing ? (
-        <Panel title="Edit record" note="Changes are recorded in the audit history.">
+      {p.writeStudents && (
+        <FormDialog open={editing} onOpenChange={(o) => { setEditing(o); if (!o) setErr(null); }} busy={upd.isPending} size="lg" title={`Edit record: ${s.fullName}`} description="Changes are recorded in the audit history.">
           <div className="p-5">
             <StudentForm initial={fromStudent(s)} submitLabel="Save changes" pending={upd.isPending} error={err} onCancel={() => { setEditing(false); setErr(null); }}
               onSubmit={(v) => {
@@ -120,8 +121,14 @@ export default function StudentDetail() {
                 });
               }} />
           </div>
-        </Panel>
-      ) : (
+        </FormDialog>
+      )}
+      {p.writeStudents && (
+        <FormDialog open={linking} onOpenChange={setLinking} busy={false} title={`Link a guardian to ${s.fullName}`} description="Matching phone numbers link siblings automatically.">
+          <LinkGuardianForm student={s} canSearch={p.viewGuardians} onDone={() => setLinking(false)} />
+        </FormDialog>
+      )}
+      {(
         <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           <Panel title="Record" className="rise-1">
             <dl className="grid grid-cols-1 sm:grid-cols-2">
@@ -133,8 +140,7 @@ export default function StudentDetail() {
               ))}
             </dl>
           </Panel>
-          <Panel title="Guardians" note={s.familyId ? "Linked to a family group" : undefined} className="rise-2" action={p.writeStudents && !linking ? <Btn variant="outline" className="h-8" data-testid="button-add-guardian" onClick={() => setLinking(true)}><Plus className="h-3.5 w-3.5" /> Link</Btn> : undefined}>
-            {linking && <LinkGuardianForm student={s} canSearch={p.viewGuardians} onDone={() => setLinking(false)} />}
+          <Panel title="Guardians" note={s.familyId ? "Linked to a family group" : undefined} className="rise-2" action={p.writeStudents ? <Btn variant="outline" className="h-8" data-testid="button-add-guardian" onClick={() => setLinking(true)}><Plus className="h-3.5 w-3.5" /> Link</Btn> : undefined}>
             {s.guardianNames.length === 0 ? <div className="flex items-center gap-3 px-5 py-6 text-sm text-muted-foreground"><Users className="h-4 w-4" /> No guardian linked yet.</div> : (
               <ul className="divide-y divide-border/60">
                 {s.guardianNames.map((g, i) => (
@@ -148,8 +154,8 @@ export default function StudentDetail() {
           </Panel>
         </div>
       )}
-      {!editing && p.financeRead && <StudentFinancePanel studentId={s.id} />}
-      {!editing && (p.academicRead || p.financeRead) && <StudentAcademicPanels studentId={s.id} />}
+      {p.financeRead && <StudentFinancePanel studentId={s.id} />}
+      {(p.academicRead || p.financeRead) && <StudentAcademicPanels studentId={s.id} />}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useFinanceRecords, Money } from "@/components/finance-kit";
 import { usePerms, errMsg } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, rd, sumMoney, SPONSOR_LABEL } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 export default function Sponsors() {
   const p = usePerms();
@@ -33,20 +34,20 @@ export default function Sponsors() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Bursaries & sponsorship" title="Sponsors" meta="NG-CDF, county, church and other funders behind bursary and sponsorship adjustments.">
-        {p.financeConfigure && !mode && <Btn data-testid="button-new-sponsor" onClick={() => open()}><Plus className="h-4 w-4" /> Add sponsor</Btn>}
+        {p.financeConfigure && <Btn data-testid="button-new-sponsor" onClick={() => open()}><Plus className="h-4 w-4" /> Add sponsor</Btn>}
       </PageHeader>
-      {mode && <Panel title={mode === "new" ? "New sponsor" : `Edit ${rd(mode, "name")}`}>
+      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Add a sponsor" : mode ? `Edit ${rd(mode, "name")}` : "Sponsor"} description="Funders behind bursary and sponsorship adjustments.">
         <form onSubmit={submit} className="space-y-4 p-5">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name" required><TextInput data-testid="input-sponsor-name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Kibra NG-CDF" /></Field>
             <Field label="Type" required hint={mode !== "new" ? "Fixed after creation" : undefined}><NativeSelect data-testid="select-sponsor-type" disabled={mode !== "new"} value={f.sponsorType} onChange={(e) => setF({ ...f, sponsorType: e.target.value as FinanceInputSponsorType })}>{Object.entries(SPONSOR_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></Field>
             <Field label="Contact" required hint="Person, phone or email"><TextInput data-testid="input-sponsor-contact" value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} /></Field>
             {mode !== "new" && <Field label="Reason for change" required><TextInput value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} /></Field>}
           </div>
           <FormError msg={err} />
-          <FormActions><Btn type="submit" data-testid="button-save-sponsor" disabled={create.isPending || upd.isPending}>{(create.isPending || upd.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "new" ? "Add sponsor" : "Save"}</Btn><Btn type="button" variant="ghost" onClick={() => setMode(null)}>Cancel</Btn></FormActions>
+          <FormActions><Btn type="submit" data-testid="button-save-sponsor" disabled={create.isPending || upd.isPending}>{(create.isPending || upd.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}{mode === "new" ? "Add sponsor" : "Save sponsor"}</Btn><Btn type="button" variant="ghost" onClick={() => setMode(null)}>Cancel</Btn></FormActions>
         </form>
-      </Panel>}
+      </FormDialog>
       <Panel>
         {q.isLoading ? <SkeletonRows rows={4} cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<HandHeart className="h-5 w-5" />} title="No sponsors" body="Add funders before requesting bursary or sponsorship adjustments." /> : (
           <ul className="divide-y divide-border/60">{q.data.map((r) => { const fs = funded(r.id); return (

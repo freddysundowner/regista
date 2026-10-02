@@ -20,7 +20,7 @@ function useEdit(t: EditTarget, close: () => void) {
 }
 
 function Shell({ children, err, pending, close, onSubmit }: { children: ReactNode; err: string | null; pending: boolean; close: () => void; onSubmit: (e: FormEvent) => void }) {
-  return <form onSubmit={onSubmit} className="space-y-4 border-t border-dashed border-border bg-accent/20 p-5">{children}<FormError msg={err} />
+  return <form onSubmit={onSubmit} className="space-y-4 p-5">{children}<FormError msg={err} />
     <FormActions><Btn type="submit" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />}Save changes</Btn><Btn type="button" variant="ghost" onClick={close}>Cancel</Btn></FormActions></form>;
 }
 
@@ -49,7 +49,7 @@ export function CurriculumEditor({ t, c, close }: { t: EditTarget; c: Curriculum
   const stream = streams.data?.find((s) => s.id === f.streamId);
   return (
     <Shell err={e.err} pending={e.pending} close={close} onSubmit={submit}>
-      {t.kind !== "assignment" && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {t.kind !== "assignment" && <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Name" required><TextInput value={f.name} onChange={(x) => setF({ ...f, name: x.target.value })} /></Field>
         {t.kind === "learning-area" && <><Field label="Code" required><TextInput className="font-mono" value={f.code} onChange={(x) => setF({ ...f, code: x.target.value })} /></Field>
           <Field label="Core subject" hint="Leave unchanged to keep"><NativeSelect value={f.core} onChange={(x) => setF({ ...f, core: x.target.value })}><option value="">Unchanged</option><option value="yes">Core</option><option value="no">Optional</option></NativeSelect></Field>
@@ -60,7 +60,7 @@ export function CurriculumEditor({ t, c, close }: { t: EditTarget; c: Curriculum
         <div className="space-y-2">{levels.map((l, i) => (
           <div key={i} className="grid gap-2 sm:grid-cols-5">{(["code", "label", "points", "minPercent", "maxPercent"] as const).map((k) => (
             <Field key={k} label={k === "minPercent" ? "From %" : k === "maxPercent" ? "To %" : k[0].toUpperCase() + k.slice(1)} required><TextInput value={l[k]} onChange={(x) => setLevels(levels.map((y, j) => (j === i ? { ...y, [k]: x.target.value } : y)))} /></Field>))}</div>))}</div></>}
-      {t.kind === "assignment" && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {t.kind === "assignment" && <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Teacher" required><NativeSelect value={f.userId} onChange={(x) => setF({ ...f, userId: x.target.value })}><option value="">Select</option>{(users.data ?? []).filter((u) => u.isActive && ["teacher", "class_teacher"].includes(u.role)).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</NativeSelect></Field>
         <Field label="Stream" required><NativeSelect value={f.streamId} onChange={(x) => setF({ ...f, streamId: x.target.value })}><option value="">Select</option>{streams.data?.map((s) => <option key={s.id} value={s.id}>{s.gradeName} {s.name}</option>)}</NativeSelect></Field>
         <Field label="Learning area" required><NativeSelect value={f.learningAreaId} onChange={(x) => setF({ ...f, learningAreaId: x.target.value })}><option value="">Select</option>{c.learningAreas.filter((a) => !stream || a.gradeId === stream.gradeId).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</NativeSelect></Field>

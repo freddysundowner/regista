@@ -12,12 +12,13 @@ import { useCurriculum } from "@/pages/curriculum";
 import { usePerms, useSession, errMsg, fmtDate, nairobiToday } from "@/lib/session";
 import { MONEY_RE } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 const COMPETENCIES = ["communication", "critical_thinking", "creativity", "citizenship", "digital_literacy", "learning_to_learn", "self_efficacy"];
 const VALUES = ["love", "responsibility", "respect", "unity", "peace", "patriotism", "social_justice", "integrity"];
 const nice = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
-function NewAssessment({ onDone }: { onDone: (a: AssessmentView) => void }) {
+function NewAssessment({ onDone, onCancel }: { onDone: (a: AssessmentView) => void; onCancel: () => void }) {
   const m = useCreateAssessment(); const qc = useQueryClient(); const cur = useCurriculum();
   const [f, setF] = useState({ termId: "", gradeId: "", learningAreaId: "", name: "", type: "formative" as AssessmentInputType, maxMarks: "", weight: "1", date: nairobiToday() });
   const [err, setErr] = useState<string | null>(null);
@@ -34,7 +35,7 @@ function NewAssessment({ onDone }: { onDone: (a: AssessmentView) => void }) {
   };
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <TermSelect required value={f.termId} onChange={(v) => setF({ ...f, termId: v })} />
         <GradeSelect required value={f.gradeId} onChange={(v) => setF({ ...f, gradeId: v, learningAreaId: "" })} />
         <Field label="Learning area" required><NativeSelect value={f.learningAreaId} disabled={!f.gradeId} onChange={(e) => setF({ ...f, learningAreaId: e.target.value })}><option value="">{!f.gradeId ? "Choose grade first" : areas.length ? "Select" : "None for this grade"}</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</NativeSelect></Field>
@@ -45,7 +46,7 @@ function NewAssessment({ onDone }: { onDone: (a: AssessmentView) => void }) {
         <Field label="Date" required><TextInput type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field>
       </div>
       <FormError msg={err} />
-      <FormActions><Btn type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Create assessment</Btn></FormActions>
+      <FormActions><Btn type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Create assessment</Btn><Btn type="button" variant="ghost" onClick={onCancel}>Cancel</Btn></FormActions>
     </form>
   );
 }
@@ -226,9 +227,9 @@ export default function Assessments() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Academics" title="Assessments" meta={p.limitedToAssigned ? "Your assigned learning areas only. Marks save per learner as you type." : "Marks and rubric levels. Every cell saves on its own and never overwrites a newer change."}>
-        {!creating && <Btn data-testid="button-new-assessment" onClick={() => setCreating(true)}><Plus className="h-4 w-4" />New assessment</Btn>}
+        {<Btn data-testid="button-new-assessment" onClick={() => setCreating(true)}><Plus className="h-4 w-4" />New assessment</Btn>}
       </PageHeader>
-      {creating && <Panel title="New assessment"><NewAssessment onDone={(x) => { setCreating(false); setSel(x.id); }} /></Panel>}
+      <FormDialog open={creating} onOpenChange={setCreating} size="lg" title="Create an assessment" description="Opens the marks register for the new assessment once created."><NewAssessment onCancel={() => setCreating(false)} onDone={(x) => { setCreating(false); setSel(x.id); }} /></FormDialog>
       <Panel title="Assessments">
         <div className="grid gap-3 border-b border-border/70 p-4 sm:grid-cols-2"><TermSelect allowNone="All terms" value={f.termId} onChange={(v) => setF({ ...f, termId: v })} /><GradeSelect allowNone="All grades" value={f.gradeId} onChange={(v) => setF({ ...f, gradeId: v })} /></div>
         {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<ClipboardCheck className="h-5 w-5" />} title="No assessments" body="Create one to start entering marks." /> : (

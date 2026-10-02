@@ -9,6 +9,8 @@ const dayOf = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, 
 import { useFinanceInvalidate, useIdemKey, validMoney, rd } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { StkPanel } from "@/components/stk";
+import { FormDialog } from "@/components/form-dialog";
+
 
 const empty = { studentId: "", amount: "", channel: "cash" as "cash" | "cheque", providerTxnId: "", transactionTime: "", payerName: "", payerPhone: "", chequeNo: "", bank: "", drawer: "" };
 
@@ -38,7 +40,7 @@ function RecordPayment({ onDone }: { onDone: () => void }) {
   };
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <StudentPicker value={f.studentId} onChange={(v) => setF({ ...f, studentId: v })} />
         <Field label="Amount (KES)" required><MoneyInput testid="input-payment-amount" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
         <Field label="Channel" required><NativeSelect data-testid="select-channel" value={f.channel} onChange={set("channel")}><option value="cash">Cash</option><option value="cheque">Cheque</option></NativeSelect></Field>
@@ -58,23 +60,27 @@ function RecordPayment({ onDone }: { onDone: () => void }) {
   );
 }
 
-function ChequeAction({ r }: { r: FinanceRecord }) {
+function ChequeAction({ r, onDone }: { r: FinanceRecord; onDone: () => void }) {
   const create = useCreateFinanceRecord();
   const inv = useFinanceInvalidate();
   const { toast } = useToast();
   const [st, setSt] = useState<"" | FinanceInputChequeStatus>("");
   const [reason, setReason] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const idem = useIdemKey(`${r.id}${st}${reason}`);
   const cur = rd(r, "chequeStatus") ?? "received";
   const next: FinanceInputChequeStatus[] = cur === "received" ? ["banked", "bounced"] : cur === "banked" ? ["cleared", "bounced"] : cur === "cleared" ? ["bounced"] : [];
   if (!next.length) return null;
   return (
-    <form className="flex flex-wrap items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (!st || reason.trim().length < 3) return void toast({ title: "Choose a status and give a reason", variant: "destructive" });
+    <form className="space-y-4 p-5" onSubmit={(e) => { e.preventDefault(); setErr(null); if (!st || reason.trim().length < 3) return setErr("Choose a status and give a reason of at least 3 characters.");
       create.mutate({ data: { kind: "cheque_status", idempotencyKey: idem.key, parentId: r.id, studentId: r.studentId ?? undefined, chequeStatus: st, reason: reason.trim() } }, {
-        onSuccess: (x) => { idem.renew(); inv(); setSt(""); setReason(""); toast({ title: x.status === "pending" ? "Bounce sent for approval" : `Cheque marked ${st}`, description: x.status === "pending" ? "The payment is reversed only after a checker approves." : undefined }); },
-        onError: (x) => toast({ title: "Could not update cheque", description: errMsg(x), variant: "destructive" }) }); }}>
-      <NativeSelect aria-label="Cheque status" className="h-7 w-28 text-xs" value={st} onChange={(e) => setSt(e.target.value as typeof st)}><option value="">Update</option>{next.map((n) => <option key={n} value={n}>{n}</option>)}</NativeSelect>
-      {st && <><TextInput aria-label="Reason" placeholder="Reason" className="h-7 w-28 text-xs" value={reason} onChange={(e) => setReason(e.target.value)} /><Btn type="submit" className="h-7 px-2 text-xs" disabled={create.isPending}>Save</Btn></>}
+        onSuccess: (x) => { idem.renew(); inv(); setSt(""); setReason(""); toast({ title: x.status === "pending" ? "Bounce sent for approval" : `Cheque marked ${st}`, description: x.status === "pending" ? "The payment is reversed only after a checker approves." : undefined }); onDone(); },
+        onError: (x) => setErr(errMsg(x)) }); }}>
+      <p className="text-sm text-muted-foreground">Cheque #{rd(r, "chequeNo")} · {rd(r, "bank")} · currently <strong className="capitalize">{cur}</strong>. Bouncing a cheque needs a checker's approval before the payment is reversed.</p>
+      <Field label="New status" required><NativeSelect data-testid="select-cheque-status" value={st} onChange={(e) => setSt(e.target.value as typeof st)}><option value="">Select status</option>{next.map((n) => <option key={n} value={n}>{n[0].toUpperCase() + n.slice(1)}</option>)}</NativeSelect></Field>
+      <Field label="Reason" required><TextInput data-testid="input-cheque-reason" value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+      <FormError msg={err} />
+      <FormActions><Btn type="submit" data-testid="button-save-cheque-status" disabled={create.isPending}>{create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Update cheque status</Btn><Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn></FormActions>
     </form>
   );
 }
@@ -85,6 +91,7 @@ export default function Payments() {
   const cs = useFinanceRecords({ kind: "cheque_status" });
   const sname = useStudentNames();
   const [open, setOpen] = useState(false);
+  const [cheque, setCheque] = useState<FinanceRecord | null>(null);
   const [fl, setFl] = useState({ text: "", channel: "", status: "", cheque: "", from: "", to: "" });
   const pendingBounce = new Set((cs.data ?? []).filter((c) => c.status === "pending").map((c) => c.parentId));
   const list = (q.data ?? []).filter((r) => { const day = dayOf(rd(r, "transactionTime") ?? r.createdAt); return (!fl.from || day >= fl.from) && (!fl.to || day <= fl.to); }).filter((r) => (!fl.channel || rd(r, "channel") === fl.channel) && (!fl.status || r.status === fl.status) && (!fl.cheque || (rd(r, "chequeStatus") ?? "received") === fl.cheque)
@@ -92,10 +99,11 @@ export default function Payments() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Collections" title="Payments" meta={p.bursar ? "Record cash and cheques. Posted payments are final; corrections go through Approvals." : "Read-only. Only the bursar records payments."}>
-        {p.bursar && !open && <Btn data-testid="button-new-payment" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Record payment</Btn>}
+        {p.collect && <StkPanel />}
+        {p.bursar && <Btn data-testid="button-new-payment" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Record payment</Btn>}
       </PageHeader>
-      {open && <Panel title="Record payment" note="Each submission carries a unique key; a retry after a network error cannot double-post."><RecordPayment onDone={() => setOpen(false)} /></Panel>}
-      {p.collect && <StkPanel />}
+      {p.bursar && <FormDialog open={open} onOpenChange={setOpen} size="lg" title="Record a cash or cheque payment" description="Each submission carries a unique key; a retry after a network error cannot double-post."><RecordPayment onDone={() => setOpen(false)} /></FormDialog>}
+      {p.bursar && <FormDialog open={!!cheque} onOpenChange={(o) => { if (!o) setCheque(null); }} title="Update cheque status" description={cheque ? `${sname(cheque.studentId)} · receipt ${rd(cheque, "receiptNo") ?? ""}` : undefined}>{cheque && <ChequeAction key={cheque.id} r={cheque} onDone={() => setCheque(null)} />}</FormDialog>}
       <Panel>
         <div className="grid gap-2 border-b border-border/70 p-4 sm:grid-cols-3 lg:grid-cols-6">
           <TextInput aria-label="Search payments" placeholder="Student, receipt or reference" value={fl.text} onChange={(e) => setFl({ ...fl, text: e.target.value })} />
@@ -114,7 +122,7 @@ export default function Payments() {
               <td className={td}><Money v={r.amount} /></td>
               <td className={`${td} text-xs`}>{fmtDateTime(rd(r, "transactionTime") ?? r.createdAt)}</td>
               <td className={td}><StatusPill status={r.status} /></td>
-              <td className={td}><div className="flex flex-col items-start gap-1">{r.status === "posted" && <DocumentButton type="receipt" referenceId={r.id} fileName={rd(r, "receiptNo") ?? "receipt"} />}{p.bursar && rd(r, "channel") === "cheque" && r.status === "posted" && !pendingBounce.has(r.id) && <ChequeAction r={r} />}</div></td>
+              <td className={td}><div className="flex flex-col items-start gap-1">{r.status === "posted" && <DocumentButton type="receipt" referenceId={r.id} fileName={rd(r, "receiptNo") ?? "receipt"} />}{p.bursar && rd(r, "channel") === "cheque" && r.status === "posted" && !pendingBounce.has(r.id) && rd(r, "chequeStatus") !== "bounced" && <Btn variant="ghost" className="h-7 px-2 text-xs" data-testid={`button-cheque-${r.id}`} onClick={() => setCheque(r)}>Update cheque</Btn>}</div></td>
             </tr>))}</Table>
         )}
       </Panel>

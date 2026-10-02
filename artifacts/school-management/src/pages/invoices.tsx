@@ -6,8 +6,9 @@ import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, Stat
 import { usePerms, errMsg, fmtDate, fmtDateTime, nairobiToday } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, sumMoney, rd, type Line } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
-function Batch() {
+function Batch({ onClose }: { onClose: () => void }) {
   const preview = usePreviewFinanceInvoices();
   const commit = useCommitFinanceInvoices();
   const inv = useFinanceInvalidate();
@@ -27,11 +28,11 @@ function Batch() {
   };
   const fresh = rows?.filter((r) => !r.existing) ?? [];
   const go = () => commit.mutate({ data: body() }, {
-    onSuccess: (r) => { inv(); setDone(r.invoices); setRows(null); setConfirm(false); toast({ title: "Invoices generated", description: `${r.invoices.filter((x) => !x.existing).length} new; existing invoices were left untouched.` }); },
+    onSuccess: (r) => { inv(); setDone(r.invoices); setRows(null); setConfirm(false); toast({ title: "Invoices generated", description: `${r.invoices.filter((x) => !x.existing).length} new; existing invoices were left untouched.` }); onClose(); },
     onError: (x) => setErr(`${errMsg(x)} Nothing was posted if the request failed; preview again.`),
   });
   return (
-    <Panel title="Term invoices" note="Preview against approved structures and optional charges, then commit. Re-running never duplicates.">
+    <div>
       <form onSubmit={run} className="space-y-4 p-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <TermSelect required value={f.termId} onChange={(v) => change({ termId: v })} />
@@ -39,7 +40,7 @@ function Batch() {
           <Field label="Due date" required><TextInput data-testid="input-due-date" type="date" value={f.dueDate} min={nairobiToday()} onChange={(e) => change({ dueDate: e.target.value })} /></Field>
         </div>
         <FormError msg={err} />
-        <FormActions><Btn type="submit" variant="outline" data-testid="button-preview-invoices" disabled={preview.isPending}>{preview.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Preview invoices</Btn></FormActions>
+        <FormActions><Btn type="button" variant="ghost" onClick={onClose}>{done ? "Close" : "Cancel"}</Btn><Btn type="submit" variant="outline" data-testid="button-preview-invoices" disabled={preview.isPending}>{preview.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Preview invoices</Btn></FormActions>
       </form>
       {rows && (
         <div className="border-t border-border/70" aria-live="polite">
@@ -55,7 +56,7 @@ function Batch() {
         </div>
       )}
       {done && <p className="border-t border-border/70 px-5 py-3 text-sm text-primary">Committed. {done.filter((r) => !r.existing).length} invoices posted.</p>}
-    </Panel>
+    </div>
   );
 }
 
@@ -76,7 +77,7 @@ function OneOff({ onDone }: { onDone: () => void }) {
   };
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <StudentPicker value={f.studentId} onChange={(v) => setF({ ...f, studentId: v })} />
         <TermSelect value={f.termId} allowNone="Not term-bound" onChange={(v) => setF({ ...f, termId: v })} />
         <Field label="Due date" required><TextInput type="date" value={f.dueDate} onChange={(e) => setF({ ...f, dueDate: e.target.value })} /></Field>
@@ -93,16 +94,20 @@ export default function Invoices() {
   const q = useFinanceRecords({ kind: "invoice" });
   const sname = useStudentNames(); const term = useTermNames();
   const [oneoff, setOneoff] = useState(false);
+  const [batch, setBatch] = useState(false);
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState("");
   const list = (q.data ?? []).filter((r) => !status || r.status === status).filter((r) => !filter || sname(r.studentId).toLowerCase().includes(filter.toLowerCase()) || (rd(r, "invoiceNo") ?? "").toLowerCase().includes(filter.toLowerCase()));
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Billing" title="Invoices" meta="Term invoices from approved structures, plus one-off charges.">
-        {p.financeConfigure && !oneoff && <Btn data-testid="button-new-invoice" onClick={() => setOneoff(true)}><Plus className="h-4 w-4" /> One-off invoice</Btn>}
+        {p.financeConfigure && <Btn variant="outline" data-testid="button-generate-invoices" onClick={() => setBatch(true)}><FileText className="h-4 w-4" /> Generate term invoices</Btn>}
+        {p.financeConfigure && <Btn data-testid="button-new-invoice" onClick={() => setOneoff(true)}><Plus className="h-4 w-4" /> One-off invoice</Btn>}
       </PageHeader>
-      {oneoff && <Panel title="One-off invoice" note="Trips, damages, uniforms. Posts to the ledger immediately."><OneOff onDone={() => setOneoff(false)} /></Panel>}
-      {p.financeConfigure && <Batch />}
+      {p.financeConfigure && <>
+        <FormDialog open={oneoff} onOpenChange={setOneoff} size="lg" title="Post a one-off invoice" description="Trips, damages, uniforms. Posts to the ledger immediately."><OneOff onDone={() => setOneoff(false)} /></FormDialog>
+        <FormDialog open={batch} onOpenChange={setBatch} size="full" title="Generate term invoices" description="Preview against approved structures and optional charges, then commit. Re-running never duplicates."><Batch onClose={() => setBatch(false)} /></FormDialog>
+      </>}
       <Panel title="All invoices" action={<div className="flex gap-2"><NativeSelect aria-label="Invoice status" className="h-8 w-36 text-xs" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option><option value="open">Open</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="cancelled">Cancelled</option></NativeSelect><TextInput aria-label="Filter invoices" placeholder="Filter by student or no." className="h-8 w-52 text-xs" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>}>
         {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !list.length ? <Empty icon={<FileText className="h-5 w-5" />} title="No invoices" body="Generate term invoices once structures are approved." /> : (
           <Table head={["Invoice no.", "Student", "Term", "Issued / due", "Amount", "Status", "Created"]}>{list.map((r) => (

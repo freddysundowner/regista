@@ -6,6 +6,7 @@ import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInp
 import { useSession, ROLE_LABEL, errMsg, blank, initials, fmtDateTime } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 import { TeacherAssignmentsPanel } from "@/components/teacher-assignments";
+import { FormDialog } from "@/components/form-dialog";
 
 const ROLES = Object.values(UserRole).filter((r) => r !== "super_admin");
 
@@ -31,12 +32,12 @@ function StaffForm({ user, onDone }: { user?: User; onDone: () => void }) {
   const pending = create.isPending || upd.isPending;
   return (
     <form onSubmit={submit} className="space-y-5 p-5">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Field label="Full name" required className="lg:col-span-2"><TextInput data-testid="input-staff-name" required minLength={2} value={f.name} onChange={set("name")} /></Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Full name" required className="sm:col-span-2"><TextInput data-testid="input-staff-name" required minLength={2} value={f.name} onChange={set("name")} /></Field>
         <Field label="Email" hint="Email or phone required"><TextInput data-testid="input-staff-email" type="email" value={f.email} onChange={set("email")} /></Field>
         <Field label="Phone"><TextInput data-testid="input-staff-phone" type="tel" value={f.phone} onChange={set("phone")} /></Field>
         <Field label="Role" required><NativeSelect data-testid="select-staff-role" value={f.role} onChange={set("role")}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</NativeSelect></Field>
-        {!user && <Field label="Temporary password" required hint="Share privately; at least 10 characters" className="lg:col-span-2"><TextInput data-testid="input-staff-password" type="password" required value={f.password} onChange={set("password")} /></Field>}
+        {!user && <Field label="Temporary password" required hint="Share privately; at least 10 characters"><TextInput data-testid="input-staff-password" type="password" required value={f.password} onChange={set("password")} /></Field>}
       </div>
       <FormError msg={err} />
       <FormActions>
@@ -64,9 +65,11 @@ export default function Staff() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Accounts & roles" title="Staff" meta="Roles decide what each person can see and change.">
-        {!mode && <Btn data-testid="button-new-staff" onClick={() => setMode("new")}><Plus className="h-4 w-4" /> Add staff</Btn>}
+        {<Btn data-testid="button-new-staff" onClick={() => setMode("new")}><Plus className="h-4 w-4" /> Add staff</Btn>}
       </PageHeader>
-      {mode && <Panel title={mode === "new" ? "New staff account" : `Edit ${mode.name}`}><StaffForm key={mode === "new" ? "new" : mode.id} user={mode === "new" ? undefined : mode} onDone={() => setMode(null)} /></Panel>}
+      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} title={mode === "new" ? "Add a staff account" : mode ? `Edit ${mode.name}` : "Staff"} description={mode === "new" ? "They sign in with the email or phone you enter here." : "Role changes take effect on their next request."}>
+        {mode && <StaffForm key={mode === "new" ? "new" : mode.id} user={mode === "new" ? undefined : mode} onDone={() => setMode(null)} />}
+      </FormDialog>
       <Panel className="rise-1">
         {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<UserCog className="h-5 w-5" />} title="Only you so far" body="Add the principal, bursar and teachers so they can sign in." /> : (
           <ul className="divide-y divide-border/60">{q.data.map((u) => (

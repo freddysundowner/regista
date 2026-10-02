@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "K8QFyP2a8xjvY8OEqu7XL"
+uri = "file://reports/system-review-2026-10-02.html"
+type = "html"
+title = "Full system review"
+description = "Prioritized defects, passing checks, browser evidence, coverage gaps and remaining production blockers."
+logical_id = "21da411b-779a-466d-b1c6-2d3851ea487d"
+content_hash = "sha256:7e08c9c1e4bcc98b68df393cf2d5d3b846f54b911c7915e459d3a614f2069a6e"
+size = 17322
+mtime_ms = 1790944092943
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:f44912b9-bf47-445c-aace-8904537cf159/21da411b-779a-466d-b1c6-2d3851ea487d/23943679-76ab-494e-844c-80ad1c7e83bb"
+storage_version_token = "1790944093537711"
+content_type = "text/html"

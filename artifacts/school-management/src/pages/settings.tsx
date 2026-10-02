@@ -2,12 +2,13 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetSchool, useUpdateSchool, getGetSchoolQueryKey, getGetCurrentUserQueryKey, getGetDashboardSummaryQueryKey, SchoolType, SchoolSettingsSiblingSplitRule, SchoolSettingsSiblingFallbackRule, SchoolSettingsKnecColumnsItem, getListSchoolsQueryKey, type School, type SchoolSettings } from "@workspace/api-client-react";
 import { StoredImage, ImageUploadButton } from "@/components/stored-image";
-import { Building, Loader2 } from "lucide-react";
+import { Building, Loader2, Pencil } from "lucide-react";
+import { FormDialog } from "@/components/form-dialog";
 import { PageHeader, Panel, ErrorState, Btn, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
 import { errMsg, blank, fmtDate } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 
-function SchoolForm({ school }: { school: School }) {
+function SchoolForm({ school, onDone }: { school: School; onDone: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const m = useUpdateSchool();
@@ -19,7 +20,7 @@ function SchoolForm({ school }: { school: School }) {
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
     m.mutate({ data: { name: f.name.trim(), county: blank(f.county), type: f.type as SchoolType, address: blank(f.address), phone: blank(f.phone), email: blank(f.email) } }, {
-      onSuccess: (s) => { qc.setQueryData(getGetSchoolQueryKey(), s); qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() }); toast({ title: "School profile saved" }); },
+      onSuccess: (s) => { qc.setQueryData(getGetSchoolQueryKey(), s); qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() }); toast({ title: "School profile saved" }); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
   };
@@ -37,7 +38,7 @@ function SchoolForm({ school }: { school: School }) {
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-save-school" type="submit" disabled={!dirty || m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Save profile</Btn>
-        {dirty && <Btn type="button" variant="ghost" onClick={() => setF(init)}>Discard changes</Btn>}
+        <Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn>
         <span className="ml-auto text-xs text-muted-foreground">Registered {fmtDate(school.createdAt)} · {school.status}</span>
       </FormActions>
     </form>
@@ -70,7 +71,7 @@ function LogoBlock({ school }: { school: School }) {
   );
 }
 
-function OpsSettingsForm({ school }: { school: School }) {
+function OpsSettingsForm({ school, onDone }: { school: School; onDone: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const m = useUpdateSchool();
@@ -123,7 +124,7 @@ function OpsSettingsForm({ school }: { school: School }) {
     } catch (x) { return setErr((x as Error).message); }
     const clean = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined)) as SchoolSettings;
     m.mutate({ data: { settings: clean } }, {
-      onSuccess: (s) => { qc.setQueryData(getGetSchoolQueryKey(), s); qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); toast({ title: "School settings saved" }); },
+      onSuccess: (s) => { qc.setQueryData(getGetSchoolQueryKey(), s); qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() }); toast({ title: "School settings saved" }); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
   };
@@ -144,15 +145,31 @@ function OpsSettingsForm({ school }: { school: School }) {
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-save-settings" type="submit" disabled={!dirty || m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Save settings</Btn>
-        {dirty && <Btn type="button" variant="ghost" onClick={() => setF(init)}>Discard changes</Btn>}
+        <Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn>
         <span className="ml-auto text-xs text-muted-foreground">Other saved settings are kept. Term dates live under Academics.</span>
       </FormActions>
     </form>
   );
 }
 
+function Facts({ rows }: { rows: [string, string][] }) {
+  return (
+    <dl className="grid grid-cols-1 sm:grid-cols-2">
+      {rows.map(([k, v]) => (
+        <div key={k} className="border-b border-border/60 px-5 py-3 sm:odd:border-r">
+          <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{k}</dt>
+          <dd className="mt-0.5 break-words text-sm font-medium">{v || "\u2014"}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export default function SettingsPage() {
   const q = useGetSchool({ query: { queryKey: getGetSchoolQueryKey() } });
+  const [edit, setEdit] = useState<"profile" | "ops" | null>(null);
+  const s = q.data;
+  const st: SchoolSettings = s?.settings ?? {};
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Settings" title="School profile" meta="Appears on staff screens and future documents." />
@@ -160,8 +177,24 @@ export default function SettingsPage() {
         q.isError || !q.data ? <Panel className="max-w-3xl"><ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /></Panel> : (
           <>
             <Panel className="max-w-3xl" title="Logo"><LogoBlock school={q.data} /></Panel>
-            <Panel className="max-w-3xl" title="Profile"><SchoolForm key={q.data.id} school={q.data} /></Panel>
-            <Panel className="max-w-3xl" title="Operational settings" note="Rules used by reminders, sibling payments and attendance alerts."><OpsSettingsForm key={`${q.data.id}-${JSON.stringify(q.data.settings ?? {})}`} school={q.data} /></Panel>
+            <Panel className="max-w-3xl" title="Profile" action={<Btn variant="outline" className="h-8" data-testid="button-edit-profile" onClick={() => setEdit("profile")}><Pencil className="h-3.5 w-3.5" /> Edit profile</Btn>}>
+              <Facts rows={[["School name", q.data.name], ["School code", q.data.code], ["Level", q.data.type], ["County", q.data.county ?? ""], ["Phone", q.data.phone ?? ""], ["Email", q.data.email ?? ""], ["Address", q.data.address ?? ""], ["Registered", `${fmtDate(q.data.createdAt)} · ${q.data.status}`]]} />
+            </Panel>
+            <Panel className="max-w-3xl" title="Operational settings" note="Rules used by reminders, sibling payments and attendance alerts." action={<Btn variant="outline" className="h-8" data-testid="button-edit-settings" onClick={() => setEdit("ops")}><Pencil className="h-3.5 w-3.5" /> Edit settings</Btn>}>
+              <Facts rows={[
+                ["Auto-post threshold", st.autoPostThreshold?.toString() ?? ""], ["Parent reply window", st.siblingReplyHours ? `${st.siblingReplyHours} h` : ""],
+                ["Sibling payment split", st.siblingSplitRule ? SPLIT_LABEL[st.siblingSplitRule] : ""], ["If parent does not reply", st.siblingFallbackRule ? SPLIT_LABEL[st.siblingFallbackRule] : ""],
+                ["Reminder days", (st.reminderDays ?? []).join(", ")], ["Default after missed installments", st.defaultAfterMissedInstallments?.toString() ?? ""],
+                ["Absence alerts", st.absenceAlertsEnabled ? `On${st.absenceAlertTime ? ` at ${st.absenceAlertTime} EAT` : ""}` : "Off"], ["KNEC export columns", (st.knecColumns ?? []).join(", ")],
+                ["Message templates", st.messageTemplates ? `${Object.keys(st.messageTemplates).length} purpose(s) configured` : ""],
+              ]} />
+            </Panel>
+            <FormDialog open={edit === "profile"} onOpenChange={(o) => setEdit(o ? "profile" : null)} title="Edit school profile" description="Appears on staff screens and documents.">
+              {s && <SchoolForm key={s.id} school={s} onDone={() => setEdit(null)} />}
+            </FormDialog>
+            <FormDialog open={edit === "ops"} onOpenChange={(o) => setEdit(o ? "ops" : null)} size="lg" title="Edit operational settings" description="Other saved settings are kept. Term dates live under Academics.">
+              {s && <OpsSettingsForm key={`${s.id}-${JSON.stringify(s.settings ?? {})}`} school={s} onDone={() => setEdit(null)} />}
+            </FormDialog>
           </>
         )}
     </div>

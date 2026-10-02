@@ -7,6 +7,7 @@ import { usePerms, useSession, errMsg, fmtDateTime } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, rd, recLines, recordTitle, KIND_LABEL, ADJ_LABEL, SPONSOR_LABEL } from "@/lib/finance";
 import { ApprovalInboxPanel } from "@/components/collections-extra";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 const REQUEST_KINDS = ["adjustment", "refund", "reversal", "fee_structure", "cheque_status"];
 
@@ -22,22 +23,26 @@ function Detail({ r, label }: { r: FinanceRecord; label: (id: string) => string 
     {recLines(r).map((l, i) => <div key={i} className="font-mono">{item(l.feeItemId)} {l.amount}</div>)}</div>;
 }
 
-function Decide({ r }: { r: FinanceRecord }) {
+function Decide({ r, onDone }: { r: FinanceRecord; onDone: () => void }) {
   const decide = useDecideFinanceRecord();
   const inv = useFinanceInvalidate();
   const { toast } = useToast();
   const [reason, setReason] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const go = (decision: "approved" | "rejected") => {
-    if (reason.trim().length < 3) return void toast({ title: "Give a reason for your decision", variant: "destructive" });
+    setErr(null);
+    if (reason.trim().length < 3) return setErr("Give a reason for your decision (at least 3 characters).");
     decide.mutate({ id: r.id, data: { decision, reason: reason.trim() } }, {
-      onSuccess: () => { inv(); toast({ title: decision === "approved" ? "Approved and posted" : "Rejected" }); },
-      onError: (x) => toast({ title: "Decision failed", description: errMsg(x), variant: "destructive" }),
+      onSuccess: () => { inv(); toast({ title: decision === "approved" ? "Approved and posted" : "Rejected" }); onDone(); },
+      onError: (x) => setErr(errMsg(x)),
     });
   };
-  return <div className="flex min-w-[14rem] flex-col gap-1">
-    <TextInput aria-label="Decision reason" data-testid={`input-decision-${r.id}`} placeholder="Reason (required)" className="h-8 text-xs" value={reason} onChange={(e) => setReason(e.target.value)} />
-    <div className="flex gap-1"><Btn className="h-7 px-2 text-xs" data-testid={`button-approve-${r.id}`} disabled={decide.isPending} onClick={() => go("approved")}>Approve</Btn><Btn variant="danger" className="h-7 px-2 text-xs" data-testid={`button-reject-${r.id}`} disabled={decide.isPending} onClick={() => go("rejected")}>Reject</Btn></div>
-  </div>;
+  return <form className="space-y-4 p-5" onSubmit={(e) => e.preventDefault()}>
+    <div className="rounded-md border border-border/70 bg-muted/30 p-3 text-sm"><div className="mb-1 flex items-center justify-between gap-2"><strong>{recordTitle(r)}</strong><Money v={r.amount} className="font-semibold" /></div><Detail r={r} label={() => "Linked record"} /></div>
+    <Field label="Decision reason" required hint="Recorded with the decision and shown to the maker."><TextInput data-testid={`input-decision-${r.id}`} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+    <FormError msg={err} />
+    <FormActions><Btn type="button" data-testid={`button-approve-${r.id}`} disabled={decide.isPending} onClick={() => go("approved")}>{decide.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Approve and post</Btn><Btn type="button" variant="danger" data-testid={`button-reject-${r.id}`} disabled={decide.isPending} onClick={() => go("rejected")}>Reject request</Btn><Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn></FormActions>
+  </form>;
 }
 
 type Req = "adjustment" | "reversal" | "refund" | "refund_paid";
@@ -91,7 +96,7 @@ function RequestForm({ kind, onDone }: { kind: Req; onDone: () => void }) {
   };
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         {kind === "refund_paid" ? <>
           <Field label="Approved refund" required className="sm:col-span-2"><NativeSelect data-testid="select-refund" value={f.parentId} onChange={set("parentId")}><option value="">{payable.length ? "Select" : "No approved unpaid refunds"}</option>{payable.map((r) => <option key={r.id} value={r.id}>{sname(r.studentId)} · {r.amount} · {rd(r, "method")}</option>)}</NativeSelect></Field>
           <Field label="Payout reference" required hint="M-Pesa code or cheque no."><TextInput data-testid="input-payout-ref" className="font-mono" value={f.reference} onChange={set("reference")} /></Field>
@@ -126,6 +131,7 @@ export default function Approvals() {
   const q = useFinanceRecords();
   const sname = useStudentNames();
   const [req, setReq] = useState<Req | null>(null);
+  const [deciding, setDeciding] = useState<FinanceRecord | null>(null);
   const [tab, setTab] = useState<"pending" | "decided">("pending");
   const all = (q.data ?? []).filter((r) => REQUEST_KINDS.includes(r.kind) && (r.kind !== "cheque_status" || r.status !== "posted"));
   const pending = all.filter((r) => r.status === "pending");
@@ -136,9 +142,10 @@ export default function Approvals() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Maker-checker" title="Approvals" meta={p.financeDecide ? "Review requests. You cannot decide a request you raised." : p.bursar ? "Raise adjustments, reversals and refunds. A principal or admin approves them." : "Read-only."}>
-        {p.bursar && (Object.keys(REQ_LABEL) as Req[]).map((k) => <Btn key={k} variant={req === k ? "primary" : "outline"} data-testid={`button-request-${k}`} onClick={() => setReq(req === k ? null : k)}>{REQ_LABEL[k]}</Btn>)}
+        {p.bursar && (Object.keys(REQ_LABEL) as Req[]).map((k) => <Btn key={k} variant="outline" data-testid={`button-request-${k}`} onClick={() => setReq(k)}>{k === "refund_paid" ? "Record refund payout" : `Request ${REQ_LABEL[k].toLowerCase()}`}</Btn>)}
       </PageHeader>
-      {req && <Panel title={req === "refund_paid" ? "Record approved refund as paid" : `Request ${REQ_LABEL[req].toLowerCase()}`} note={req === "reversal" ? "Reversing an invoice cancels it; payments and adjustments are reversed with a new entry." : req === "adjustment" ? "Discount, sibling discount, waiver, bursary, sponsorship, write-off or correction. Corrections reverse the original on approval." : req === "refund_paid" ? "Marks it paid; no second ledger debit." : "Pending until approved."}><RequestForm key={req} kind={req} onDone={() => setReq(null)} /></Panel>}
+      <FormDialog open={!!req} onOpenChange={(o) => { if (!o) setReq(null); }} size="lg" title={!req ? "Request" : req === "refund_paid" ? "Record approved refund as paid" : `Request ${REQ_LABEL[req].toLowerCase()}`} description={req === "reversal" ? "Reversing an invoice cancels it; payments and adjustments are reversed with a new entry." : req === "adjustment" ? "Discount, sibling discount, waiver, bursary, sponsorship, write-off or correction. Corrections reverse the original on approval." : req === "refund_paid" ? "Marks it paid; no second ledger debit." : "Pending until approved."}>{req && <RequestForm key={req} kind={req} onDone={() => setReq(null)} />}</FormDialog>
+      <FormDialog open={!!deciding} onOpenChange={(o) => { if (!o) setDeciding(null); }} title={deciding ? `Decide: ${recordTitle(deciding)}` : "Decide request"} description={deciding ? `${sname(deciding.studentId)} · raised ${fmtDateTime(deciding.createdAt)}` : undefined}>{deciding && <Decide key={deciding.id} r={deciding} onDone={() => setDeciding(null)} />}</FormDialog>
       {p.financeRead && <ApprovalInboxPanel />}
       <Panel title={tab === "pending" ? "Awaiting decision" : "Decided"} action={<div className="flex gap-1" role="tablist">
         <Btn role="tab" aria-selected={tab === "pending"} variant={tab === "pending" ? "primary" : "ghost"} className="h-8" onClick={() => setTab("pending")}>Pending ({pending.length})</Btn>
@@ -151,7 +158,7 @@ export default function Approvals() {
               <td className={td}>{sname(r.studentId)}</td><td className={td}><Money v={r.amount} /></td><td className={td}><Detail r={r} label={label} /></td>
               <td className={`${td} text-xs`}>{fmtDateTime(r.createdAt)}<div className="text-muted-foreground">{mine ? "by you" : "by another staff member"}</div>{r.approvedAt && <div className="text-muted-foreground">Decided {fmtDateTime(r.approvedAt)}</div>}</td>
               <td className={td}><StatusPill status={r.status} /></td>
-              <td className={td}>{r.status === "pending" && p.financeDecide && (mine ? <Pill tone="left">Your request</Pill> : <Decide r={r} />)}</td>
+              <td className={td}>{r.status === "pending" && p.financeDecide && (mine ? <Pill tone="left">Your request</Pill> : <Btn variant="outline" className="h-7 px-2 text-xs" data-testid={`button-decide-${r.id}`} onClick={() => setDeciding(r)}>Review and decide</Btn>)}</td>
             </tr>;
           })}</Table>
         )}

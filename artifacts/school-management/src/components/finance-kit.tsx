@@ -111,7 +111,7 @@ export function RecordSelect({ studentId, kinds, value, onChange, label, require
 export function LinesEditor({ lines, onChange, optional }: { lines: Line[]; onChange: (l: Line[]) => void; optional?: boolean }) {
   const set = (i: number, p: Partial<Line>) => onChange(lines.map((l, j) => (j === i ? { ...l, ...p } : l)));
   return (
-    <div className="space-y-2 sm:col-span-2 lg:col-span-4">
+    <div className="col-span-full space-y-2">
       <div className="text-xs font-semibold text-foreground/80">Lines<span className="ml-0.5 text-amber-700">*</span></div>
       {lines.map((l, i) => (
         <div key={i} className="grid items-end gap-2 rounded-md border border-border/70 bg-background/40 p-2 sm:grid-cols-[2fr_1fr_2fr_auto]">

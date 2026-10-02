@@ -7,6 +7,7 @@ import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInp
 import { usePerms, errMsg, blank, initials, fmtDateTime } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FormDialog } from "@/components/form-dialog";
 
 function GuardianForm({ guardian, onDone }: { guardian?: Guardian; onDone: () => void }) {
   const qc = useQueryClient();
@@ -57,15 +58,15 @@ function ExportPanel({ guardian, onClose }: { guardian: Guardian; onClose: () =>
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return (
-    <Panel title={`Data export: ${guardian.name}`} note="Everything Rejista holds about this guardian, for a data subject request." action={<Btn variant="ghost" className="h-8" onClick={onClose} data-testid="button-close-export">Close</Btn>}>
+    <div>
       {q.isLoading ? <SkeletonRows rows={3} cols={2} /> : q.isError || !q.data ? <ErrorState msg={errMsg(q.error, "Export failed")} onRetry={() => q.refetch()} /> : (
         <div className="space-y-3 p-5">
           <p className="text-xs text-muted-foreground">Exported {fmtDateTime(q.data.exportedAt)} (Nairobi) · {q.data.links.length} learner link{q.data.links.length === 1 ? "" : "s"}</p>
           <pre data-testid="text-guardian-export" className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-muted/30 p-3 font-mono text-[11px]">{JSON.stringify(q.data, null, 2)}</pre>
-          <FormActions><Btn data-testid="button-download-export" onClick={download}><Download className="h-4 w-4" /> Download JSON</Btn></FormActions>
+          <FormActions><Btn data-testid="button-download-export" onClick={download}><Download className="h-4 w-4" /> Download JSON</Btn><Btn variant="ghost" onClick={onClose} data-testid="button-close-export">Close</Btn></FormActions>
         </div>
       )}
-    </Panel>
+    </div>
   );
 }
 
@@ -91,7 +92,6 @@ function AnonymizePanel({ guardian, onClose }: { guardian: Guardian; onClose: ()
     });
   };
   return (
-    <Panel title={`Anonymize ${guardian.name}`} note="Irreversible. For erasure requests only." className="border-destructive/40">
       <form onSubmit={submit} className="space-y-4 p-5">
         <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
           <li>Name, phone, alternate phone, email and ID number are permanently removed.</li>
@@ -106,7 +106,6 @@ function AnonymizePanel({ guardian, onClose }: { guardian: Guardian; onClose: ()
           <Btn type="button" variant="ghost" onClick={onClose}>Cancel</Btn>
         </FormActions>
       </form>
-    </Panel>
   );
 }
 
@@ -127,12 +126,12 @@ export default function Guardians() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Contacts" title="Guardians & families" meta="Siblings are grouped when they share a guardian phone number.">
-        {p.writeStudents && !creating && <Btn data-testid="button-new-guardian" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add guardian</Btn>}
+        {p.writeStudents && <Btn data-testid="button-new-guardian" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add guardian</Btn>}
       </PageHeader>
-      {creating && <Panel title="New guardian"><GuardianForm onDone={() => setCreating(false)} /></Panel>}
-      {editing && <Panel title={`Edit ${editing.name}`} note="Phone changes affect sibling matching for future imports."><GuardianForm key={editing.id} guardian={editing} onDone={() => setEditing(null)} /></Panel>}
-      {exporting && <ExportPanel key={exporting.id} guardian={exporting} onClose={() => setExporting(null)} />}
-      {anonymizing && <AnonymizePanel key={anonymizing.id} guardian={anonymizing} onClose={() => setAnonymizing(null)} />}
+      <FormDialog open={creating} onOpenChange={setCreating} size="lg" title="Add a guardian" description="Guardians can be linked to learners from the student record."><GuardianForm onDone={() => setCreating(false)} /></FormDialog>
+      <FormDialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }} size="lg" title={editing ? `Edit ${editing.name}` : "Edit guardian"} description="Phone changes affect sibling matching for future imports.">{editing && <GuardianForm key={editing.id} guardian={editing} onDone={() => setEditing(null)} />}</FormDialog>
+      <FormDialog open={!!exporting} onOpenChange={(o) => { if (!o) setExporting(null); }} size="lg" title={exporting ? `Data export: ${exporting.name}` : "Data export"} description="Everything Rejista holds about this guardian, for a data subject request.">{exporting && <ExportPanel key={exporting.id} guardian={exporting} onClose={() => setExporting(null)} />}</FormDialog>
+      <FormDialog open={!!anonymizing} onOpenChange={(o) => { if (!o) setAnonymizing(null); }} title={anonymizing ? `Anonymize ${anonymizing.name}` : "Anonymize guardian"} description="Irreversible. For erasure requests only.">{anonymizing && <AnonymizePanel key={anonymizing.id} guardian={anonymizing} onClose={() => setAnonymizing(null)} />}</FormDialog>
 
       <div className="rise rise-1 inline-flex rounded-md border border-border bg-card p-0.5">
         {(["guardians", "families"] as const).map((t) => (

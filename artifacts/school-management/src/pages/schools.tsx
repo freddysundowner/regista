@@ -1,4 +1,4 @@
-import { Fragment, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListSchools, useCreateSchool, useUpdatePlatformSchool, getListSchoolsQueryKey, getGetCurrentUserQueryKey, getGetSchoolQueryKey, SchoolType, PlatformSchoolUpdateStatus, PlatformSchoolUpdateSubscriptionStatus, type School } from "@workspace/api-client-react";
 import { Building2, KeyRound, Loader2, Pencil, Plus } from "lucide-react";
@@ -6,6 +6,7 @@ import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInp
 import { COUNTIES } from "@/pages/auth";
 import { useSession, errMsg, fmtDate } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 const EMPTY = { schoolName: "", schoolCode: "", county: "", schoolType: "primary" as SchoolType, adminName: "", email: "", phone: "", password: "" };
 
@@ -26,14 +27,14 @@ function ProvisionForm({ onDone }: { onDone: (msg: string) => void }) {
   };
   return (
     <form onSubmit={submit} className="space-y-5 p-5">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="School name" required className="lg:col-span-2"><TextInput data-testid="input-new-school-name" required minLength={2} value={f.schoolName} onChange={set("schoolName")} /></Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="School name" required className="sm:col-span-2"><TextInput data-testid="input-new-school-name" required minLength={2} value={f.schoolName} onChange={set("schoolName")} /></Field>
         <Field label="School code" required><TextInput data-testid="input-new-school-code" required minLength={2} className="font-mono uppercase" value={f.schoolCode} onChange={set("schoolCode")} /></Field>
         <Field label="Level"><NativeSelect data-testid="select-new-school-type" value={f.schoolType} onChange={set("schoolType")}>{Object.values(SchoolType).map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</NativeSelect></Field>
         <Field label="County"><NativeSelect data-testid="select-new-county" value={f.county} onChange={set("county")}><option value="">Select county</option>{COUNTIES.map((c) => <option key={c}>{c}</option>)}</NativeSelect></Field>
       </div>
       <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"><span>Initial school administrator</span><span className="h-px flex-1 bg-border" /></div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Full name" required><TextInput data-testid="input-new-admin-name" required minLength={2} value={f.adminName} onChange={set("adminName")} /></Field>
         <Field label="Email" hint="Email or phone required"><TextInput data-testid="input-new-admin-email" type="email" value={f.email} onChange={set("email")} /></Field>
         <Field label="Phone"><TextInput data-testid="input-new-admin-phone" type="tel" value={f.phone} onChange={set("phone")} /></Field>
@@ -66,9 +67,9 @@ function SubscriptionForm({ school, isMine, onDone }: { school: School; isMine: 
     });
   };
   return (
-    <form onSubmit={submit} className="space-y-4 bg-accent/20 p-5">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Field label="School status"><NativeSelect data-testid="select-school-status" value={f.status} onChange={set("status")}>{Object.values(PlatformSchoolUpdateStatus).map((v) => <option key={v} value={v} disabled={isMine && v === "suspended"}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect></Field>
+    <form onSubmit={submit} className="space-y-4 p-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="School status" className="sm:col-span-2"><NativeSelect data-testid="select-school-status" value={f.status} onChange={set("status")}>{Object.values(PlatformSchoolUpdateStatus).map((v) => <option key={v} value={v} disabled={isMine && v === "suspended"}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect></Field>
         <Field label="Plan" required><TextInput data-testid="input-subscription-plan" required maxLength={80} value={f.plan} onChange={set("plan")} placeholder="Standard" /></Field>
         <Field label="Subscription"><NativeSelect data-testid="select-subscription-status" value={f.subStatus} onChange={set("subStatus")}>{Object.values(PlatformSchoolUpdateSubscriptionStatus).map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect></Field>
         <Field label="Start date"><TextInput data-testid="input-subscription-start" type="date" value={f.start} onChange={set("start")} /></Field>
@@ -77,7 +78,7 @@ function SubscriptionForm({ school, isMine, onDone }: { school: School; isMine: 
       <p className="text-xs text-muted-foreground">Operational tracking only; no card billing. Suspending a school blocks its staff from signing in.</p>
       <FormError msg={err} />
       <FormActions>
-        <Btn data-testid="button-save-subscription" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Save</Btn>
+        <Btn data-testid="button-save-subscription" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Save subscription</Btn>
         <Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn>
       </FormActions>
     </form>
@@ -91,18 +92,24 @@ export default function Schools() {
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
+  const editSchool = q.data?.find((s) => s.id === editId);
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Platform owner" title="Schools" meta="Each school is a separate register. Its administrators sign in on their own; there is no switching between schools.">
-        {!creating && <Btn data-testid="button-new-school" onClick={() => { setCreating(true); setNotice(null); }}><Plus className="h-4 w-4" /> Provision school</Btn>}
+        {<Btn data-testid="button-new-school" onClick={() => { setCreating(true); setNotice(null); }}><Plus className="h-4 w-4" /> Provision school</Btn>}
       </PageHeader>
       {notice && <div data-testid="text-provision-notice" className="rise flex items-start gap-2 rounded-md border border-primary/25 bg-primary/5 px-4 py-3 text-sm"><KeyRound className="mt-0.5 h-4 w-4 text-primary" />{notice}</div>}
-      {creating && <Panel title="Provision a new school" note="Creates the school and its first school administrator."><ProvisionForm onDone={(msg) => { setCreating(false); if (msg) { setNotice(msg); toast({ title: "School provisioned" }); } }} /></Panel>}
+      <FormDialog open={creating} onOpenChange={setCreating} size="lg" title="Provision a new school" description="Creates the school and its first school administrator.">
+        <ProvisionForm onDone={(msg) => { setCreating(false); if (msg) { setNotice(msg); toast({ title: "School provisioned" }); } }} />
+      </FormDialog>
+      <FormDialog open={!!editId} onOpenChange={(o) => { if (!o) setEditId(null); }} title={`Status and subscription${editSchool ? `: ${editSchool.name}` : ""}`} description="Operational tracking only; no card billing.">
+        {editSchool && <SubscriptionForm key={editSchool.id} school={editSchool} isMine={editSchool.id === mine.id} onDone={() => setEditId(null)} />}
+      </FormDialog>
       <Panel className="rise-1">
         {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<Building2 className="h-5 w-5" />} title="No schools listed" body="Provisioned schools appear here." /> : (
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2.5">School</th><th className="px-3 py-2.5">Code</th><th className="hidden px-3 py-2.5 md:table-cell">County · level</th><th className="hidden px-3 py-2.5 md:table-cell">Registered</th><th className="px-3 py-2.5">Subscription</th><th className="px-3 py-2.5">Status</th><th className="px-3 py-2.5"><span className="sr-only">Actions</span></th></tr></thead>
-            <tbody>{q.data.map((s) => (<Fragment key={s.id}>
+            <tbody>{q.data.map((s) => (
               <tr key={s.id} data-testid={`row-school-${s.id}`} className="border-b border-border/50 last:border-0 hover:bg-accent/30">
                 <td className="px-5 py-3"><span className="font-semibold">{s.name}</span>{s.id === mine.id && <span className="ml-2 text-xs text-muted-foreground">(your school)</span>}{s.email && <div className="text-[11px] text-muted-foreground">{s.email}</div>}</td>
                 <td className="px-3 py-3 font-mono text-xs">{s.code}</td>
@@ -110,10 +117,9 @@ export default function Schools() {
                 <td className="hidden px-3 py-3 font-mono text-xs text-muted-foreground md:table-cell">{fmtDate(s.createdAt)}</td>
                 <td className="px-3 py-3 text-xs"><div className="font-semibold">{s.subscriptionPlan || "\u2014"}</div><div className="capitalize text-muted-foreground">{s.subscriptionStatus ?? "\u2014"}{s.subscriptionEndDate && ` · to ${fmtDate(s.subscriptionEndDate)}`}</div></td>
                 <td className="px-3 py-3"><Pill tone={s.status === "active" ? "active" : "error"}>{s.status}</Pill></td>
-                <td className="px-3 py-3"><button data-testid={`button-edit-school-${s.id}`} aria-label={`Edit status and subscription for ${s.name}`} onClick={() => setEditId(editId === s.id ? null : s.id)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button></td>
+                <td className="px-3 py-3"><button data-testid={`button-edit-school-${s.id}`} aria-label={`Edit status and subscription for ${s.name}`} onClick={() => setEditId(s.id)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button></td>
               </tr>
-              {editId === s.id && <tr><td colSpan={7} className="p-0"><SubscriptionForm school={s} isMine={s.id === mine.id} onDone={() => setEditId(null)} /></td></tr>}
-              </Fragment>))}</tbody>
+              ))}</tbody>
           </table></div>
         )}
       </Panel>

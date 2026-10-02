@@ -2,10 +2,11 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListReportCards, useSaveReportCard, useGenerateReportCardPdf, useSendReportCard, useGenerateBatchReportCards, useListStudents, getListReportCardsQueryKey, getListStudentsQueryKey, type ReportCardView, type Student } from "@workspace/api-client-react";
 import { Download, FileBadge, Loader2, Send } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, FormError, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, FormError, FormActions, Pill } from "@/components/kit";
 import { GradeSelect, TermSelect } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDateTime } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { FormDialog } from "@/components/form-dialog";
 
 const area = "w-full rounded-md border border-input bg-background/60 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60";
 
@@ -35,16 +36,16 @@ function CardRow({ s, card, termId }: { s: Student; card?: ReportCardView; termI
         <Pill tone={published ? "active" : card ? "current" : "left"}>{card?.status ?? "not started"}</Pill>
         {card?.publishedAt && <span className="text-xs text-muted-foreground">{fmtDateTime(card.publishedAt)}</span>}
         <div className="flex gap-2">
-          {!published && !open && <Btn variant="outline" className="h-8" onClick={() => setOpen(true)}>Comments</Btn>}
+          {!published && <Btn variant="outline" className="h-8" data-testid={`button-comments-${s.id}`} onClick={() => { setErr(null); setF({ cls: card?.classTeacherComment ?? "", head: card?.headTeacherComment ?? "", opening: card?.nextTermOpeningDate?.slice(0, 10) ?? "", publish: false }); setOpen(true); }}>Edit comments</Btn>}
           {card && <Btn variant="outline" className="h-8" disabled={pdf.isPending} onClick={download}>{pdf.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}PDF</Btn>}
           {published && <Btn variant="outline" className="h-8" data-testid={`button-send-report-${s.id}`} disabled={send.isPending} onClick={() => card && send.mutate({ id: card.id }, {
             onSuccess: (r) => toast({ title: `Report card ${r.status}`, description: r.message ?? "Sent to the primary guardian's outbox. Queued or submitted is not yet delivered; check Messages." }),
             onError: (x) => toast({ title: "Not sent", description: errMsg(x), variant: "destructive" }) })}>{send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Send</Btn>}
         </div>
       </div>
-      {(published || card?.classTeacherComment || card?.headTeacherComment) && !open && <div className="space-y-1 px-4 pb-3 text-xs text-muted-foreground">{card?.classTeacherComment && <p><span className="font-semibold text-foreground">Class teacher:</span> {card.classTeacherComment}</p>}{card?.headTeacherComment && <p><span className="font-semibold text-foreground">Head teacher:</span> {card.headTeacherComment}</p>}</div>}
-      {open && (
-        <div className="space-y-3 border-t border-dashed border-border px-4 py-4">
+      {(published || card?.classTeacherComment || card?.headTeacherComment) && <div className="space-y-1 px-4 pb-3 text-xs text-muted-foreground">{card?.classTeacherComment && <p><span className="font-semibold text-foreground">Class teacher:</span> {card.classTeacherComment}</p>}{card?.headTeacherComment && <p><span className="font-semibold text-foreground">Head teacher:</span> {card.headTeacherComment}</p>}</div>}
+      <FormDialog open={open} onOpenChange={setOpen} busy={save.isPending} size="lg" title={`Report card comments: ${s.fullName}`} description={`${s.admissionNo}${s.streamName ? ` · ${s.streamName}` : ""}. Publishing freezes the card and makes it visible to the family.`}>
+        <form className="space-y-4 p-5" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Class teacher comment"><textarea rows={3} className={area} value={f.cls} onChange={(e) => setF({ ...f, cls: e.target.value })} /></Field>
             <Field label="Head teacher remarks" hint={p.headRemarks ? undefined : "Principal or administrator only"}><textarea rows={3} className={area} disabled={!p.headRemarks} value={f.head} onChange={(e) => setF({ ...f, head: e.target.value })} /></Field>
@@ -52,9 +53,9 @@ function CardRow({ s, card, termId }: { s: Student; card?: ReportCardView; termI
             {p.headRemarks && <label className="flex items-center gap-2 self-end pb-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={f.publish} onChange={(e) => setF({ ...f, publish: e.target.checked })} /> Publish now (assessments must be locked)</label>}
           </div>
           <FormError msg={err} />
-          <div className="flex gap-2"><Btn disabled={save.isPending} onClick={submit}>{save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{f.publish ? "Save and publish" : "Save"}</Btn><Btn variant="ghost" onClick={() => setOpen(false)}>Cancel</Btn></div>
-        </div>
-      )}
+          <FormActions><Btn type="submit" data-testid="button-save-report-comments" disabled={save.isPending}>{save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{f.publish ? "Save and publish" : "Save comments"}</Btn><Btn type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Btn></FormActions>
+        </form>
+      </FormDialog>
     </li>
   );
 }
