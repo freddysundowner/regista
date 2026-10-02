@@ -1,15 +1,18 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
 import { Building2 , CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLogout } from "@workspace/api-client-react";
-import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Settings, Users, UserCog } from "lucide-react";
-import { useSession, usePerms, ROLE_LABEL } from "@/lib/session";
+import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Menu, X, Settings, Users, UserCog } from "lucide-react";
+import { useSession, usePerms, ROLE_LABEL, initials } from "@/lib/session";
+import { cn } from "@/lib/utils";
 
 export function Shell({ children }: { children: ReactNode }) {
   const { user, school } = useSession();
   const p = usePerms();
-  const [loc, navigate] = useLocation();
+  const [loc] = useLocation();
+  const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const logout = useLogout({ mutation: { onSuccess: async () => {
     await qc.cancelQueries();
@@ -60,31 +63,69 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const active = (h: string) => (h === "/" ? loc === "/" : loc.startsWith(h));
 
-  return (
-    <div className="min-h-[100dvh] bg-background">
-      <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
-        <Link href="/" className="font-display text-lg font-semibold">Rejista</Link>
-        <div className="min-w-0 flex-1">
-          <div data-testid="text-school-name" className="truncate text-sm font-semibold">{school.name}</div>
-          <div className="text-[11px] text-muted-foreground">{school.code}</div>
-        </div>
-        <nav aria-label="Main navigation" className="order-last w-full sm:order-none sm:w-auto">
-          <select aria-label="Navigate to page" data-testid="select-navigation" value={nav.find(n => active(n.href))?.href ?? ""} onChange={e => navigate(e.target.value)} className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm sm:w-56">
-            <option value="" disabled>Navigate to page</option>
-            {groups.map(group => <optgroup key={group.label} label={group.label}>
-              {group.items.map(n => <option key={n.href} value={n.href}>{n.label}</option>)}
-            </optgroup>)}
-          </select>
-        </nav>
-        <Link href="/account" className="hidden min-w-0 max-w-48 sm:block">
-          <div data-testid="text-user-name" className="truncate text-sm font-semibold">{user.name}</div>
-          <div className="text-[11px] text-muted-foreground">{ROLE_LABEL[user.role]}</div>
+  const side = (
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+      <div className="border-b border-sidebar-border px-5 pb-5 pt-6">
+        <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</div>
+          <span className="font-display text-lg font-semibold tracking-tight text-sidebar-accent-foreground">Rejista</span>
         </Link>
-        <button data-testid="button-logout" title="Sign out" aria-label="Sign out" disabled={logout.isPending} onClick={() => logout.mutate()} className="rounded-md p-2 text-muted-foreground hover:bg-muted disabled:opacity-50">
+        <div className="mt-4 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5">
+          <div data-testid="text-school-name" className="truncate text-sm font-semibold text-sidebar-accent-foreground">{school.name}</div>
+          <div className="font-mono text-[11px] text-sidebar-foreground/60">{school.code}{school.county ? ` · ${school.county}` : ""}</div>
+        </div>
+      </div>
+      <nav aria-label="Main navigation" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
+        {groups.map(group => (
+          <section key={group.label} aria-label={group.label}>
+            <h2 className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">{group.label}</h2>
+            <div className="space-y-0.5">
+              {group.items.map(n => (
+                <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} onClick={() => setOpen(false)} data-testid={`link-nav-${n.href.slice(1) || "home"}`}
+                  className={cn("group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition",
+                    active(n.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground")}>
+                  <span className={cn("absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-sidebar-primary transition-transform", active(n.href) ? "scale-y-100" : "scale-y-0")} />
+                  <n.icon className={cn("h-4 w-4 shrink-0", active(n.href) && "text-sidebar-primary")} />
+                  {n.label}
+                </Link>
+              ))}
+            </div>
+          </section>
+        ))}
+      </nav>
+      <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-xs font-bold text-sidebar-primary">{initials(user.name)}</div>
+        <div className="min-w-0 flex-1">
+          <Link href="/account" onClick={() => setOpen(false)}>
+            <div data-testid="text-user-name" className="truncate text-sm font-semibold text-sidebar-accent-foreground">{user.name}</div>
+            <div className="text-[11px] text-sidebar-foreground/60">{ROLE_LABEL[user.role]}</div>
+          </Link>
+          {logout.isError && <div role="alert" className="text-xs text-red-300">Sign-out failed. Please retry.</div>}
+        </div>
+        <button data-testid="button-logout" title="Sign out" aria-label="Sign out" disabled={logout.isPending} onClick={() => logout.mutate()} className="rounded-md p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50">
           <LogOut className="h-4 w-4" />
         </button>
-        {logout.isError && <div role="alert" className="w-full text-xs text-destructive">Sign-out failed. Please retry.</div>}
-      </header>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-[100dvh] bg-background md:pl-64">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 md:block">{side}</aside>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
+          <Link href="/" className="font-display text-lg font-semibold">Rejista</Link>
+          <Dialog.Trigger asChild><button data-testid="button-menu" aria-label="Open menu" className="rounded-md p-2 hover:bg-muted"><Menu className="h-5 w-5" /></button></Dialog.Trigger>
+        </header>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/40 md:hidden" />
+          <Dialog.Content aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 w-72 max-w-[90vw] outline-none md:hidden">
+            <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+            {side}
+            <Dialog.Close aria-label="Close menu" className="absolute right-3 top-3 rounded-md p-2 text-sidebar-foreground hover:bg-sidebar-accent"><X className="h-4 w-4" /></Dialog.Close>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
       <main className="w-full min-w-0 px-4 py-6 md:py-8">{children}</main>
     </div>
   );
