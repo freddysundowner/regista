@@ -1,6 +1,6 @@
 # School Management System — Rejista
 
-A multi-school administration system for Kenyan schools. The current deliverable covers the foundation phase; fees, payments, reconciliation, bot messaging, assessment results and attendance are later phases.
+A multi-school administration system for Kenyan schools. The full supplied specification is the required scope. The current implementation is a partial foundation, not a completed system; the remaining phases are required work, not optional extensions.
 
 ## Run & Operate
 
