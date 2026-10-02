@@ -120,7 +120,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <button aria-label="Close menu" onClick={() => setOpen(false)} className="absolute right-4 top-4 rounded-full bg-card p-2"><X className="h-4 w-4" /></button>
         </div>
       )}
-      <main className="mx-auto max-w-[1240px] px-4 py-6 md:px-8 md:py-8">{children}</main>
+      <main className="w-full min-w-0 px-4 py-6 md:py-8">{children}</main>
     </div>
   );
 }
