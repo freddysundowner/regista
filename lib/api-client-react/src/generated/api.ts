@@ -79,6 +79,8 @@ import type {
   IntegrationStatus,
   InvoiceBatchInput,
   InvoiceBatchResult,
+  KcbAccountNotification,
+  KcbTillNotification,
   KnecExportInput,
   LearnerRatingView,
   ListAssessmentsParams,
@@ -118,6 +120,8 @@ import type {
   PromotionPreview,
   PromotionResult,
   RatingInput,
+  ReceiveKcbAccountNotification200,
+  ReceiveKcbTillNotification200,
   ReconView,
   RefundPaidInput,
   ReportCardInput,
@@ -1266,6 +1270,186 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getConfigureIntegrationMutationOptions(options));
+    }
+
+export const getReceiveKcbAccountNotificationUrl = (token: string,) => {
+
+
+
+
+  return `/api/integrations/kcb/account-notification/${token}`
+}
+
+/**
+ * Server-to-server only. Signature is base64 SHA256withRSA over the exact request body. Acknowledgement means durable receipt, not student allocation.
+ * @summary Receive a KCB-signed account payment notification
+ */
+export const receiveKcbAccountNotification = async (token: string,
+    kcbAccountNotification: KcbAccountNotification, options?: Parameters<typeof customFetch>[1]): Promise<ReceiveKcbAccountNotification200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReceiveKcbAccountNotification200>(getReceiveKcbAccountNotificationUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(kcbAccountNotification)
+  }
+);}
+
+
+
+
+
+export const getReceiveKcbAccountNotificationMutationKey = () => ['receiveKcbAccountNotification'] as const;
+
+export const getReceiveKcbAccountNotificationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveKcbAccountNotification>>, TError,ReceiveKcbAccountNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveKcbAccountNotification>>, TError,ReceiveKcbAccountNotificationMutationVariables, TContext> => {
+
+const mutationKey = getReceiveKcbAccountNotificationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveKcbAccountNotification>>, ReceiveKcbAccountNotificationMutationVariables> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  receiveKcbAccountNotification(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveKcbAccountNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof receiveKcbAccountNotification>>>
+    export type ReceiveKcbAccountNotificationMutationBody = BodyType<KcbAccountNotification>
+    export type ReceiveKcbAccountNotificationMutationError = ErrorType<void>
+    export type ReceiveKcbAccountNotificationMutationVariables = {token: string;data: BodyType<KcbAccountNotification>}
+
+    /**
+ * @summary Receive a KCB-signed account payment notification
+ */
+export const useReceiveKcbAccountNotification = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveKcbAccountNotification>>, TError,ReceiveKcbAccountNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof receiveKcbAccountNotification>>,
+        TError,
+        ReceiveKcbAccountNotificationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReceiveKcbAccountNotificationMutationOptions(options));
+    }
+
+export const getReceiveKcbTillNotificationUrl = (token: string,) => {
+
+
+
+
+  return `/api/integrations/kcb/till-notification/${token}`
+}
+
+/**
+ * The primaryData businessKey must match the KCB-issued receiving business key; notificationData businessKey is the student reference.
+ * @summary Receive a KCB-signed till payment notification
+ */
+export const receiveKcbTillNotification = async (token: string,
+    kcbTillNotification: KcbTillNotification, options?: Parameters<typeof customFetch>[1]): Promise<ReceiveKcbTillNotification200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReceiveKcbTillNotification200>(getReceiveKcbTillNotificationUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(kcbTillNotification)
+  }
+);}
+
+
+
+
+
+export const getReceiveKcbTillNotificationMutationKey = () => ['receiveKcbTillNotification'] as const;
+
+export const getReceiveKcbTillNotificationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveKcbTillNotification>>, TError,ReceiveKcbTillNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveKcbTillNotification>>, TError,ReceiveKcbTillNotificationMutationVariables, TContext> => {
+
+const mutationKey = getReceiveKcbTillNotificationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveKcbTillNotification>>, ReceiveKcbTillNotificationMutationVariables> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  receiveKcbTillNotification(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveKcbTillNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof receiveKcbTillNotification>>>
+    export type ReceiveKcbTillNotificationMutationBody = BodyType<KcbTillNotification>
+    export type ReceiveKcbTillNotificationMutationError = ErrorType<void>
+    export type ReceiveKcbTillNotificationMutationVariables = {token: string;data: BodyType<KcbTillNotification>}
+
+    /**
+ * @summary Receive a KCB-signed till payment notification
+ */
+export const useReceiveKcbTillNotification = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveKcbTillNotification>>, TError,ReceiveKcbTillNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof receiveKcbTillNotification>>,
+        TError,
+        ReceiveKcbTillNotificationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReceiveKcbTillNotificationMutationOptions(options));
     }
 
 export const getRegisterDarajaCallbacksUrl = () => {

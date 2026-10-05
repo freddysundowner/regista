@@ -42,7 +42,7 @@ router.get("/integrations/config", async (req, res) => {
   const configs = await db.integrationConfig.findMany({ where: { schoolId: req.actor.school.id }, select: { provider: true, enabled: true, environment: true } });
   res.json(["daraja", "leadsintel", "africastalking", "bot", "bank"].map(provider => {
     const config = configs.find(c => c.provider === provider);
-    return { provider, enabled: config?.enabled ?? false, environment: config?.environment ?? "sandbox", configured: !!config, status: provider === "bank" ? "contract_required" : !process.env.ENCRYPTION_KEY ? "encryption_key_missing" : config?.enabled ? "unverified" : "not_configured", reason: provider === "bank" ? "Pilot bank and official API contract required" : provider === "daraja" ? "Sandbox adapter available; live acceptance and Pull query contract unverified" : "No live delivery or connectivity verified" };
+    return { provider, enabled: config?.enabled ?? false, environment: config?.environment ?? "sandbox", configured: !!config, status: !process.env.ENCRYPTION_KEY ? "encryption_key_missing" : config?.enabled ? "unverified" : "not_configured", reason: provider === "bank" ? "KCB signed notifications supported; KCB onboarding, public key and live acceptance required. No statement-pull or payment initiation." : provider === "daraja" ? "Sandbox adapter available; live acceptance and Pull query contract unverified" : "No live delivery or connectivity verified" };
   }));
 });
 router.put("/integrations/config", async (req, res) => { allow(req, admin); res.json(await saveIntegration(req.actor, body(schemas.ConfigureIntegrationBody, req.body))); });

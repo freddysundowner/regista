@@ -2101,6 +2101,103 @@ export interface ModuleDashboardView {
   attendance: ModuleDashboardViewAttendanceItem[];
 }
 
+export type KcbAccountNotificationCurrency = typeof KcbAccountNotificationCurrency[keyof typeof KcbAccountNotificationCurrency];
+
+
+export const KcbAccountNotificationCurrency = {
+  KES: 'KES',
+} as const;
+
+export interface KcbAccountNotification {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  transactionReference: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  requestId: string;
+  /** EAT YYYYMMDDHHmm or YYYYMMDDHHmmss */
+  timestamp: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  transactionAmount: string;
+  currency: KcbAccountNotificationCurrency;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  creditAccountIdentifier: string;
+  /** @maxLength 200 */
+  customerReference?: string;
+  /** @maxLength 200 */
+  customerName?: string;
+  /** @maxLength 30 */
+  customerMobileNumber?: string;
+}
+
+export type KcbTillNotificationHeader = {
+  messageID: string;
+  originatorConversationID: string;
+  timeStamp: string;
+};
+
+export type KcbTillNotificationRequestPayloadPrimaryDataBusinessKeyType = typeof KcbTillNotificationRequestPayloadPrimaryDataBusinessKeyType[keyof typeof KcbTillNotificationRequestPayloadPrimaryDataBusinessKeyType];
+
+
+export const KcbTillNotificationRequestPayloadPrimaryDataBusinessKeyType = {
+  notifyBiller: 'notifyBiller',
+} as const;
+
+export type KcbTillNotificationRequestPayloadPrimaryData = {
+  businessKey: string;
+  businessKeyType: KcbTillNotificationRequestPayloadPrimaryDataBusinessKeyType;
+};
+
+export type KcbTillNotificationRequestPayloadAdditionalDataNotificationDataBusinessKeyType = typeof KcbTillNotificationRequestPayloadAdditionalDataNotificationDataBusinessKeyType[keyof typeof KcbTillNotificationRequestPayloadAdditionalDataNotificationDataBusinessKeyType];
+
+
+export const KcbTillNotificationRequestPayloadAdditionalDataNotificationDataBusinessKeyType = {
+  BillReferenceNumber: 'BillReferenceNumber',
+} as const;
+
+export type KcbTillNotificationRequestPayloadAdditionalDataNotificationDataCurrency = typeof KcbTillNotificationRequestPayloadAdditionalDataNotificationDataCurrency[keyof typeof KcbTillNotificationRequestPayloadAdditionalDataNotificationDataCurrency];
+
+
+export const KcbTillNotificationRequestPayloadAdditionalDataNotificationDataCurrency = {
+  KES: 'KES',
+} as const;
+
+export type KcbTillNotificationRequestPayloadAdditionalDataNotificationData = {
+  businessKey: string;
+  businessKeyType: KcbTillNotificationRequestPayloadAdditionalDataNotificationDataBusinessKeyType;
+  transactionID: string;
+  /** @pattern ^\d{1,12}(\.\d{1,2})?$ */
+  transactionAmt: string;
+  /** For example Mon May 19 13:30:54 EAT 2025 */
+  transactionDate: string;
+  currency: KcbTillNotificationRequestPayloadAdditionalDataNotificationDataCurrency;
+  debitMSISDN?: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+};
+
+export type KcbTillNotificationRequestPayloadAdditionalData = {
+  notificationData: KcbTillNotificationRequestPayloadAdditionalDataNotificationData;
+};
+
+export type KcbTillNotificationRequestPayload = {
+  primaryData: KcbTillNotificationRequestPayloadPrimaryData;
+  additionalData: KcbTillNotificationRequestPayloadAdditionalData;
+};
+
+export interface KcbTillNotification {
+  header: KcbTillNotificationHeader;
+  requestPayload: KcbTillNotificationRequestPayload;
+}
+
 export interface FinanceUpdateInput {
   /** @minLength 1 */
   name?: string;
@@ -2360,6 +2457,32 @@ action?: string;
  * @maxLength 200
  */
 search?: string;
+};
+
+export type ReceiveKcbAccountNotification200 = {
+  transactionID: string;
+  statusCode: string;
+  statusMessage: string;
+};
+
+export type ReceiveKcbTillNotification200Header = {
+  messageID: string;
+  originatorConversationID: string;
+  statusCode: string;
+  statusMessage: string;
+};
+
+export type ReceiveKcbTillNotification200ResponsePayloadTransactionInfo = {
+  transactionId: string;
+};
+
+export type ReceiveKcbTillNotification200ResponsePayload = {
+  transactionInfo: ReceiveKcbTillNotification200ResponsePayloadTransactionInfo;
+};
+
+export type ReceiveKcbTillNotification200 = {
+  header: ReceiveKcbTillNotification200Header;
+  responsePayload: ReceiveKcbTillNotification200ResponsePayload;
 };
 
 export type ListIncomingPaymentsParams = {

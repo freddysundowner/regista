@@ -15,7 +15,7 @@ export async function ingest(actor: Actor, input: IncomingInput, source = "manua
   const key = { schoolId: actor.school.id, provider: input.provider, providerTxnId: input.providerTxnId };
   const existing = await db.incomingPayment.findUnique({ where: { schoolId_provider_providerTxnId: key } });
   if (existing) {
-    if (!existing.amount.equals(amount)) throw new ApiError(409, "Provider transaction identity has conflicting amounts");
+    if (!existing.amount.equals(amount) || (input.provider === "kcb" && existing.accountReference !== (input.accountReference ?? null))) throw new ApiError(409, "Provider transaction identity has conflicting amount or reference");
     return existing;
   }
   const phone = fullPhone(input.payerPhone);
@@ -35,7 +35,7 @@ export async function ingest(actor: Actor, input: IncomingInput, source = "manua
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const prior = await db.incomingPayment.findUniqueOrThrow({ where: { schoolId_provider_providerTxnId: key } });
-      if (!prior.amount.equals(amount)) throw new ApiError(409, "Conflicting duplicate payment");
+      if (!prior.amount.equals(amount) || (input.provider === "kcb" && prior.accountReference !== (input.accountReference ?? null))) throw new ApiError(409, "Conflicting duplicate payment");
       return prior;
     }
     throw error;
@@ -132,6 +132,12 @@ export async function processPayment(schoolId: string, id: string) {
     if (!payment || payment.status !== "received") return;
     if (payment.knownStudentId) { await postIncoming(tx, actor, id, [{ studentId: payment.knownStudentId, amount: payment.amount.toFixed(2) }], "known_student"); return; }
     const match = await candidates(tx, actor, payment);
+    if (payment.provider === "kcb") {
+      // Unknown references must never be allocated on name/phone guesses.
+      const exact = match.candidates.filter(c => !c.reasons.includes("inactive_student") && c.reasons.some(r => ["exact_reference", "normalized_reference"].includes(r)));
+      match.winner = exact.length === 1 ? exact[0].studentId : null;
+      match.siblingFlow = false;
+    }
     if (match.winner) { await postIncoming(tx, actor, id, [{ studentId: match.winner, amount: payment.amount.toFixed(2) }], "automatic_match"); return; }
     const settings = actor.school.settings as Record<string, any>;
     if (match.siblingFlow && ["proportional_to_balance", "oldest_arrears_first"].includes(settings.siblingSplitRule)) {

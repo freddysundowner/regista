@@ -188,6 +188,10 @@ paths:
               schema: { $ref: "#/components/schemas/AuthSession" }
   /integrations/config:
     $ref: './remaining.yaml#/paths/integrations'
+  /integrations/kcb/account-notification/{token}:
+    $ref: './kcb.yaml#/paths/accountNotification'
+  /integrations/kcb/till-notification/{token}:
+    $ref: './kcb.yaml#/paths/tillNotification'
   /integrations/daraja/register:
     $ref: './remaining.yaml#/paths/registration'
   /payments/incoming:

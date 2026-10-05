@@ -1,3 +1,4 @@
 - [School product scope](school-product-scope.md) — Kenyan schools; follow the supplied seven-phase specification and keep excluded modules out.
 - [Form presentation](form-presentation.md) — use dedicated pages or dialogs, never inline create/edit forms.
 - [Platform tenancy](platform-tenancy.md) — independent owner console; tenant access must be explicit, temporary and audited.
+- [KCB onboarding boundaries](kcb-onboarding.md) — use the native signed notification contract; optional validation needs authenticated bank onboarding.

@@ -20,8 +20,8 @@ const SPECS: Record<IntegrationInputProvider, Spec> = {
     secrets: [{ key: "username", label: "Username" }, { key: "apiKey", label: "API key" }, { key: "senderId", label: "Sender ID", hint: "Optional, if approved" }, { key: "callbackToken", label: "Delivery callback token", hint: "Optional; at least 32 characters, used in the delivery gateway URL", min: 32 }, { key: "deliveryGatewaySecret", label: "Delivery gateway HMAC secret", hint: "Optional; at least 32 characters. Shared only with your approved delivery gateway.", min: 32 }] },
   bot: { label: "Parent bot", purpose: "Server-to-server key the bot uses to query balances.",
     secrets: [{ key: "apiKey", label: "Bot API key", hint: "At least 32 characters", min: 32 }, { key: "hmacSecret", label: "HMAC secret", hint: "At least 32 characters", min: 32 }] },
-  bank: { label: "Bank feed", purpose: "Direct bank statement feed. Statement file upload works without it.", pub: { key: "accountNumber", label: "Collection account number" },
-    secrets: [{ key: "clientId", label: "Client ID" }, { key: "clientSecret", label: "Client secret" }] },
+  bank: { label: "KCB Buni", purpose: "Signed account and till payment notifications. Does not initiate payments or pull statements.", pub: { key: "accountNumber", label: "KCB collection account number (optional for till-only)" },
+    secrets: [{ key: "kcbPublicKey", label: "KCB RSA public key (PEM)", hint: "Obtain directly from KCB; never enter a private key." }, { key: "callbackToken", label: "Callback token", hint: "At least 32 URL-safe characters", min: 32 }, { key: "tillBusinessKey", label: "KCB receiving business key", hint: "Optional for account-only. For till notifications, use the primaryData business key confirmed by KCB, not the student's reference." }] },
 };
 const STATUS_TONE: Record<string, string> = { unverified: "duplicate", not_configured: "left", encryption_key_missing: "error", contract_required: "error", disabled: "inactive" };
 
@@ -47,6 +47,7 @@ function ConfigForm({ s, onDone }: { s: IntegrationStatus; onDone: () => void })
     const short = spec.secrets.find((x) => x.min && (creds[x.key] || !x.hint?.startsWith("Optional")) && (creds[x.key]?.length ?? 0) < x.min);
     if (short) return setErr(`${short.label} must be at least ${short.min} characters.`);
     if (creds.deliveryGatewaySecret && !creds.callbackToken) return setErr("Enter a callback token together with the delivery gateway HMAC secret.");
+    if (provider === "bank" && !pub.trim() && !creds.tillBusinessKey) return setErr("Enter a KCB account number or receiving business key.");
     if (spec.pub && !pub.trim() && provider !== "bank") return setErr(`Enter the ${spec.pub.label.toLowerCase()}.`);
     save.mutate({ data: { provider, environment: env, enabled, credentials: creds, ...(spec.pub && pub.trim() ? { [spec.pub.key]: pub.trim() } : {}) } }, {
       onSuccess: () => { setSec({}); qc.invalidateQueries({ queryKey: getListIntegrationStatusQueryKey() }); toast({ title: `${spec.label} saved`, description: "Credentials were encrypted on the server. Connectivity is not verified by saving." }); onDone(); },
@@ -55,6 +56,12 @@ function ConfigForm({ s, onDone }: { s: IntegrationStatus; onDone: () => void })
   };
   return (
     <form onSubmit={submit} autoComplete="off" className="space-y-4 p-5">
+      {provider === "bank" && <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+        <p>Ask KCB to register the applicable callback path below on your published app domain. Copy it before saving; saved tokens are never displayed. KCB must sign the exact JSON body using its RSA key. Saving does not activate your account at KCB.</p>
+        <p className="break-all font-mono">/api/integrations/kcb/account-notification/{sec.callbackToken || "{callbackToken}"}</p>
+        <p className="break-all font-mono">/api/integrations/kcb/till-notification/{sec.callbackToken || "{callbackToken}"}</p>
+        <p>Only KES payments are accepted. Use the student admission number as the payment reference. Unknown references go to reconciliation. Optional pre-payment validation is not enabled.</p>
+      </div>}
       {(provider === "leadsintel" || provider === "africastalking") && <p data-testid="text-delivery-gateway-contract" className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">Delivery confirmation uses your school-operated gateway at <code>/api/integrations/message-delivery/events/{"{callbackToken}"}</code>. This is not a native provider webhook URL. Configure a gateway that verifies the provider's approved delivery contract, then signs our normalized delivery events with the separate HMAC secret. Saving credentials does not install or verify a gateway. Leave these optional credentials blank if no gateway is available; submissions will not be claimed as delivered. Re-enter gateway credentials when replacing existing secrets to retain delivery confirmation.</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Environment" required><NativeSelect value={env} onChange={(e) => setEnv(e.target.value as IntegrationInputEnvironment)}><option value="sandbox">Sandbox</option><option value="production">Production</option></NativeSelect></Field>
@@ -62,7 +69,7 @@ function ConfigForm({ s, onDone }: { s: IntegrationStatus; onDone: () => void })
         {spec.secrets.map((x) => (
           <Field key={x.key} label={x.label} hint={x.hint} required={!x.hint?.startsWith("Optional")}>
             <div className="flex gap-1">
-              <TextInput type="password" autoComplete="new-password" spellCheck={false} data-testid={`input-secret-${x.key}`} className="font-mono" value={sec[x.key] ?? ""} onChange={(e) => setSec({ ...sec, [x.key]: e.target.value })} />
+              {x.key === "kcbPublicKey" ? <textarea aria-label={x.label} rows={6} autoComplete="off" spellCheck={false} data-testid={`input-secret-${x.key}`} className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs" value={sec[x.key] ?? ""} onChange={(e) => setSec({ ...sec, [x.key]: e.target.value })} /> : <TextInput type="password" autoComplete="new-password" spellCheck={false} data-testid={`input-secret-${x.key}`} className="font-mono" value={sec[x.key] ?? ""} onChange={(e) => setSec({ ...sec, [x.key]: e.target.value })} />}
               {x.min && <Btn type="button" variant="ghost" className="h-9 px-2 text-xs" onClick={() => setSec({ ...sec, [x.key]: randomToken() })}>Generate</Btn>}
             </div>
           </Field>
@@ -85,7 +92,7 @@ export default function Integrations() {
       <PageHeader eyebrow="Connections" title="Integrations" meta="Credentials are write-only: they are encrypted on the server and never displayed, cached or returned." />
       <div className="flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-        <p>No live provider has been verified. Daraja sandbox and production acceptance, the M-Pesa pull query, WhatsApp and SMS delivery, and the first bank partner are unconfirmed. "Unverified" means saved, not proven to work.</p>
+        <p>No live provider has been verified. Daraja, WhatsApp, SMS and KCB still require provider acceptance testing. "Unverified" means saved, not proven to work.</p>
       </div>
       <Panel>
         {q.isLoading ? <SkeletonRows cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : (

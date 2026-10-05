@@ -1,0 +1,146 @@
+paths:
+  accountNotification:
+    post:
+      operationId: receiveKcbAccountNotification
+      summary: Receive a KCB-signed account payment notification
+      description: Server-to-server only. Signature is base64 SHA256withRSA over the exact request body. Acknowledgement means durable receipt, not student allocation.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Token'
+        - $ref: '#/components/parameters/Signature'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KcbAccountNotification'
+      responses:
+        '200':
+          description: Notification persisted, or an identical transaction was already received
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [transactionID, statusCode, statusMessage]
+                properties:
+                  transactionID: { type: string }
+                  statusCode: { type: string }
+                  statusMessage: { type: string }
+        '400': { description: Invalid notification }
+        '401': { description: Invalid signature }
+        '403': { description: Receiving account does not match the school }
+        '404': { description: Unknown or disabled configuration }
+        '409': { description: Transaction identity has conflicting amount or reference }
+        '503': { description: School or encryption configuration unavailable }
+  tillNotification:
+    post:
+      operationId: receiveKcbTillNotification
+      summary: Receive a KCB-signed till payment notification
+      description: The primaryData businessKey must match the KCB-issued receiving business key; notificationData businessKey is the student reference.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Token'
+        - $ref: '#/components/parameters/Signature'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KcbTillNotification'
+      responses:
+        '200':
+          description: Durable receipt, including identical retries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [header, responsePayload]
+                properties:
+                  header:
+                    type: object
+                    required: [messageID, originatorConversationID, statusCode, statusMessage]
+                    properties:
+                      messageID: { type: string }
+                      originatorConversationID: { type: string }
+                      statusCode: { type: string }
+                      statusMessage: { type: string }
+                  responsePayload:
+                    type: object
+                    required: [transactionInfo]
+                    properties:
+                      transactionInfo:
+                        type: object
+                        required: [transactionId]
+                        properties:
+                          transactionId: { type: string }
+        '400': { description: Invalid notification }
+        '401': { description: Invalid signature }
+        '403': { description: Receiving business key mismatch }
+        '404': { description: Unknown or disabled configuration }
+        '409': { description: Conflicting duplicate }
+        '503': { description: School or encryption configuration unavailable }
+components:
+  parameters:
+    Token:
+      in: path
+      name: token
+      required: true
+      schema: { type: string }
+    Signature:
+      in: header
+      name: Signature
+      required: true
+      schema: { type: string }
+  schemas:
+    KcbAccountNotification:
+      type: object
+      required: [transactionReference, requestId, timestamp, transactionAmount, currency, creditAccountIdentifier]
+      properties:
+        transactionReference: { type: string, minLength: 1, maxLength: 200 }
+        requestId: { type: string, minLength: 1, maxLength: 200 }
+        timestamp: { type: string, description: 'EAT YYYYMMDDHHmm or YYYYMMDDHHmmss' }
+        transactionAmount: { type: string, pattern: '^\d{1,12}(\.\d{1,2})?$' }
+        currency: { type: string, enum: [KES] }
+        creditAccountIdentifier: { type: string, minLength: 1, maxLength: 200 }
+        customerReference: { type: string, maxLength: 200 }
+        customerName: { type: string, maxLength: 200 }
+        customerMobileNumber: { type: string, maxLength: 30 }
+    KcbTillNotification:
+      type: object
+      required: [header, requestPayload]
+      properties:
+        header:
+          type: object
+          required: [messageID, originatorConversationID, timeStamp]
+          properties:
+            messageID: { type: string }
+            originatorConversationID: { type: string }
+            timeStamp: { type: string }
+        requestPayload:
+          type: object
+          required: [primaryData, additionalData]
+          properties:
+            primaryData:
+              type: object
+              required: [businessKey, businessKeyType]
+              properties:
+                businessKey: { type: string }
+                businessKeyType: { type: string, enum: [notifyBiller] }
+            additionalData:
+              type: object
+              required: [notificationData]
+              properties:
+                notificationData:
+                  type: object
+                  required: [businessKey, businessKeyType, transactionID, transactionAmt, transactionDate, currency]
+                  properties:
+                    businessKey: { type: string }
+                    businessKeyType: { type: string, enum: [BillReferenceNumber] }
+                    transactionID: { type: string }
+                    transactionAmt: { type: string, pattern: '^\d{1,12}(\.\d{1,2})?$' }
+                    transactionDate: { type: string, description: 'For example Mon May 19 13:30:54 EAT 2025' }
+                    currency: { type: string, enum: [KES] }
+                    debitMSISDN: { type: string }
+                    firstName: { type: string }
+                    middleName: { type: string }
+                    lastName: { type: string }

@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEq
 import { db } from "@workspace/db";
 import { ApiError, audit, type Actor } from "../core";
 import { json } from "../finance/posting";
+import { kcbPublicKey } from "./kcb";
 
 export const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 function encryptionKey() {
@@ -54,10 +55,25 @@ export async function saveIntegration(actor: Actor, input: { provider: string; e
     if (!input.shortcode || credentials.callbackToken.length < 32) throw new ApiError(400, "Shortcode and a callback token of at least 32 characters are required");
   }
   if (input.provider === "bot" && (!credentials.apiKey || credentials.apiKey.length < 32 || !credentials.hmacSecret || credentials.hmacSecret.length < 32)) throw new ApiError(400, "Bot API key and HMAC secret must each have at least 32 characters");
-  if (input.provider === "bank" && input.enabled) throw new ApiError(503, "First-bank live integration is blocked pending the pilot bank and its approved API contract");
+  if (input.provider === "bank") {
+    if (!input.accountNumber?.trim() && !credentials.tillBusinessKey?.trim()) throw new ApiError(400, "A KCB collection account or KCB-issued receiving business key is required");
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(credentials.callbackToken ?? "")) throw new ApiError(400, "KCB callback token must be 32–128 URL-safe characters");
+    kcbPublicKey(credentials.kcbPublicKey ?? "");
+  }
   const encryptedCredentials = encryptCredentials(credentials);
   const publicConfig = json({ shortcode: input.shortcode, accountNumber: input.accountNumber, connectionId: input.connectionId });
   const result = await db.$transaction(async tx => {
+    if (input.provider === "bank") {
+      // Serialize registration so the same receiving account cannot be assigned
+      // to two tenants, including concurrent configuration requests.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(49181234)`;
+      const others = await tx.integrationConfig.findMany({ where: { provider: "bank", schoolId: { not: actor.school.id } } });
+      for (const other of others) {
+        const pub = other.publicConfig as Record<string, string>;
+        if (input.accountNumber && pub.accountNumber === input.accountNumber) throw new ApiError(409, "This collection account is already registered to another school");
+        if (credentials.tillBusinessKey && decryptCredentials(other.encryptedCredentials).tillBusinessKey === credentials.tillBusinessKey) throw new ApiError(409, "This KCB business key is already registered to another school");
+      }
+    }
     const data = {
       environment: input.environment, enabled: input.enabled, encryptedCredentials, publicConfig,
       callbackTokenHash: credentials.callbackToken ? digest(credentials.callbackToken) : null,

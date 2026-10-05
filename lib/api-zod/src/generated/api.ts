@@ -940,6 +940,110 @@ export const ConfigureIntegrationResponse = zod.object({
 })
 
 
+/**
+ * Server-to-server only. Signature is base64 SHA256withRSA over the exact request body. Acknowledgement means durable receipt, not student allocation.
+ * @summary Receive a KCB-signed account payment notification
+ */
+export const ReceiveKcbAccountNotificationParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const ReceiveKcbAccountNotificationHeader = zod.object({
+  "Signature": zod.string()
+})
+
+export const receiveKcbAccountNotificationBodyTransactionReferenceMax = 200;
+
+export const receiveKcbAccountNotificationBodyRequestIdMax = 200;
+
+export const receiveKcbAccountNotificationBodyTransactionAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const receiveKcbAccountNotificationBodyCreditAccountIdentifierMax = 200;
+
+export const receiveKcbAccountNotificationBodyCustomerReferenceMax = 200;
+
+export const receiveKcbAccountNotificationBodyCustomerNameMax = 200;
+
+export const receiveKcbAccountNotificationBodyCustomerMobileNumberMax = 30;
+
+
+
+export const ReceiveKcbAccountNotificationBody = zod.object({
+  "transactionReference": zod.string().min(1).max(receiveKcbAccountNotificationBodyTransactionReferenceMax),
+  "requestId": zod.string().min(1).max(receiveKcbAccountNotificationBodyRequestIdMax),
+  "timestamp": zod.string().describe('EAT YYYYMMDDHHmm or YYYYMMDDHHmmss'),
+  "transactionAmount": zod.string().regex(receiveKcbAccountNotificationBodyTransactionAmountRegExp),
+  "currency": zod.enum(['KES']),
+  "creditAccountIdentifier": zod.string().min(1).max(receiveKcbAccountNotificationBodyCreditAccountIdentifierMax),
+  "customerReference": zod.string().max(receiveKcbAccountNotificationBodyCustomerReferenceMax).optional(),
+  "customerName": zod.string().max(receiveKcbAccountNotificationBodyCustomerNameMax).optional(),
+  "customerMobileNumber": zod.string().max(receiveKcbAccountNotificationBodyCustomerMobileNumberMax).optional()
+})
+
+export const ReceiveKcbAccountNotificationResponse = zod.object({
+  "transactionID": zod.string(),
+  "statusCode": zod.string(),
+  "statusMessage": zod.string()
+})
+
+
+/**
+ * The primaryData businessKey must match the KCB-issued receiving business key; notificationData businessKey is the student reference.
+ * @summary Receive a KCB-signed till payment notification
+ */
+export const ReceiveKcbTillNotificationParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const ReceiveKcbTillNotificationHeader = zod.object({
+  "Signature": zod.string()
+})
+
+export const receiveKcbTillNotificationBodyRequestPayloadAdditionalDataNotificationDataTransactionAmtRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const ReceiveKcbTillNotificationBody = zod.object({
+  "header": zod.object({
+  "messageID": zod.string(),
+  "originatorConversationID": zod.string(),
+  "timeStamp": zod.string()
+}),
+  "requestPayload": zod.object({
+  "primaryData": zod.object({
+  "businessKey": zod.string(),
+  "businessKeyType": zod.enum(['notifyBiller'])
+}),
+  "additionalData": zod.object({
+  "notificationData": zod.object({
+  "businessKey": zod.string(),
+  "businessKeyType": zod.enum(['BillReferenceNumber']),
+  "transactionID": zod.string(),
+  "transactionAmt": zod.string().regex(receiveKcbTillNotificationBodyRequestPayloadAdditionalDataNotificationDataTransactionAmtRegExp),
+  "transactionDate": zod.string().describe('For example Mon May 19 13:30:54 EAT 2025'),
+  "currency": zod.enum(['KES']),
+  "debitMSISDN": zod.string().optional(),
+  "firstName": zod.string().optional(),
+  "middleName": zod.string().optional(),
+  "lastName": zod.string().optional()
+})
+})
+})
+})
+
+export const ReceiveKcbTillNotificationResponse = zod.object({
+  "header": zod.object({
+  "messageID": zod.string(),
+  "originatorConversationID": zod.string(),
+  "statusCode": zod.string(),
+  "statusMessage": zod.string()
+}),
+  "responsePayload": zod.object({
+  "transactionInfo": zod.object({
+  "transactionId": zod.string()
+})
+})
+})
+
+
 export const RegisterDarajaCallbacksResponse = zod.object({
   "id": zod.string().optional(),
   "status": zod.string(),
