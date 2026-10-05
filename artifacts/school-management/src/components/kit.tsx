@@ -1,30 +1,31 @@
-import type { ReactNode, SelectHTMLAttributes, InputHTMLAttributes } from "react";
-import { AlertTriangle, RotateCw } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode, type SelectHTMLAttributes, type InputHTMLAttributes } from "react";
+import { createPortal } from "react-dom";
+import { AlertTriangle, RotateCw, SlidersHorizontal, ChevronDown, MoveHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function PageHeader({ eyebrow, title, children, meta }: { eyebrow: string; title: string; children?: ReactNode; meta?: ReactNode }) {
   return (
     <header className="rise flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
-      <div>
+      <div className="min-w-0">
         <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700/80">{eyebrow}</div>
-        <h1 className="font-display text-3xl font-semibold text-foreground md:text-[2.4rem] leading-none">{title}</h1>
+        <h1 className="font-display text-[1.75rem] font-semibold leading-tight text-foreground [overflow-wrap:anywhere] md:text-[2.4rem] md:leading-none">{title}</h1>
         {meta && <div className="mt-2 text-sm text-muted-foreground">{meta}</div>}
       </div>
-      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+      {children && <div className="page-actions flex flex-wrap items-center gap-2">{children}</div>}
     </header>
   );
 }
 
 export function Panel({ title, note, children, className, action }: { title?: string; note?: string; children: ReactNode; className?: string; action?: ReactNode }) {
   return (
-    <section className={cn("rise rounded-lg border border-card-border bg-card", className)}>
+    <section className={cn("rise min-w-0 max-w-full rounded-lg border border-card-border bg-card", className)}>
       {title && (
-        <div className="flex items-baseline justify-between gap-3 border-b border-border/70 px-5 py-3">
-          <div>
+        <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:flex-wrap md:items-baseline sm:px-5">
+          <div className="min-w-0">
             <h2 className="font-display text-lg font-semibold">{title}</h2>
             {note && <p className="text-xs text-muted-foreground">{note}</p>}
           </div>
-          {action}
+          {action && <div className="panel-actions min-w-0 max-w-full">{action}</div>}
         </div>
       )}
       {children}
@@ -45,7 +46,7 @@ export function Field({ label, hint, children, className, required }: { label: s
   );
 }
 
-const ctl = "h-9 w-full rounded-md border border-input bg-background/60 px-3 text-sm outline-none transition focus:border-primary focus:bg-card focus:ring-2 focus:ring-ring/20 disabled:opacity-60";
+const ctl = "h-11 w-full text-base sm:h-9 sm:text-sm rounded-md border border-input bg-background/60 px-3 outline-none transition focus:border-primary focus:bg-card focus:ring-2 focus:ring-ring/20 disabled:opacity-60";
 
 export function TextInput({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={cn(ctl, className)} />;
@@ -131,9 +132,86 @@ export function Btn({ variant = "primary", className, ...p }: React.ButtonHTMLAt
     outline: "border border-input bg-card hover:bg-muted",
     danger: "border border-destructive/30 text-destructive hover:bg-destructive/5",
   }[variant];
-  return <button {...p} className={cn("inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3.5 text-sm font-semibold transition active:translate-y-px disabled:pointer-events-none disabled:opacity-50", v, className)} />;
+  return <button {...p} className={cn("inline-flex h-11 min-w-11 items-center sm:h-9 sm:min-w-0 justify-center gap-1.5 rounded-md px-3.5 text-sm font-semibold transition active:translate-y-px disabled:pointer-events-none disabled:opacity-50", v, className)} />;
 }
 
 export function FormActions({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-2 border-t border-dashed border-border pt-4">{children}</div>;
+  return <div className="form-actions flex flex-wrap items-center gap-2 border-t border-dashed border-border pt-4">{children}</div>;
+}
+
+/**
+ * Wraps a regular <table>. Desktop: unchanged table in a contained horizontal scroller.
+ * Phone (<768px): every row becomes a card; each cell is labelled from its column header
+ * (columns hidden on desktop-small breakpoints are revealed inside the card).
+ */
+export function CardTable({ children, className, testid }: { children: ReactNode; className?: string; testid?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const label = () => {
+      const heads = Array.from(el.querySelectorAll("thead th")).map((th) => (th.querySelector(".sr-only") ? "" : (th.textContent ?? "").trim()));
+      el.querySelectorAll("tbody tr").forEach((tr) => {
+        let i = 0;
+        Array.from(tr.children).forEach((td) => {
+          const h = heads[i] ?? "";
+          if (h && td.getAttribute("data-label") !== h) td.setAttribute("data-label", h);
+          if (!h && td.hasAttribute("data-label")) td.removeAttribute("data-label");
+          i += Number((td as HTMLTableCellElement).colSpan || 1);
+        });
+      });
+    };
+    label();
+    const mo = new MutationObserver(label);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, []);
+  return <div ref={ref} data-testid={testid} className={cn("rt-cards overflow-x-auto", className)}>{children}</div>;
+}
+
+/** Dense editable grid: stays a grid on phones, scrolls inside its box with a visible swipe hint. */
+export function DenseScroll({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-1.5 border-b border-border/60 bg-muted/40 px-4 py-1.5 text-[11px] font-medium text-muted-foreground md:hidden"><MoveHorizontal className="h-3.5 w-3.5" />Swipe sideways to see every column</div>
+      <div className={cn("dense-scroll overflow-auto overscroll-x-contain", className)}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Filter toolbar. Always visible on desktop; on phones the extra filters collapse behind
+ * an accessible toggle with an active-count badge. `lead` (usually search) stays visible.
+ */
+export function Filters({ lead, children, active = 0, className, onClear }: { lead?: ReactNode; children: ReactNode; active?: number; className?: string; onClear?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const id = useRef(`filters-${Math.random().toString(36).slice(2, 8)}`).current;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {lead && <div className="min-w-0 flex-1 md:min-w-[14rem]">{lead}</div>}
+      <button type="button" aria-expanded={open} aria-controls={id} data-testid="button-toggle-filters" onClick={() => setOpen((o) => !o)}
+        className={cn("inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold md:hidden", !lead && "w-full justify-center", active ? "border-primary/40 bg-primary/5 text-primary" : "border-input bg-card")}>
+        <SlidersHorizontal className="h-4 w-4" />{lead ? <span className="sr-only">Filters</span> : "Filters"}
+        {active > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">{active}</span>}
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+      </button>
+      <div id={id} className={cn(open ? "grid" : "hidden", "w-full gap-2 md:flex md:w-auto md:flex-wrap md:items-center", className)}>
+        {children}
+        {onClear && active > 0 && <button type="button" onClick={onClear} className="h-11 rounded-md px-3 text-sm font-semibold text-primary hover:bg-muted md:h-9">Clear filters</button>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Phone-only floating primary action. Sits above the bottom navigation and safe area.
+ * Only render it for an action the user is actually permitted to take.
+ */
+export function Fab({ label, icon, onClick, testid }: { label: string; icon: ReactNode; onClick: () => void; testid: string }) {
+  return <>
+    {createPortal(
+      <button type="button" data-testid={testid} onClick={onClick}
+        className="fab fixed right-4 z-30 inline-flex h-14 items-center gap-2 rounded-full bg-primary pl-4 pr-5 text-sm font-semibold text-primary-foreground shadow-[0_10px_24px_-8px_hsl(188_52%_14%/0.6)] ring-1 ring-sidebar-primary/40 transition active:scale-95 md:hidden">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">{icon}</span>{label}
+      </button>, document.body)}
+  </>;
 }

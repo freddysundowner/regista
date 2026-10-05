@@ -5,7 +5,7 @@ import {
   type FinanceRecord, type ListFinanceRecordsParams,
 } from "@workspace/api-client-react";
 import { Download, Loader2, Plus, X } from "lucide-react";
-import { Field, NativeSelect, TextInput, Btn, Pill } from "@/components/kit";
+import { CardTable, Field, NativeSelect, TextInput, Btn, Pill } from "@/components/kit";
 import { errMsg } from "@/lib/session";
 import { kes, sumMoney, type Line } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
@@ -155,9 +155,9 @@ export function DocumentButton({ type, referenceId, label, children, fileName }:
 }
 
 export function Table({ head, children }: { head: string[]; children: ReactNode }) {
-  return <div className="overflow-x-auto"><table className="w-full text-sm">
+  return <CardTable><table className="w-full text-sm">
     <thead className="bg-muted/60 text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr>{head.map((h) => <th key={h} className="whitespace-nowrap px-4 py-2 font-semibold">{h}</th>)}</tr></thead>
     <tbody className="divide-y divide-border/60">{children}</tbody>
-  </table></div>;
+  </table></CardTable>;
 }
 export const td = "px-4 py-2.5 align-top";

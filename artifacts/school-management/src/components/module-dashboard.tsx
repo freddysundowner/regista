@@ -5,8 +5,8 @@ import { Money } from "@/components/finance-kit";
 import { errMsg, fmtDateTime } from "@/lib/session";
 
 function Stat({ k, v, sub, href }: { k: string; v: React.ReactNode; sub?: string; href?: string }) {
-  const body = <><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{k}</div><div className="mt-1 font-display text-2xl font-semibold tabular-nums">{v}</div>{sub && <div className="text-xs text-muted-foreground">{sub}</div>}</>;
-  return href ? <Link href={href} className="block border-b border-r border-border/60 px-5 py-4 hover:bg-muted/40">{body}</Link> : <div className="border-b border-r border-border/60 px-5 py-4">{body}</div>;
+  const body = <><div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:text-[11px]">{k}</div><div className="mt-1 font-display text-xl font-semibold tabular-nums [overflow-wrap:anywhere] md:text-2xl">{v}</div>{sub && <div className="text-xs text-muted-foreground">{sub}</div>}</>;
+  return href ? <Link href={href} className="block border-b border-r border-border/60 min-w-0 px-3.5 py-3 active:bg-muted/60 hover:bg-muted/40 md:px-5 md:py-4">{body}</Link> : <div className="min-w-0 border-b border-r border-border/60 px-3.5 py-3 md:px-5 md:py-4">{body}</div>;
 }
 
 export function ModuleDashboard() {

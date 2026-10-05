@@ -50,7 +50,7 @@ function MyStreams() {
   if (!q.data?.length) return <Empty icon={<Layers className="h-5 w-5" />} title="No streams assigned" body="Ask your school administrator to assign you to the streams you teach." />;
   return (
     <ul className="divide-y divide-border/60">{q.data.map((a) => (
-      <li key={a.id} data-testid={`row-my-assignment-${a.id}`} className="flex items-center justify-between px-5 py-3 text-sm"><span className="font-semibold">{a.gradeName} · {a.streamName}</span><span className="text-xs text-muted-foreground">Read access to learners</span></li>
+      <li key={a.id} data-testid={`row-my-assignment-${a.id}`} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm md:px-5"><span className="font-semibold">{a.gradeName} · {a.streamName}</span><span className="text-xs text-muted-foreground">Read access to learners</span></li>
     ))}</ul>
   );
 }

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePreviewPromotion, useCommitPromotion, useListAcademicYears, useListStreams, getListAcademicYearsQueryKey, getListStreamsQueryKey, getListStudentsQueryKey, getListGradesQueryKey, getListFamiliesQueryKey, getGetDashboardSummaryQueryKey, getListAuditLogsQueryKey, type PromotionPreview, type PromotionInputAction } from "@workspace/api-client-react";
 import { ArrowRight, GraduationCap, Loader2 } from "lucide-react";
-import { Panel, Btn, Field, NativeSelect, TextInput, FormError, FormActions } from "@/components/kit";
+import { Panel, Btn, Field, NativeSelect, TextInput, FormError, FormActions, CardTable } from "@/components/kit";
 import { errMsg } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 import { FormDialog } from "@/components/form-dialog";
@@ -91,8 +91,8 @@ function PromotionWorkflow({ onBusy, onDone }: { onBusy: (b: boolean) => void; o
           </div>
           {p.count === 0 ? <p className="rounded border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">No eligible learners. Learners already promoted from this year are excluded.</p> : (
             <div className="max-h-72 overflow-auto rounded border border-border">
-              <table className="w-full text-sm"><thead className="sticky top-0 bg-muted text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr><th className="px-3 py-2">Adm. no.</th><th className="px-3 py-2">Name</th><th className="px-3 py-2">Current grade</th></tr></thead>
-                <tbody>{p.students.map((s) => <tr key={s.id} data-testid={`row-promotion-${s.id}`} className="border-t border-border/50"><td className="px-3 py-1.5 font-mono text-xs">{s.admissionNo}</td><td className="px-3 py-1.5">{s.name}</td><td className="px-3 py-1.5 text-muted-foreground">{s.gradeName ?? "\u2014"}</td></tr>)}</tbody></table>
+              <CardTable><table className="w-full text-sm"><thead className="sticky top-0 bg-muted text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr><th className="px-3 py-2">Adm. no.</th><th className="px-3 py-2">Name</th><th className="px-3 py-2">Current grade</th></tr></thead>
+                <tbody>{p.students.map((s) => <tr key={s.id} data-testid={`row-promotion-${s.id}`} className="border-t border-border/50"><td className="px-3 py-1.5 font-mono text-xs">{s.admissionNo}</td><td className="px-3 py-1.5">{s.name}</td><td className="px-3 py-1.5 text-muted-foreground">{s.gradeName ?? "\u2014"}</td></tr>)}</tbody></table></CardTable>
             </div>
           )}
           {p.count > 0 && (

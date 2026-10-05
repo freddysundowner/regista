@@ -54,8 +54,8 @@ export default function PlatformSchool() {
         {dlg?.kind === "reset" && <ResetPasswordForm schoolId={s.id} admin={dlg.admin} onDone={() => setDlg(null)} />}
       </FormDialog>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
-        <div className="space-y-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-6">
           <Panel title="School administrators" note={aq.data ? `${activeAdmins} active of ${aq.data.length}. The last active administrator is protected.` : undefined}
             action={<Btn className="h-8" data-testid="button-add-admin" onClick={() => setDlg({ kind: "add" })}><Plus className="h-4 w-4" />Add</Btn>}>
             {aq.isLoading ? <SkeletonRows rows={3} cols={3} /> : aq.isError ? <ErrorState msg={errMsg(aq.error)} onRetry={() => aq.refetch()} /> : !aq.data?.length ? (
@@ -65,10 +65,10 @@ export default function PlatformSchool() {
                 <li key={a.id} data-testid={`row-admin-${a.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{initials(a.name)}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-sm font-semibold">{a.name}<Pill tone={a.isActive ? "active" : "inactive"}>{a.isActive ? "active" : "disabled"}</Pill></div>
+                    <div className="flex flex-wrap items-center gap-2 break-words text-sm font-semibold">{a.name}<Pill tone={a.isActive ? "active" : "inactive"}>{a.isActive ? "active" : "disabled"}</Pill></div>
                     <div className="truncate text-xs text-muted-foreground">{[a.email, a.phone].filter(Boolean).join(" · ") || "No contact"} · Last sign-in {fmtDateTime(a.lastLoginAt)}</div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex w-full flex-wrap gap-1 sm:w-auto">
                     <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid={`button-edit-admin-${a.id}`} onClick={() => setDlg({ kind: "edit", admin: a })}><Pencil className="h-3.5 w-3.5" />Edit</Btn>
                     <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid={`button-reset-admin-${a.id}`} onClick={() => setDlg({ kind: "reset", admin: a })}><KeyRound className="h-3.5 w-3.5" />Reset</Btn>
                     <Btn variant={a.isActive ? "danger" : "outline"} className="h-8 px-2.5 text-xs" data-testid={`button-status-admin-${a.id}`} onClick={() => setDlg({ kind: "status", admin: a })}><Power className="h-3.5 w-3.5" />{a.isActive ? "Disable" : "Enable"}</Btn>

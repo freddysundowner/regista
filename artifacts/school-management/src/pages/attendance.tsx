@@ -56,10 +56,10 @@ export default function Attendance() {
                   <button key={o.v} type="button" role="radio" aria-checked={statusOf(s.id) === o.v} aria-label={o.v} onClick={() => { setMarks({ ...marks, [s.id]: o.v }); setChecked(false); }}
                     className={`h-10 w-10 rounded-md text-sm font-semibold transition-colors sm:h-8 sm:w-8 ${statusOf(s.id) === o.v ? o.cls : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>{o.label}</button>))}</div>
               </li>))}</ul>
-            <div className="sticky bottom-0 space-y-2 border-t border-border/70 bg-card/95 p-4 backdrop-blur">
+            <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 space-y-2 md:bottom-0 border-t border-border/70 bg-card/95 p-4 backdrop-blur">
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" data-testid="check-register-confirm" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> I have checked all {learners.length} learners for {fmtDate(date)}</label>
               <FormError msg={err} />
-              <Btn data-testid="button-submit-register" disabled={save.isPending} onClick={submit}>{save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Submit register ({learners.length})</Btn>
+              <Btn data-testid="button-submit-register" className="w-full sm:w-auto" disabled={save.isPending} onClick={submit}>{save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Submit register ({learners.length})</Btn>
             </div>
           </>}
       </Panel>

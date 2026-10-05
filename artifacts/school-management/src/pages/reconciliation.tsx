@@ -7,7 +7,7 @@ import {
   type IncomingPaymentView, type ExceptionView, type ResolutionInputAction, type IncomingInput, type IncomingInputChannel, type StatementFileInputFormat, type SponsorInputType,
 } from "@workspace/api-client-react";
 import { ArrowLeftRight, FileSpreadsheet, HandCoins, Loader2, Plus, Upload, X } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { useFinanceRecords, useStudentNames, Money, MoneyInput, StudentPicker, Table, td } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDateTime, nairobiToday } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, sumMoney, toCents, kes } from "@/lib/finance";
@@ -316,7 +316,7 @@ export default function Reconciliation() {
         {p.bursar && <>
           <Btn variant="outline" data-testid="button-import-statement" onClick={() => setFlow("statement")}><FileSpreadsheet className="h-4 w-4" />Import bank statement</Btn>
           <Btn variant="outline" data-testid="button-sponsor-allocate" onClick={() => setFlow("sponsor")}><HandCoins className="h-4 w-4" />Allocate sponsor lump sum</Btn>
-          <Btn data-testid="button-enter-credit" onClick={() => setIngest(true)}><Plus className="h-4 w-4" />Enter bank/M-Pesa credit</Btn>
+          <Btn data-testid="button-enter-credit" className="max-md:hidden" onClick={() => setIngest(true)}><Plus className="h-4 w-4" />Enter bank/M-Pesa credit</Btn>
         </>}
       </PageHeader>
       {p.bursar && <>
@@ -326,7 +326,7 @@ export default function Reconciliation() {
       </>}
       <Queue pays={pays} />
       <TextInput aria-label="Search incoming payments" placeholder="Search reference, payer or phone" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
-      <Panel title="Incoming payments" action={<NativeSelect aria-label="Status" className="h-8 w-40 text-xs" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option>{["received", "matched", "unmatched", "suspended", "sponsor_pending", "duplicate"].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}</NativeSelect>}>
+      <Panel title="Incoming payments" action={<NativeSelect aria-label="Status" className="w-full text-xs sm:h-8 sm:w-40" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option>{["received", "matched", "unmatched", "suspended", "sponsor_pending", "duplicate"].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}</NativeSelect>}>
         {q.isLoading ? <SkeletonRows cols={6} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<ArrowLeftRight className="h-5 w-5" />} title="Nothing received" body="Paybill confirmations, STK results and statement credits appear here." /> : (
           <Table head={["Reference", "Channel", "Payer", "Amount", "Time", "Status"]}>{q.data.map((x) => (
             <tr key={x.id} data-testid={`row-incoming-${x.id}`}><td className={`${td} font-mono text-xs`}>{x.providerTxnId}<div className="font-sans text-muted-foreground">{x.accountReference}</div></td><td className={`${td} text-xs`}>{CH[x.channel] ?? x.channel}<div className="text-muted-foreground">{x.provider}</div></td>
@@ -335,9 +335,10 @@ export default function Reconciliation() {
         )}
       </Panel>
       <CollectionRefundsPanel />
-      <div className="flex items-center justify-end gap-3"><Btn variant="outline" disabled={page === 1 || q.isFetching} onClick={() => setPage(page - 1)}>Previous</Btn><span>Incoming payments · page {page}</span><Btn variant="outline" disabled={(q.data?.length ?? 0) < 50 || q.isFetching} onClick={() => setPage(page + 1)}>Next</Btn></div>
+      <div className="flex flex-wrap items-center justify-end gap-3"><Btn variant="outline" disabled={page === 1 || q.isFetching} onClick={() => setPage(page - 1)}>Previous</Btn><span>Incoming payments · page {page}</span><Btn variant="outline" disabled={(q.data?.length ?? 0) < 50 || q.isFetching} onClick={() => setPage(page + 1)}>Next</Btn></div>
       <SponsorBatchesPanel />
       <Runs />
+      {p.bursar && <Fab testid="fab-enter-credit" label="Enter credit" icon={<Plus className="h-4 w-4" />} onClick={() => setIngest(true)} />}
     </div>
   );
 }

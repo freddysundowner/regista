@@ -142,9 +142,9 @@ export default function Curriculum() {
         <Panel title="Performance scales" note="Percentage bands map marks to levels. Each grade uses one scale.">
           {!c.scales.length ? <Empty icon={<Sprout className="h-5 w-5" />} title="No scales" body="Seed the CBC 4- and 8-level scales or define your own." /> : (
             <div className="grid gap-4 p-5 md:grid-cols-2">{c.scales.map((s) => (
-              <div key={s.id} className="rounded-md border border-border/70">
+              <div key={s.id} className="min-w-0 rounded-md border border-border/70">
                 <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2"><span className="font-semibold">{s.name}</span><Pill tone="current">{s.levels.length} levels</Pill>{ed("scale", s.id)}<span className="ml-auto text-xs text-muted-foreground">{c.gradeScales.filter((g) => g.scaleId === s.id).map((g) => gname.get(g.gradeId)).filter(Boolean).join(", ") || "No grades"}</span></div>
-                <table className="w-full text-xs"><tbody>{[...s.levels].sort((a, b) => a.order - b.order).map((l) => <tr key={l.id} className="border-b border-border/40 last:border-0"><td className="px-3 py-1 font-mono font-semibold">{l.code}</td><td className="px-3 py-1">{l.label}</td><td className="px-3 py-1 tabular-nums">{l.minPercent}–{l.maxPercent}%</td><td className="px-3 py-1 tabular-nums">{l.points} pts</td></tr>)}</tbody></table>
+                <div className="overflow-x-auto"><table className="w-full text-xs"><tbody>{[...s.levels].sort((a, b) => a.order - b.order).map((l) => <tr key={l.id} className="border-b border-border/40 last:border-0"><td className="px-3 py-1 font-mono font-semibold">{l.code}</td><td className="px-3 py-1">{l.label}</td><td className="px-3 py-1 tabular-nums">{l.minPercent}–{l.maxPercent}%</td><td className="px-3 py-1 tabular-nums">{l.points} pts</td></tr>)}</tbody></table></div>
               </div>))}</div>
           )}
                     {p.academicAdmin && <Adder label="New scale" title="Create a performance scale" description="Bands must run 0 to 100 with no gaps or overlaps." size="lg">{(close) => <ScaleForm close={close} />}</Adder>}

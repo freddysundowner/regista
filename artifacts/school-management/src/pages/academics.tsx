@@ -65,10 +65,10 @@ function Years() {
       </FormDialog>
       {q.isLoading ? <SkeletonRows rows={2} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<CalendarRange className="h-5 w-5" />} title="No academic year" body="Start with the current calendar year — Kenyan schools typically run January to November." /> : (
         <ul className="divide-y divide-border/60">{q.data.map((y) => (
-          <li key={y.id} data-testid={`row-year-${y.id}`} className="group flex items-center gap-3 px-5 py-3">
+          <li key={y.id} data-testid={`row-year-${y.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 md:px-5">
             <span className="font-display text-xl font-semibold">{y.name}</span>{y.isCurrent && <Pill tone="current">Current</Pill>}
-            <span className="ml-auto font-mono text-xs text-muted-foreground">{fmtDate(y.startDate)} – {fmtDate(y.endDate)}</span>
-            <button data-testid={`button-edit-year-${y.id}`} onClick={() => setMode(y)} className="rounded p-1.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground group-hover:opacity-100"><Pencil className="h-3.5 w-3.5" /></button>
+            <span className="font-mono text-xs max-md:order-last max-md:basis-full md:ml-auto text-muted-foreground">{fmtDate(y.startDate)} – {fmtDate(y.endDate)}</span>
+            <button data-testid={`button-edit-year-${y.id}`} aria-label={`Edit ${y.name}`} onClick={() => setMode(y)} className="rounded p-1.5 text-muted-foreground opacity-60 max-md:border max-md:border-border max-md:p-3 max-md:opacity-100 hover:bg-muted hover:text-foreground group-hover:opacity-100"><Pencil className="h-3.5 w-3.5" /></button>
           </li>))}</ul>
       )}
     </Panel>
@@ -91,7 +91,7 @@ function Terms() {
   const defaultYear = years.data?.find((y) => y.isCurrent)?.id ?? years.data?.[0]?.id ?? "";
   return (
     <Panel title="Terms" note="Usually three per year." action={<div className="flex gap-2">
-      <NativeSelect data-testid="filter-term-year" value={yearId} onChange={(e) => setYearId(e.target.value)} className="h-8 w-32 text-xs"><option value="">All years</option>{years.data?.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}</NativeSelect>
+      <NativeSelect data-testid="filter-term-year" value={yearId} onChange={(e) => setYearId(e.target.value)} className="w-full text-xs sm:h-8 sm:w-32"><option value="">All years</option>{years.data?.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}</NativeSelect>
       {<Btn variant="outline" className="h-8" data-testid="button-new-term" disabled={!years.data?.length} onClick={() => { setNewYear(yearId || defaultYear); setMode("new"); }}><Plus className="h-3.5 w-3.5" /> Term</Btn>}
     </div>}>
       <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) { setMode(null); setErr(null); } }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Create term" : mode ? `Edit ${mode.name} ${mode.academicYearName}` : "Term"} description="Term dates drive invoicing periods and attendance.">
@@ -103,10 +103,10 @@ function Terms() {
       </FormDialog>
       {q.isLoading ? <SkeletonRows rows={3} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<CalendarRange className="h-5 w-5" />} title="No terms" body={years.data?.length ? "Add Term 1, 2 and 3 for the current year." : "Create an academic year first."} /> : (
         <ul className="divide-y divide-border/60">{q.data.map((t) => (
-          <li key={t.id} data-testid={`row-term-${t.id}`} className="group flex items-center gap-3 px-5 py-3">
+          <li key={t.id} data-testid={`row-term-${t.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 md:px-5">
             <span className="font-semibold">{t.name}</span><span className="text-xs text-muted-foreground">{t.academicYearName}</span>{t.isCurrent && <Pill tone="current">Current</Pill>}
-            <span className="ml-auto font-mono text-xs text-muted-foreground">{fmtDate(t.startDate)} – {fmtDate(t.endDate)}</span>
-            <button data-testid={`button-edit-term-${t.id}`} onClick={() => setMode(t)} className="rounded p-1.5 text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground group-hover:opacity-100"><Pencil className="h-3.5 w-3.5" /></button>
+            <span className="font-mono text-xs max-md:order-last max-md:basis-full md:ml-auto text-muted-foreground">{fmtDate(t.startDate)} – {fmtDate(t.endDate)}</span>
+            <button data-testid={`button-edit-term-${t.id}`} aria-label="Edit term" onClick={() => setMode(t)} className="rounded p-1.5 text-muted-foreground opacity-60 max-md:border max-md:border-border max-md:p-3 max-md:opacity-100 hover:bg-muted hover:text-foreground group-hover:opacity-100"><Pencil className="h-3.5 w-3.5" /></button>
           </li>))}</ul>
       )}
     </Panel>

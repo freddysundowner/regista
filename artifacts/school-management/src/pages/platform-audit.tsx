@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useListPlatformSchools, getListPlatformAuditQueryKey, getListPlatformAuditUrl, getListPlatformSchoolsQueryKey, type PlatformAudit } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, ScrollText, Search } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, TextInput, NativeSelect } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, TextInput, NativeSelect, CardTable, Filters } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
 import { errMsg, fmtDateTime } from "@/lib/session";
 
@@ -58,18 +58,17 @@ export default function PlatformAuditPage() {
           <div className="grid gap-3 md:grid-cols-2"><div><div className="mb-1 text-xs font-semibold">Before</div><Json v={open.before} /></div><div><div className="mb-1 text-xs font-semibold">After</div><Json v={open.after} /></div></div>
         </div>}
       </FormDialog>
-      <div className="rise-1 flex flex-col gap-2 lg:flex-row">
-        <div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <TextInput data-testid="input-search-audit" aria-label="Search all audit history" className="pl-9" maxLength={200} placeholder="Search all history: reason, action or entity" value={term} onChange={(e) => { setTerm(e.target.value); reset(); }} /></div>
+      <div className="rise-1"><Filters active={(schoolId ? 1 : 0) + (action ? 1 : 0)} lead={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <TextInput data-testid="input-search-audit" aria-label="Search all audit history" className="pl-9" maxLength={200} placeholder="Search all history: reason, action or entity" value={term} onChange={(e) => { setTerm(e.target.value); reset(); }} /></div>}>
         <NativeSelect data-testid="select-audit-school" aria-label="School" className="lg:w-56" value={schoolId} onChange={(e) => { setSchoolId(e.target.value); reset(); }}><option value="">All schools</option>{(sq.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect>
         <TextInput data-testid="select-audit-action" aria-label="Exact action filter" className="lg:w-56" maxLength={160} placeholder="Exact action (optional)" value={action} onChange={(e) => { setAction(e.target.value); reset(); }} />
         <NativeSelect data-testid="select-audit-limit" aria-label="Entries per page" className="lg:w-36" value={limit} onChange={(e) => { setLimit(Number(e.target.value)); reset(); }}>{[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n} per page</option>)}</NativeSelect>
-      </div>
+      </Filters></div>
       <Panel className="rise-1">
         {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !rows.length ? (
           <><Empty icon={<ScrollText className="h-5 w-5" />} title="No entries" body="No audit entries match this page and its filters." />{page > 1 && <Btn variant="outline" className="m-4" onClick={() => setPage(page - 1)}>Previous page</Btn>}</>
         ) : (<>
-          <div className="overflow-x-auto"><table className="w-full text-sm">
+          <CardTable testid="table-platform-audit"><table className="w-full text-sm">
             <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2.5">When</th><th className="px-3 py-2.5">Action</th><th className="px-3 py-2.5">School</th><th className="px-3 py-2.5">Reason</th></tr></thead>
             <tbody>{rows.map((e) => (
               <tr key={e.id} data-testid={`row-audit-${e.id}`} onClick={() => setOpen(e)} className="cursor-pointer border-b border-border/50 last:border-0 hover:bg-accent/30">
@@ -79,7 +78,7 @@ export default function PlatformAuditPage() {
                 <td className="max-w-md truncate px-3 py-2.5 text-xs text-muted-foreground">{e.reason}</td>
               </tr>
             ))}</tbody>
-          </table></div>
+          </table></CardTable>
           <div className="flex items-center justify-between border-t border-border/60 px-5 py-2.5 text-xs text-muted-foreground">
             <span data-testid="text-audit-range">{(page - 1) * limit + 1} to {(page - 1) * limit + rows.length} of {total} matching entries</span>
             <div className="flex gap-1">

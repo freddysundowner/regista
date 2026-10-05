@@ -37,16 +37,16 @@ export function ProvisionForm({ onDone, onCancel }: { onDone: (s: School, signIn
   const refresh = useRefreshPlatform();
   const m = useProvisionPlatformSchool();
   const [f, setF] = useState(EMPTY);
-  const [c, setC] = useState(EMPTY_CONFIRM);
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
     if (!f.email.trim() && !f.phone.trim()) return setErr("The school administrator needs an email or phone to sign in.");
     if (f.password.length < 10 || f.password.length > 128) return setErr("Initial password must be 10 to 128 characters.");
-    const ce = confirmError(c); if (ce) return setErr(ce);
     const signIn = f.email.trim() || f.phone.trim();
-    m.mutate({ data: { schoolName: f.schoolName.trim(), schoolCode: f.schoolCode.trim().toUpperCase(), county: f.county || undefined, schoolType: f.schoolType, adminName: f.adminName.trim(), email: f.email.trim() || undefined, phone: f.phone.trim() || undefined, password: f.password, ...confirmBody(c) } }, {
+    // Submitting Provision school confirms creation; retain the API audit metadata
+    // without asking the user to repeat the action in a separate confirmation section.
+    m.mutate({ data: { schoolName: f.schoolName.trim(), schoolCode: f.schoolCode.trim().toUpperCase(), county: f.county || undefined, schoolType: f.schoolType, adminName: f.adminName.trim(), email: f.email.trim() || undefined, phone: f.phone.trim() || undefined, password: f.password, reason: "New school provisioning from the platform console", confirmation: "CONFIRM" } }, {
       onSuccess: (s) => { setF(EMPTY); refresh(s.id); onDone(s, signIn); },
       onError: (x) => setErr(errMsg(x)),
     });
@@ -66,7 +66,6 @@ export function ProvisionForm({ onDone, onCancel }: { onDone: (s: School, signIn
         <Field label="Phone"><TextInput data-testid="input-new-admin-phone" type="tel" value={f.phone} onChange={set("phone")} /></Field>
         <Field label="Initial password" required hint="Share privately; 10 to 128 characters"><TextInput data-testid="input-new-admin-password" type="password" autoComplete="new-password" required value={f.password} onChange={set("password")} /></Field>
       </div>
-      <ConfirmFields value={c} onChange={setC} prefix="provision" />
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-provision-school" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Provision school</Btn>

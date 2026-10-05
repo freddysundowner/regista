@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListGuardians, useCreateGuardian, useUpdateGuardian, useExportGuardian, getExportGuardianQueryKey, useAnonymizeGuardian, getListAuditLogsQueryKey, type Guardian, useListFamilies, getListGuardiansQueryKey, getListFamiliesQueryKey, getGetDashboardSummaryQueryKey, getListStudentsQueryKey } from "@workspace/api-client-react";
 import { Download, FileJson, Loader2, Pencil, Plus, Search, ShieldOff, Users } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, CardTable, Fab } from "@/components/kit";
 import { usePerms, errMsg, blank, initials, fmtDateTime } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -126,7 +126,7 @@ export default function Guardians() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Contacts" title="Guardians & families" meta="Siblings are grouped when they share a guardian phone number.">
-        {p.writeStudents && <Btn data-testid="button-new-guardian" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add guardian</Btn>}
+        {p.writeStudents && <Btn data-testid="button-new-guardian" className="max-md:hidden" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Add guardian</Btn>}
       </PageHeader>
       <FormDialog open={creating} onOpenChange={setCreating} size="lg" title="Add a guardian" description="Guardians can be linked to learners from the student record."><GuardianForm onDone={() => setCreating(false)} /></FormDialog>
       <FormDialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }} size="lg" title={editing ? `Edit ${editing.name}` : "Edit guardian"} description="Phone changes affect sibling matching for future imports.">{editing && <GuardianForm key={editing.id} guardian={editing} onDone={() => setEditing(null)} />}</FormDialog>
@@ -146,7 +146,7 @@ export default function Guardians() {
               <input data-testid="input-search-guardians" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Search by name or phone" className="h-9 w-full rounded-md border border-input bg-background/60 pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/20" /></div>
           </div>
           {g.isLoading ? <SkeletonRows cols={4} /> : g.isError ? <ErrorState msg={errMsg(g.error)} onRetry={() => g.refetch()} /> : !g.data?.length ? <Empty icon={<Users className="h-5 w-5" />} title={deb ? "No matches" : "No guardians yet"} body={deb ? "Check the spelling or phone number." : "Guardians are created when you admit students, import, or add them here."} /> : (
-            <div className="overflow-x-auto"><table className="w-full text-sm">
+            <CardTable testid="table-guardians"><table className="w-full text-sm">
               <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2.5">Guardian</th><th className="px-3 py-2.5">Phone</th><th className="hidden px-3 py-2.5 md:table-cell">Relationship</th><th className="px-3 py-2.5">Learners</th>{(p.writeStudents || p.manageGuardianPrivacy) && <th className="px-3 py-2.5"><span className="sr-only">Actions</span></th>}</tr></thead>
               <tbody>{g.data.map((x) => (
                 <tr key={x.id} data-testid={`row-guardian-${x.id}`} className="border-b border-border/50 last:border-0 hover:bg-accent/30">
@@ -155,12 +155,12 @@ export default function Guardians() {
                   <td className="hidden px-3 py-3 md:table-cell">{x.relationship ?? "—"}</td>
                   <td className="px-3 py-3">{x.studentCount === 0 ? <span className="text-muted-foreground">None linked</span> : <span title={x.studentNames.join(", ")}>{x.studentNames.slice(0, 2).join(", ")}{x.studentCount > 2 && <span className="text-muted-foreground"> +{x.studentCount - 2}</span>}</span>}</td>
                   {(p.writeStudents || p.manageGuardianPrivacy) && <td className="px-3 py-3"><div className="flex items-center gap-0.5">
-                    {p.writeStudents && !x.anonymizedAt && <button data-testid={`button-edit-guardian-${x.id}`} title="Edit guardian" aria-label={`Edit ${x.name}`} onClick={() => { setCreating(false); setExporting(null); setAnonymizing(null); setEditing(x); }} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}
-                    {p.manageGuardianPrivacy && <button data-testid={`button-export-guardian-${x.id}`} title="Export data" aria-label={`Export data for ${x.name}`} onClick={() => { setEditing(null); setAnonymizing(null); setExporting(x); }} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><FileJson className="h-3.5 w-3.5" /></button>}
-                    {p.manageGuardianPrivacy && !x.anonymizedAt && <button data-testid={`button-anonymize-guardian-${x.id}`} title="Anonymize" aria-label={`Anonymize ${x.name}`} onClick={() => { setEditing(null); setExporting(null); setAnonymizing(x); }} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><ShieldOff className="h-3.5 w-3.5" /></button>}
+                    {p.writeStudents && !x.anonymizedAt && <button data-testid={`button-edit-guardian-${x.id}`} title="Edit guardian" aria-label={`Edit ${x.name}`} onClick={() => { setCreating(false); setExporting(null); setAnonymizing(null); setEditing(x); }} className="rounded p-1.5 text-muted-foreground max-md:border max-md:border-border max-md:p-3 hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}
+                    {p.manageGuardianPrivacy && <button data-testid={`button-export-guardian-${x.id}`} title="Export data" aria-label={`Export data for ${x.name}`} onClick={() => { setEditing(null); setAnonymizing(null); setExporting(x); }} className="rounded p-1.5 text-muted-foreground max-md:border max-md:border-border max-md:p-3 hover:bg-muted hover:text-foreground"><FileJson className="h-3.5 w-3.5" /></button>}
+                    {p.manageGuardianPrivacy && !x.anonymizedAt && <button data-testid={`button-anonymize-guardian-${x.id}`} title="Anonymize" aria-label={`Anonymize ${x.name}`} onClick={() => { setEditing(null); setExporting(null); setAnonymizing(x); }} className="rounded p-1.5 text-muted-foreground max-md:border max-md:border-border max-md:p-3 hover:bg-destructive/10 hover:text-destructive"><ShieldOff className="h-3.5 w-3.5" /></button>}
                   </div></td>}
                 </tr>))}</tbody>
-            </table></div>
+            </table></CardTable>
           )}
         </Panel>
       ) : (
@@ -180,6 +180,7 @@ export default function Guardians() {
           </div>
         )
       )}
+      {p.writeStudents && <Fab testid="fab-new-guardian" label="Add guardian" icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)} />}
     </div>
   );
 }

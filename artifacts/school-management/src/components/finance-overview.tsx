@@ -17,7 +17,7 @@ export function FinanceOverviewPanel() {
       {q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : (
         <div className="grid grid-cols-2 lg:grid-cols-4">
           {(q.isLoading ? Array.from({ length: 4 }, () => null) : cells).map((c, i) => (
-            <div key={i} className="border-r border-t border-border/60 px-5 py-4 last:border-r-0">
+            <div key={i} className="min-w-0 border-r border-t border-border/60 px-3.5 py-3 last:border-r-0 md:px-5 md:py-4">
               {c ? <><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{c.k}</div><div data-testid={`stat-finance-${i}`} className={`mt-1 font-mono text-lg font-semibold tabular-nums ${"warn" in c && c.warn ? "text-amber-800" : ""}`}>{c.v}</div></>
                 : <div className="space-y-2"><div className="h-3 w-16 animate-pulse rounded bg-muted" /><div className="h-6 w-28 animate-pulse rounded bg-muted" /></div>}
             </div>

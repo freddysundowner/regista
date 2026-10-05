@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListPaymentPlans, useCreatePaymentPlan, useDecidePaymentPlan, getListPaymentPlansQueryKey, type PlanView, type DecisionInputDecision } from "@workspace/api-client-react";
 import { CalendarClock, Loader2, Plus, X } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { useStudentNames, useTermNames, Money, MoneyInput, StudentPicker, TermSelect, Table, td } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDate, nairobiToday } from "@/lib/session";
 import { useFinanceInvalidate, validMoney, sumMoney } from "@/lib/finance";
@@ -90,13 +90,14 @@ export default function PaymentPlans() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Collections" title="Payment plans" meta="Instalment agreements. Proposed by the bursar or a parent, approved by the principal or administrator.">
-        {p.bursar && <Btn data-testid="button-new-plan" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />New plan</Btn>}
+        {p.bursar && <Btn data-testid="button-new-plan" className="max-md:hidden" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />New plan</Btn>}
       </PageHeader>
       {p.bursar && <FormDialog open={open} onOpenChange={setOpen} size="lg" title="Propose a payment plan" description="A learner can have one unresolved plan, including a defaulted plan. Only net payments satisfy installments; waivers and invoice cancellations do not."><NewPlan onDone={() => setOpen(false)} /></FormDialog>}
-      <Panel action={<NativeSelect aria-label="Status" className="h-8 w-36 text-xs" value={st} onChange={(e) => setSt(e.target.value)}><option value="">All plans</option>{["proposed", "active", "completed", "defaulted", "rejected"].map((s) => <option key={s} value={s}>{s}</option>)}</NativeSelect>} title="Plans">
+      <Panel action={<NativeSelect aria-label="Status" className="w-full text-xs sm:h-8 sm:w-36" value={st} onChange={(e) => setSt(e.target.value)}><option value="">All plans</option>{["proposed", "active", "completed", "defaulted", "rejected"].map((s) => <option key={s} value={s}>{s}</option>)}</NativeSelect>} title="Plans">
         {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !list.length ? <Empty icon={<CalendarClock className="h-5 w-5" />} title="No plans" body="Plans that parents request through the bot also appear here." /> : <PlanTable plans={list} decide={p.planDecide} />}
       </Panel>
       <div className="flex items-center justify-end gap-3"><span>{filtered.length} plans · page {currentPage}</span><Btn variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Btn><Btn variant="outline" disabled={currentPage * 25 >= filtered.length} onClick={() => setPage(currentPage + 1)}>Next</Btn></div>
+      {p.bursar && <Fab testid="fab-new-plan" label="New plan" icon={<Plus className="h-4 w-4" />} onClick={() => setOpen(true)} />}
     </div>
   );
 }

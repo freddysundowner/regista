@@ -20,8 +20,14 @@ function Frame({ children, side }: { children: ReactNode; side: ReactNode }) {
         <div className="relative pl-10">{side}</div>
         <div className="relative pl-10 font-mono text-[11px] uppercase tracking-[0.2em] text-sidebar-foreground/50">Admission register · Guardians · Audit trail</div>
       </aside>
-      <div className="flex items-center justify-center px-5 py-10 md:px-12">
-        <div className="rise w-full max-w-xl">{children}</div>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2.5 bg-sidebar px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-sidebar-foreground lg:hidden">
+          <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-sidebar-primary font-display text-lg font-bold text-sidebar-primary-foreground">R</div>
+          <div className="min-w-0"><div className="font-display text-lg font-semibold leading-tight text-sidebar-accent-foreground">Rejista</div><div className="truncate font-mono text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">Admission register · Guardians · Audit</div></div>
+        </div>
+        <div className="flex flex-1 items-start justify-center px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-8 md:items-center md:px-12 md:py-10">
+          <div className="rise w-full max-w-xl">{children}</div>
+        </div>
       </div>
     </div>
   );

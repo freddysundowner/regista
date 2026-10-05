@@ -30,7 +30,7 @@ export default function Audit() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Accountability" title="Audit history" meta="Every create, edit and import, with who did it. Times shown in East Africa Time (Nairobi). Select an entry for before/after detail.">
-        <NativeSelect data-testid="filter-entity" value={entity} onChange={(e) => setEntity(e.target.value)} className="w-40"><option value="">All records</option>{entities.map((e) => <option key={e} value={e}>{e}</option>)}</NativeSelect>
+        <NativeSelect data-testid="filter-entity" value={entity} onChange={(e) => setEntity(e.target.value)} className="w-full sm:w-40"><option value="">All records</option>{entities.map((e) => <option key={e} value={e}>{e}</option>)}</NativeSelect>
       </PageHeader>
       <Panel className="rise-1">
         {q.isLoading ? <SkeletonRows rows={8} cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !rows.length ? <Empty icon={<ClipboardList className="h-5 w-5" />} title="Nothing recorded yet" body="Audit entries appear as soon as anyone changes the register." /> : (

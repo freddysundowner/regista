@@ -6,7 +6,7 @@ import {
   type AssessmentView, type AssessmentInputType, type ResultView, type ResultInput, type RatingInputCategory,
 } from "@workspace/api-client-react";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, CloudOff, Loader2, Lock, Plus, Unlock } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { GradeSelect, TermSelect } from "@/components/finance-kit";
 import { useCurriculum } from "@/pages/curriculum";
 import { usePerms, useSession, errMsg, fmtDate, nairobiToday } from "@/lib/session";
@@ -150,7 +150,7 @@ function Grid({ a }: { a: AssessmentView }) {
     <Panel title={a.name} note={`${nice(a.type)} · ${fmtDate(a.date)} · ${a.maxMarks ? `out of ${a.maxMarks}` : "rubric levels"} · weight ${a.weight}`}
       action={<div className="flex items-center gap-2 text-xs">{q.pending > 0 ? <span className="flex items-center gap-1 text-amber-800">{navigator.onLine === false ? <CloudOff className="h-3.5 w-3.5" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}{q.pending} unsaved</span> : <span className="flex items-center gap-1 text-primary"><CheckCircle2 className="h-3.5 w-3.5" />All saved</span>}{locked && <Pill tone="inactive">Locked</Pill>}</div>}>
       <div className="flex flex-wrap items-end gap-3 border-b border-border/70 p-4">
-        {subs.length > 0 && <Field label="Sub-strand" className="w-60"><NativeSelect value={sub} onChange={(e) => setSub(e.target.value)}><option value="">Whole assessment</option>{subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></Field>}
+        {subs.length > 0 && <Field label="Sub-strand" className="w-full sm:w-60"><NativeSelect value={sub} onChange={(e) => setSub(e.target.value)}><option value="">Whole assessment</option>{subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect></Field>}
         {(!locked || p.academicAdmin) && <div className="ml-auto flex flex-wrap items-end gap-2">
           <Field label={locked ? "Unlock reason" : "Lock reason"}><TextInput value={lockReason} onChange={(e) => setLockReason(e.target.value)} placeholder={locked ? "Correct a mis-keyed mark" : "Marks verified"} /></Field>
           <Btn variant="outline" disabled={lock.isPending} onClick={() => doLock(!locked)}>{locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}{locked ? "Unlock" : "Lock marks"}</Btn>
@@ -162,17 +162,17 @@ function Grid({ a }: { a: AssessmentView }) {
           const d = draftOf(s.id); const k = `${s.id}:${sub}`; const c = q.cells[k]; const auto = computed(d.marks); const server = byStudent.get(s.id);
           const overriding = !rubric && d.levelId && auto && d.levelId !== auto.id;
           return (
-            <li key={s.id} data-testid={`row-result-${s.id}`} className={`grid gap-2 px-4 py-3 sm:grid-cols-[1.4fr_0.8fr_1fr_1.4fr_auto] sm:items-center ${c?.status === "conflict" ? "bg-destructive/5" : ""}`}>
-              <div className="text-sm"><div className="font-medium">{s.fullName}</div><div className="font-mono text-[11px] text-muted-foreground">{s.admissionNo}{s.streamName ? ` · ${s.streamName}` : ""}{server ? ` · rev ${server.revision}` : ""}</div></div>
+            <li key={s.id} data-testid={`row-result-${s.id}`} className={`grid grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-[1.4fr_0.8fr_1fr_1.4fr_auto] sm:items-center ${c?.status === "conflict" ? "bg-destructive/5" : ""}`}>
+              <div className="col-span-2 text-sm sm:col-span-1"><div className="font-medium">{s.fullName}</div><div className="font-mono text-[11px] text-muted-foreground">{s.admissionNo}{s.streamName ? ` · ${s.streamName}` : ""}{server ? ` · rev ${server.revision}` : ""}</div></div>
               {rubric ? <div className="hidden sm:block" /> : <TextInput aria-label={`Marks for ${s.fullName}`} inputMode="decimal" disabled={locked} className="font-mono" value={d.marks} placeholder={`/ ${a.maxMarks}`} onChange={(e) => edit(s.id, { marks: e.target.value.replace(/[^\d.]/g, ""), levelId: "" })} />}
-              <NativeSelect aria-label={`Level for ${s.fullName}`} disabled={locked || !levels.length} value={rubric ? d.levelId : d.levelId || auto?.id || ""} onChange={(e) => edit(s.id, { levelId: e.target.value }, rubric ? 300 : 1500)}>
+              <NativeSelect className={rubric ? "col-span-2 sm:col-span-1" : undefined} aria-label={`Level for ${s.fullName}`} disabled={locked || !levels.length} value={rubric ? d.levelId : d.levelId || auto?.id || ""} onChange={(e) => edit(s.id, { levelId: e.target.value }, rubric ? 300 : 1500)}>
                 <option value="">{rubric ? "Level" : auto ? `${auto.code} (auto)` : "Level from marks"}</option>{levels.map((l) => <option key={l.id} value={l.id}>{l.code} · {l.label}</option>)}
               </NativeSelect>
-              <div className="space-y-1">
+              <div className="col-span-2 space-y-1 sm:col-span-1">
                 {overriding && <TextInput aria-label="Override reason" disabled={locked} placeholder="Reason for level override" value={d.overrideReason} onChange={(e) => edit(s.id, { overrideReason: e.target.value }, 1500)} />}
                 <TextInput aria-label={`Comment for ${s.fullName}`} disabled={locked} placeholder="Comment" value={d.comment} onChange={(e) => edit(s.id, { comment: e.target.value }, 1500)} />
               </div>
-              <div className="min-w-[6rem] text-xs">
+              <div className="col-span-2 min-w-[6rem] text-xs sm:col-span-1">
                 {!c ? (server ? <span className="text-muted-foreground">Saved</span> : <span className="text-muted-foreground">Empty</span>)
                   : c.status === "conflict" ? <div className="space-y-1 text-destructive"><div>Changed elsewhere{server ? `: ${server.marks ?? levels.find((l) => l.id === server.performanceLevelId)?.code ?? ""}` : ""}</div><div className="flex gap-1"><Btn variant="outline" className="h-6 px-1.5 text-[11px]" onClick={() => resolveConflict(s.id, false)}>Use theirs</Btn><Btn className="h-6 px-1.5 text-[11px]" onClick={() => resolveConflict(s.id, true)}>Keep mine</Btn></div></div>
                   : c.status === "error" ? <div className="text-destructive">{c.message}<Btn variant="ghost" className="ml-1 h-6 px-1.5 text-[11px]" onClick={() => schedule(s.id, d, 0)}>Retry</Btn></div>
@@ -227,7 +227,7 @@ export default function Assessments() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Academics" title="Assessments" meta={p.limitedToAssigned ? "Your assigned learning areas only. Marks save per learner as you type." : "Marks and rubric levels. Every cell saves on its own and never overwrites a newer change."}>
-        {<Btn data-testid="button-new-assessment" onClick={() => setCreating(true)}><Plus className="h-4 w-4" />New assessment</Btn>}
+        {<Btn data-testid="button-new-assessment" className="max-md:hidden" onClick={() => setCreating(true)}><Plus className="h-4 w-4" />New assessment</Btn>}
       </PageHeader>
       <FormDialog open={creating} onOpenChange={setCreating} size="lg" title="Create an assessment" description="Opens the marks register for the new assessment once created."><NewAssessment onCancel={() => setCreating(false)} onDone={(x) => { setCreating(false); setSel(x.id); }} /></FormDialog>
       <Panel title="Assessments">
@@ -241,6 +241,7 @@ export default function Assessments() {
       </Panel>
       {a && <Grid key={a.id} a={a} />}
       {a && <Ratings key={`r${a.gradeId}${a.termId}`} gradeId={a.gradeId} termId={a.termId} />}
+      <Fab testid="fab-new-assessment" label="New assessment" icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)} />
     </div>
   );
 }

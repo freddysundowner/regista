@@ -446,3 +446,70 @@ body:has(main[data-readonly]) [role="dialog"] form:not([data-readonly-safe]) but
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ---------- Phone-first responsiveness ---------- */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
+.app-main{overflow-x:clip}
+.app-main > *{min-width:0}
+.app-main img,.app-main video{max-width:100%}
+.app-main pre{max-width:100%;overflow-x:auto}
+/* Dense grids scroll inside their own container, never the viewport. */
+.app-main table{min-width:100%}
+.app-main section,.dialog-body section{min-width:0}
+[role="tablist"]{max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+[role="tablist"]::-webkit-scrollbar{display:none}
+@media (max-width: 767px){
+  /* Prevent iOS zoom-on-focus and give thumbs room. */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px}
+  .app-main button,.app-main [role="tab"],.dialog-body button{min-height:2.75rem}
+  .panel-actions > .flex{flex-wrap:wrap}
+  .panel-actions input,.panel-actions select{max-width:100%}
+  .panel-actions > [role="tablist"]{flex-wrap:nowrap}
+  .app-main input[type=checkbox],.app-main input[type=radio],.dialog-body input[type=checkbox],.dialog-body input[type=radio]{width:1.15rem;height:1.15rem}
+  [role="tablist"]{flex-wrap:nowrap}
+  [role="tablist"] > *{flex-shrink:0;white-space:nowrap}
+  .app-main table th,.app-main table td{white-space:nowrap}
+  .app-main table td.whitespace-normal,.app-main table td .whitespace-normal{white-space:normal}
+  .page-actions{width:100%}
+  .page-actions > button,.page-actions > a{flex:1 1 auto}
+  /* Save/cancel stays reachable above the keyboard inside dialogs. */
+  .dialog-body .form-actions{position:sticky;bottom:0;z-index:5;margin-top:1rem;background:hsl(var(--card));padding-bottom:calc(0.75rem + env(safe-area-inset-bottom));box-shadow:0 -8px 16px -12px hsl(188 40% 10% / .35)}
+  .dialog-body .form-actions > button{flex:1 1 8rem}
+  [data-radix-popper-content-wrapper]{max-width:calc(100vw - 1rem)}
+}
+.app-main .overflow-x-auto,.dialog-body .overflow-x-auto,.app-main .overflow-auto{-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+
+/* ---------- Native-style mobile components ---------- */
+.fab{bottom:calc(4.75rem + env(safe-area-inset-bottom))}
+@media (max-width: 767px){
+  /* A reserved action lane keeps floating controls off record content at every
+     scroll position, not just at the end of the document. */
+  body:has(.fab) .app-shell{display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;padding-bottom:calc(9rem + env(safe-area-inset-bottom))}
+  body:has(.fab) .app-shell > :not(main){flex-shrink:0}
+  body:has(.fab) .app-main{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-bottom:1.25rem}
+  .rt-cards{overflow:visible}
+  .rt-cards table,.rt-cards tbody{display:block;width:100%;min-width:0}
+  .rt-cards thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .rt-cards tbody tr{display:grid;grid-template-columns:1fr;gap:.35rem;padding:.85rem 1rem;border-bottom:1px solid hsl(var(--border)/.7);position:relative}
+  .rt-cards tbody tr:last-child{border-bottom:0}
+  .rt-cards tbody tr:active{background:hsl(var(--accent)/.35)}
+  .rt-cards tbody td{display:flex !important;align-items:flex-start;justify-content:space-between;gap:.75rem;padding:0 !important;white-space:normal !important;text-align:right;min-width:0;border:0}
+  .rt-cards tbody td > *{min-width:0;overflow-wrap:anywhere}
+  .rt-cards tbody td::before{content:attr(data-label);flex:0 0 auto;max-width:42%;text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:hsl(var(--muted-foreground));padding-top:.15rem}
+  .rt-cards tbody td:not([data-label])::before,.rt-cards tbody td[data-label=""]::before{display:none}
+  /* First column is the card title. */
+  .rt-cards tbody td:first-child{display:block !important;text-align:left;font-size:.95rem;padding-bottom:.15rem !important}
+  .rt-cards tbody td:first-child::before{display:block;max-width:none;margin-bottom:.1rem}
+  /* Cells without a label (actions) become a full-width action row. */
+  .rt-cards tbody td:not([data-label]):not(:first-child){justify-content:flex-start;text-align:left;padding-top:.35rem !important;flex-wrap:wrap}
+  .rt-cards tbody td[colspan]{display:block !important;text-align:center}
+  .rt-cards tbody td[colspan]::before{display:none}
+  .rt-cards td .flex-col.items-start{flex-direction:row;flex-wrap:wrap;justify-content:flex-end}
+  .dense-scroll table th,.dense-scroll table td{white-space:nowrap}
+  .dense-scroll{mask-image:linear-gradient(to right,#000 calc(100% - 24px),transparent)}
+}
+@media (max-width: 767px){
+  .app-main button[aria-label]:has(> svg:only-child),.dialog-body button[aria-label]:has(> svg:only-child){min-width:2.75rem;min-height:2.75rem;display:inline-flex;align-items:center;justify-content:center}
+  .app-main a[aria-label]:has(> svg:only-child){min-width:2.75rem;min-height:2.75rem;display:inline-flex;align-items:center;justify-content:center}
+}

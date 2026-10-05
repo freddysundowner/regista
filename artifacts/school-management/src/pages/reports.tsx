@@ -44,12 +44,12 @@ function Knec({ r }: { r: ReportView }) {
   return (
     <Panel title="Custom column export" note="Ad-hoc: choose, rename and order the performance report columns for this download only.">
       <ul className="divide-y divide-border/60">{cols.map((c, i) => (
-        <li key={c.key} className="flex items-center gap-2 px-4 py-2 text-sm">
+        <li key={c.key} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm sm:flex-nowrap">
           <input type="checkbox" aria-label={`Include ${c.key}`} className="h-4 w-4 accent-[hsl(var(--primary))]" checked={c.on} onChange={(e) => setCols(cols.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)))} />
-          <span className="w-32 font-mono text-xs text-muted-foreground">{c.key}</span>
-          <TextInput aria-label="Header" className="h-8 max-w-xs" value={c.label} onChange={(e) => setCols(cols.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-          <button type="button" aria-label="Move up" disabled={!i} onClick={() => move(i, -1)} className="p-1 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
-          <button type="button" aria-label="Move down" disabled={i === cols.length - 1} onClick={() => move(i, 1)} className="p-1 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
+          <span className="min-w-0 flex-1 truncate font-mono sm:w-32 sm:flex-none text-xs text-muted-foreground">{c.key}</span>
+          <TextInput aria-label="Header" className="order-last min-w-0 basis-full sm:order-none sm:h-8 sm:max-w-xs sm:basis-auto" value={c.label} onChange={(e) => setCols(cols.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+          <button type="button" aria-label="Move up" disabled={!i} onClick={() => move(i, -1)} className="flex h-10 w-10 items-center justify-center rounded disabled:opacity-30 sm:h-auto sm:w-auto sm:p-1"><ArrowUp className="h-4 w-4" /></button>
+          <button type="button" aria-label="Move down" disabled={i === cols.length - 1} onClick={() => move(i, 1)} className="flex h-10 w-10 items-center justify-center rounded disabled:opacity-30 sm:h-auto sm:w-auto sm:p-1"><ArrowDown className="h-4 w-4" /></button>
         </li>))}</ul>
       <div className="flex gap-2 border-t border-border/70 p-4">
         <Btn variant="outline" disabled={!chosen.length} onClick={() => exportCsv(chosen, r.rows, "knec-export")}><FileDown className="h-4 w-4" />KNEC CSV</Btn>

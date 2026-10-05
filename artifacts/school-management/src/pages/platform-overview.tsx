@@ -22,13 +22,13 @@ export default function PlatformOverview() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Platform console" title="Overview" meta={`Signed in as ${user.name}. You are outside every school; enter one only with a recorded reason.`} />
-      {o.isLoading ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}</div>
+      {o.isLoading ? <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}</div>
         : o.isError ? <Panel><ErrorState msg={errMsg(o.error)} onRetry={() => o.refetch()} /></Panel> : (
-        <div className="rise-1 grid gap-px overflow-hidden rounded-lg border border-card-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+        <div className="rise-1 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-card-border bg-border lg:grid-cols-5">
           {stats.map((s) => (
-            <div key={s.k} data-testid={`stat-${s.k.toLowerCase().replace(/\s+/g, "-")}`} className="bg-card px-5 py-4">
+            <div key={s.k} data-testid={`stat-${s.k.toLowerCase().replace(/\s+/g, "-")}`} className="min-w-0 bg-card px-3.5 py-3 md:px-5 md:py-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{s.k}</div>
-              <div className={`mt-1 font-display text-4xl font-semibold tabular-nums ${s.warn ? "text-destructive" : ""}`}>{s.v}</div>
+              <div className={`mt-1 font-display text-3xl font-semibold tabular-nums md:text-4xl ${s.warn ? "text-destructive" : ""}`}>{s.v}</div>
               <div className="text-xs text-muted-foreground">{s.d}</div>
             </div>
           ))}

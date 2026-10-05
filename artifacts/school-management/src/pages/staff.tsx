@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListUsers, useCreateUser, useUpdateUser, getListUsersQueryKey, getGetDashboardSummaryQueryKey, UserRole, type User } from "@workspace/api-client-react";
 import { Loader2, Pencil, Plus, UserCog } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { useSession, ROLE_LABEL, errMsg, blank, initials, fmtDateTime } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 import { TeacherAssignmentsPanel } from "@/components/teacher-assignments";
@@ -65,7 +65,7 @@ export default function Staff() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Accounts & roles" title="Staff" meta="Roles decide what each person can see and change.">
-        {<Btn data-testid="button-new-staff" onClick={() => setMode("new")}><Plus className="h-4 w-4" /> Add staff</Btn>}
+        {<Btn data-testid="button-new-staff" className="max-md:hidden" onClick={() => setMode("new")}><Plus className="h-4 w-4" /> Add staff</Btn>}
       </PageHeader>
       <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} title={mode === "new" ? "Add a staff account" : mode ? `Edit ${mode.name}` : "Staff"} description={mode === "new" ? "They sign in with the email or phone you enter here." : "Role changes take effect on their next request."}>
         {mode && <StaffForm key={mode === "new" ? "new" : mode.id} user={mode === "new" ? undefined : mode} onDone={() => setMode(null)} />}
@@ -76,10 +76,10 @@ export default function Staff() {
             <li key={u.id} data-testid={`row-staff-${u.id}`} className={`flex flex-wrap items-center gap-3 px-5 py-3 ${u.isActive ? "" : "opacity-60"}`}>
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{initials(u.name)}</span>
               <div className="min-w-[10rem] flex-1"><div className="font-semibold">{u.name}{u.id === me.id && <span className="ml-2 text-xs font-normal text-muted-foreground">(you)</span>}</div><div className="font-mono text-[11px] text-muted-foreground">{[u.email, u.phone].filter(Boolean).join(" · ")}</div><div className="text-[11px] text-muted-foreground">Last sign-in {u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : "never"}</div></div>
-              <span className="w-28 text-sm">{ROLE_LABEL[u.role]}</span>
+              <span className="text-sm sm:w-28">{ROLE_LABEL[u.role]}</span>
               <Pill tone={u.isActive ? "active" : "inactive"}>{u.isActive ? "Active" : "Inactive"}</Pill>
               <div className="flex items-center gap-1">
-                <button data-testid={`button-edit-staff-${u.id}`} aria-label={`Edit ${u.name}`} onClick={() => setMode(u)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                <button data-testid={`button-edit-staff-${u.id}`} aria-label={`Edit ${u.name}`} onClick={() => setMode(u)} className="rounded p-1.5 text-muted-foreground hover:bg-muted max-md:border max-md:border-border max-md:p-3 hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                 {u.id !== me.id && (confirmId === u.id ? (
                   <span className="flex items-center gap-1"><Btn variant={u.isActive ? "danger" : "outline"} className="h-7 px-2 text-xs" disabled={upd.isPending} data-testid={`button-confirm-toggle-${u.id}`} onClick={() => toggle(u)}>{u.isActive ? "Confirm deactivate" : "Confirm reactivate"}</Btn><Btn variant="ghost" className="h-7 px-2 text-xs" onClick={() => setConfirmId(null)}>Keep</Btn></span>
                 ) : <Btn variant="ghost" className="h-7 px-2 text-xs" data-testid={`button-toggle-staff-${u.id}`} onClick={() => setConfirmId(u.id)}>{u.isActive ? "Deactivate" : "Reactivate"}</Btn>)}
@@ -88,6 +88,7 @@ export default function Staff() {
         )}
       </Panel>
       <TeacherAssignmentsPanel />
+      <Fab testid="fab-new-staff" label="Add staff" icon={<Plus className="h-4 w-4" />} onClick={() => setMode("new")} />
     </div>
   );
 }

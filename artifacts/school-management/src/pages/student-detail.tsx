@@ -78,7 +78,7 @@ export default function StudentDetail() {
   const upd = useUpdateStudent();
   const s = q.data;
 
-  if (q.isLoading) return <div className="space-y-4"><div className="h-10 w-72 animate-pulse rounded bg-muted" /><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>;
+  if (q.isLoading) return <div className="space-y-4"><div className="h-10 w-72 max-w-full animate-pulse rounded bg-muted" /><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>;
   if (q.isError || !s) return <Panel><ErrorState msg={errMsg(q.error, "Student not found")} onRetry={() => q.refetch()} /></Panel>;
 
   const facts: [string, string][] = [
@@ -96,12 +96,12 @@ export default function StudentDetail() {
           {p.writeStudents && <ImageUploadButton purpose="student_photo" entityId={s.id} label={s.photoUrl ? "Replace photo" : "Add photo"} testid="upload-student-photo"
             onSaved={(ref) => upd.mutateAsync({ studentId: s.id, data: { photoUrl: ref } }).then((n) => { qc.setQueryData(getGetStudentQueryKey(s.id), n); qc.invalidateQueries({ queryKey: getListStudentsQueryKey() }); toast({ title: "Photo saved" }); })} />}
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <div className="font-mono text-xs text-amber-800">{s.admissionNo}</div>
-          <h1 data-testid="text-student-name" className="font-display text-3xl font-semibold md:text-4xl">{s.fullName}</h1>
-          <div className="mt-1 flex items-center gap-2"><Pill tone={s.status}>{s.status}</Pill>{s.siblingCount > 0 && <span className="text-xs text-muted-foreground">{s.siblingCount} sibling{s.siblingCount > 1 ? "s" : ""} in school</span>}</div>
+          <h1 data-testid="text-student-name" className="font-display text-[1.75rem] font-semibold leading-tight [overflow-wrap:anywhere] md:text-4xl">{s.fullName}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2"><Pill tone={s.status}>{s.status}</Pill>{s.siblingCount > 0 && <span className="text-xs text-muted-foreground">{s.siblingCount} sibling{s.siblingCount > 1 ? "s" : ""} in school</span>}</div>
         </div>
-        {p.writeStudents && <Btn data-testid="button-edit-student" variant="outline" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit record</Btn>}
+        {p.writeStudents && <Btn data-testid="button-edit-student" variant="outline" className="w-full md:w-auto" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit record</Btn>}
       </header>
 
       {p.writeStudents && (
@@ -131,11 +131,11 @@ export default function StudentDetail() {
       {(
         <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           <Panel title="Record" className="rise-1">
-            <dl className="grid grid-cols-1 sm:grid-cols-2">
+            <dl className="grid grid-cols-2">
               {facts.map(([k, v]) => (
-                <div key={k} className="border-b border-border/60 px-5 py-3 sm:odd:border-r">
+                <div key={k} className="min-w-0 border-b border-border/60 px-4 py-3 odd:border-r md:px-5">
                   <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{k}</dt>
-                  <dd className={`mt-0.5 text-sm ${k === "Admission no." || k === "UPI" ? "font-mono" : "font-medium"}`}>{v}</dd>
+                  <dd className={`mt-0.5 text-sm [overflow-wrap:anywhere] ${k === "Admission no." || k === "UPI" ? "font-mono" : "font-medium"}`}>{v}</dd>
                 </div>
               ))}
             </dl>
@@ -144,9 +144,9 @@ export default function StudentDetail() {
             {s.guardianNames.length === 0 ? <div className="flex items-center gap-3 px-5 py-6 text-sm text-muted-foreground"><Users className="h-4 w-4" /> No guardian linked yet.</div> : (
               <ul className="divide-y divide-border/60">
                 {s.guardianNames.map((g, i) => (
-                  <li key={i} className="flex items-center gap-3 px-5 py-3">
+                  <li key={i} className="flex items-center gap-3 px-4 py-3 md:px-5">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">{initials(g)}</div>
-                    <div className="flex-1"><div className="text-sm font-semibold">{g}</div>{s.guardianPhones[i] && <a href={`tel:${s.guardianPhones[i]}`} className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary"><Phone className="h-3 w-3" />{s.guardianPhones[i]}</a>}</div>
+                    <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{g}</div>{s.guardianPhones[i] && <a href={`tel:${s.guardianPhones[i]}`} className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary"><Phone className="h-3 w-3" />{s.guardianPhones[i]}</a>}</div>
                   </li>
                 ))}
               </ul>

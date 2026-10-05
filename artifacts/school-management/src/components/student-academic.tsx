@@ -18,7 +18,7 @@ export function StudentAcademicPanels({ studentId }: { studentId: string }) {
     <div className="grid gap-6 lg:grid-cols-2">
       {p.academicRead && <Panel title="Results" note="Published and draft report cards">
         {cards.isLoading ? <SkeletonRows cols={2} /> : cards.isError ? <ErrorState msg={errMsg(cards.error)} onRetry={() => cards.refetch()} /> : !cards.data?.length ? <p className="p-5 text-sm text-muted-foreground">No report cards yet.</p> : (
-          <ul className="divide-y divide-border/60">{cards.data.map((c) => <li key={c.id} className="flex items-center gap-3 px-5 py-3 text-sm"><span className="flex-1">{term(c.termId)}</span><Pill tone={c.status === "published" ? "active" : "current"}>{c.status}</Pill>
+          <ul className="divide-y divide-border/60">{cards.data.map((c) => <li key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm md:px-5"><span className="flex-1">{term(c.termId)}</span><Pill tone={c.status === "published" ? "active" : "current"}>{c.status}</Pill>
             <Btn variant="outline" className="h-7 px-2 text-xs" disabled={pdf.isPending} onClick={() => pdf.mutate({ id: c.id }, { onSuccess: (d) => window.open(d.downloadUrl, "_blank", "noopener"), onError: (x) => toast({ title: "PDF failed", description: errMsg(x), variant: "destructive" }) })}><Download className="h-3.5 w-3.5" />PDF</Btn></li>)}</ul>)}
       </Panel>}
       {p.academicRead && <Panel title="Attendance" note={recs.length ? `Present ${count("present")} · Absent ${count("absent")} · Late ${count("late")} · Excused ${count("excused")}` : undefined}>

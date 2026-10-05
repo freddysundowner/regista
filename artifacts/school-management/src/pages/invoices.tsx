@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { usePreviewFinanceInvoices, useCommitFinanceInvoices, useCreateFinanceRecord, type InvoiceProposal } from "@workspace/api-client-react";
 import { FileText, Loader2, Plus } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, StatusPill, Money, StudentPicker, TermSelect, GradeSelect, LinesEditor, Table, td } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDate, fmtDateTime, nairobiToday } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, sumMoney, rd, type Line } from "@/lib/finance";
@@ -105,19 +105,20 @@ export default function Invoices() {
     <div className="space-y-6">
       <PageHeader eyebrow="Billing" title="Invoices" meta="Term invoices from approved structures, plus one-off charges.">
         {p.financeConfigure && <Btn variant="outline" data-testid="button-generate-invoices" onClick={() => setBatch(true)}><FileText className="h-4 w-4" /> Generate term invoices</Btn>}
-        {p.financeConfigure && <Btn data-testid="button-new-invoice" onClick={() => setOneoff(true)}><Plus className="h-4 w-4" /> One-off invoice</Btn>}
+        {p.financeConfigure && <Btn data-testid="button-new-invoice" className="max-md:hidden" onClick={() => setOneoff(true)}><Plus className="h-4 w-4" /> One-off invoice</Btn>}
       </PageHeader>
       {p.financeConfigure && <>
         <FormDialog open={oneoff} onOpenChange={setOneoff} size="lg" title="Post a one-off invoice" description="Trips, damages, uniforms. Posts to the ledger immediately."><OneOff onDone={() => setOneoff(false)} /></FormDialog>
         <FormDialog open={batch} onOpenChange={setBatch} size="full" title="Generate term invoices" description="Preview against approved structures and optional charges, then commit. Re-running never duplicates."><Batch onClose={() => setBatch(false)} /></FormDialog>
       </>}
-      <Panel title="All invoices" action={<div className="flex gap-2"><NativeSelect aria-label="Invoice status" className="h-8 w-36 text-xs" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option><option value="open">Open</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="cancelled">Cancelled</option></NativeSelect><TextInput aria-label="Filter invoices" placeholder="Filter by student or no." className="h-8 w-52 text-xs" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>}>
+      <Panel title="All invoices" action={<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><NativeSelect aria-label="Invoice status" className="w-full text-xs sm:h-8 sm:w-36" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option><option value="open">Open</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="cancelled">Cancelled</option></NativeSelect><TextInput aria-label="Filter invoices" placeholder="Filter by student or no." className="w-full text-xs sm:h-8 sm:w-52" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>}>
         {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !list.length ? <Empty icon={<FileText className="h-5 w-5" />} title="No invoices" body="Generate term invoices once structures are approved." /> : (
           <Table head={["Invoice no.", "Student", "Term", "Issued / due", "Amount", "Status", "Created"]}>{list.map((r) => (
             <tr key={r.id} data-testid={`row-invoice-${r.id}`}><td className={`${td} font-mono text-xs`}>{rd(r, "invoiceNo") ?? "\u2014"}<div className="font-sans text-[11px] text-muted-foreground">{rd(r, "type") === "one_off" ? "One-off" : "Term"}</div></td><td className={td}>{sname(r.studentId)}</td><td className={`${td} text-xs`}>{term(r.termId)}</td><td className={`${td} text-xs`}>{fmtDate(rd(r, "issueDate"))}<div className="text-muted-foreground">Due {fmtDate(rd(r, "dueDate"))}</div></td><td className={td}><Money v={r.amount} /></td><td className={td}><StatusPill status={r.status} /></td><td className={`${td} text-xs text-muted-foreground`}>{fmtDateTime(r.createdAt)}</td></tr>))}</Table>
         )}
       </Panel>
       <div className="flex items-center justify-end gap-3"><Btn variant="outline" disabled={page === 1 || q.isFetching} onClick={() => setPage(page - 1)}>Previous</Btn><span>Page {page}</span><Btn variant="outline" disabled={list.length < 50 || q.isFetching} onClick={() => setPage(page + 1)}>Next</Btn></div>
+      {p.financeConfigure && <Fab testid="fab-new-invoice" label="One-off invoice" icon={<Plus className="h-4 w-4" />} onClick={() => setOneoff(true)} />}
     </div>
   );
 }

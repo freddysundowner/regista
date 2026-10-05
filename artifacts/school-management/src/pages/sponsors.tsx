@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useCreateFinanceRecord, useUpdateFinanceRecord, type FinanceRecord, type FinanceInputSponsorType } from "@workspace/api-client-react";
 import { HandHeart, Loader2, Pencil, Plus } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Fab } from "@/components/kit";
 import { useFinanceRecords, Money } from "@/components/finance-kit";
 import { usePerms, errMsg } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, rd, sumMoney, SPONSOR_LABEL } from "@/lib/finance";
@@ -34,7 +34,7 @@ export default function Sponsors() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Bursaries & sponsorship" title="Sponsors" meta="NG-CDF, county, church and other funders behind bursary and sponsorship adjustments.">
-        {p.financeConfigure && <Btn data-testid="button-new-sponsor" onClick={() => open()}><Plus className="h-4 w-4" /> Add sponsor</Btn>}
+        {p.financeConfigure && <Btn data-testid="button-new-sponsor" className="max-md:hidden" onClick={() => open()}><Plus className="h-4 w-4" /> Add sponsor</Btn>}
       </PageHeader>
       <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Add a sponsor" : mode ? `Edit ${rd(mode, "name")}` : "Sponsor"} description="Funders behind bursary and sponsorship adjustments.">
         <form onSubmit={submit} className="space-y-4 p-5">
@@ -58,6 +58,7 @@ export default function Sponsors() {
             </li>); })}</ul>
         )}
       </Panel>
+      {p.financeConfigure && <Fab testid="fab-new-sponsor" label="Add sponsor" icon={<Plus className="h-4 w-4" />} onClick={() => open()} />}
     </div>
   );
 }

@@ -32,11 +32,11 @@ export default function Dashboard() {
       {q.isError ? <Panel><ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /></Panel> : (
         <div className="rise rise-1 grid grid-cols-2 overflow-hidden rounded-lg border border-card-border bg-card lg:grid-cols-4">
           {(q.isLoading ? Array.from({ length: 4 }) : stats).map((s, i) => (
-            <div key={i} className="border-b border-r border-border/70 px-5 py-5 last:border-r-0 lg:border-b-0">
+            <div key={i} className="min-w-0 border-b border-r border-border/70 px-3.5 py-3.5 last:border-r-0 md:px-5 md:py-5 lg:border-b-0">
               {s && typeof s === "object" ? (
                 <>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{(s as typeof stats[0]).k}</div>
-                  <div data-testid={`stat-${i}`} className="mt-2 font-display text-4xl font-semibold tabular-nums">{(s as typeof stats[0]).v.toLocaleString()}</div>
+                  <div data-testid={`stat-${i}`} className="mt-1 font-display text-3xl font-semibold tabular-nums md:mt-2 md:text-4xl">{(s as typeof stats[0]).v.toLocaleString()}</div>
                   <div className="mt-1 text-xs text-muted-foreground">{(s as typeof stats[0]).sub}</div>
                 </>
               ) : <div className="space-y-3"><div className="h-3 w-20 animate-pulse rounded bg-muted" /><div className="h-8 w-16 animate-pulse rounded bg-muted" /></div>}

@@ -36,21 +36,25 @@ export function FormDialog({ open, onOpenChange, title, description, children, s
           className={cn(
             "fixed z-50 flex flex-col border border-card-border bg-card shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0",
             full
-              ? "inset-0 sm:inset-4 sm:rounded-lg"
-              : cn("inset-x-0 bottom-0 max-h-[92dvh] rounded-t-xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg data-[state=open]:slide-in-from-bottom-4 sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0", w),
+              ? "inset-0 pt-[env(safe-area-inset-top)] sm:inset-4 sm:rounded-lg sm:pt-0"
+              : cn("inset-x-0 bottom-0 max-h-[94dvh] rounded-t-xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg data-[state=open]:slide-in-from-bottom-4 sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0", w),
           )}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4">
+          <div className="flex items-start justify-between gap-4 border-b border-border/70 px-4 py-3.5 sm:px-5 sm:py-4">
             <div className="min-w-0">
               <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700/80">Rejista</div>
               <D.Title className="font-display text-xl font-semibold leading-tight">{title}</D.Title>
               {description ? <D.Description className="mt-1 text-sm text-muted-foreground">{description}</D.Description> : <D.Description className="sr-only">{title}</D.Description>}
             </div>
-            <D.Close disabled={busy} aria-label="Close dialog" data-testid="button-dialog-close" className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-40">
+            <D.Close disabled={busy} aria-label="Close dialog" data-testid="button-dialog-close" className="-mr-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-40">
               <X className="h-4 w-4" />
             </D.Close>
           </div>
-          <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain", full && "mx-auto w-full max-w-6xl")}>{children}</div>
+          <div onFocusCapture={(e) => {
+            // Keep the focused field visible above the on-screen keyboard on phones.
+            const t = e.target as HTMLElement;
+            if (window.matchMedia("(max-width: 767px)").matches && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) setTimeout(() => t.scrollIntoView({ block: "center", behavior: "smooth" }), 280);
+          }} className={cn("dialog-body min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]", full && "mx-auto w-full max-w-6xl")}>{children}</div>
         </D.Content>
       </D.Portal>
     </D.Root>

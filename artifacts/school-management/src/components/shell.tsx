@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
 import { Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug } from "lucide-react";
@@ -19,6 +19,10 @@ export function Shell({ children }: { children: ReactNode }) {
   const ro = useReadOnly();
   const { toast } = useToast();
   const [loc] = useLocation();
+  useEffect(() => {
+    document.querySelector(".app-main")?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+  }, [loc]);
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   // Clearing a query cache does not reset mounted observers. A new document
@@ -74,10 +78,14 @@ export function Shell({ children }: { children: ReactNode }) {
     items: group.paths.flatMap(path => nav.filter(item => item.href === path)),
   })).filter(group => group.items.length > 0);
 
+  const dockPriority = platformMode ? ["/", "/schools", "/platform/audit", "/account"] : ["/", "/students", "/payments", "/attendance", "/fees", "/assessments", "/reports", "/account"];
+  const dock = dockPriority.flatMap(path => nav.filter(item => item.href === path)).slice(0, 4);
+  const dockLabel: Record<string, string> = { "/": "Home", "/platform/audit": "Audit", "/account": "Account" };
+
   const active = (h: string) => (h === "/" ? loc === "/" : loc.startsWith(h));
 
   const side = (
-    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+    <div className="flex h-full flex-col bg-sidebar pt-[env(safe-area-inset-top)] text-sidebar-foreground">
       <div className="border-b border-sidebar-border px-5 pb-5 pt-6">
         <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</div>
@@ -101,7 +109,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="space-y-0.5">
               {group.items.map(n => (
                 <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} onClick={() => setOpen(false)} data-testid={`link-nav-${n.href.slice(1) || "home"}`}
-                  className={cn("group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition",
+                  className={cn("group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition md:py-2",
                     active(n.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground")}>
                   <span className={cn("absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-sidebar-primary transition-transform", active(n.href) ? "scale-y-100" : "scale-y-0")} />
                   <n.icon className={cn("h-4 w-4 shrink-0", active(n.href) && "text-sidebar-primary")} />
@@ -112,7 +120,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </section>
         ))}
       </nav>
-      <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
+      <div className="shrink-0 border-t border-sidebar-border px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" data-testid="button-account-menu" aria-label={`Account menu for ${user.name}`} className="flex w-full items-center gap-3 rounded-md p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-primary">
@@ -140,24 +148,85 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-background md:pl-64">
+    <div className="app-shell min-h-[100dvh] bg-background md:pl-64">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 md:block">{side}</aside>
       <Dialog.Root open={open} onOpenChange={setOpen}>
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
-          <Link href="/" className="font-display text-lg font-semibold">Rejista</Link>
-          <Dialog.Trigger asChild><button data-testid="button-menu" aria-label="Open menu" className="rounded-md p-2 hover:bg-muted"><Menu className="h-5 w-5" /></button></Dialog.Trigger>
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-sidebar-foreground md:hidden">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</span>
+            <span className="min-w-0">
+              <span className="block font-display text-base font-semibold leading-tight text-sidebar-accent-foreground">Rejista</span>
+              <span className="block truncate text-[11px] text-sidebar-foreground/60">{platformMode || !school ? "Platform console" : school.name}</span>
+            </span>
+          </Link>
+          <Dialog.Trigger asChild><button data-testid="button-menu" aria-label="Open all sections" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent"><Menu className="h-5 w-5" /></button></Dialog.Trigger>
         </header>
+        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-sidebar-foreground md:hidden">
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${dock.length + 1}, minmax(0, 1fr))` }}>
+            {dock.map(n => (
+              <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} data-testid={`link-dock-${n.href.slice(1).replace(/\//g, "-") || "home"}`}
+                className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium", active(n.href) ? "text-sidebar-primary" : "text-sidebar-foreground/70")}>
+                <span className={cn("absolute top-0 h-[3px] w-8 rounded-b bg-sidebar-primary transition-transform", active(n.href) ? "scale-x-100" : "scale-x-0")} />
+                <n.icon className="h-5 w-5" />
+                <span className="max-w-full truncate px-1">{dockLabel[n.href] ?? n.label.split(" ")[0]}</span>
+              </Link>
+            ))}
+            <Dialog.Trigger asChild>
+              <button type="button" data-testid="button-dock-more" className="flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium text-sidebar-foreground/70">
+                <Menu className="h-5 w-5" /><span>More</span>
+              </button>
+            </Dialog.Trigger>
+          </div>
+        </nav>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-foreground/40 md:hidden" />
-          <Dialog.Content aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 w-72 max-w-[90vw] outline-none md:hidden">
-            <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-            {side}
-            <Dialog.Close aria-label="Close menu" className="absolute right-3 top-3 rounded-md p-2 text-sidebar-foreground hover:bg-sidebar-accent"><X className="h-4 w-4" /></Dialog.Close>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-[hsl(188_40%_8%/0.55)] backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 md:hidden" />
+          <Dialog.Content aria-describedby={undefined} data-testid="sheet-more"
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-2xl bg-sidebar text-sidebar-foreground outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom md:hidden">
+            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-sidebar-foreground/25" />
+            <div className="flex shrink-0 items-center gap-3 border-b border-sidebar-border px-4 pb-3 pt-2">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</span>
+              <div className="min-w-0 flex-1">
+                <Dialog.Title className="truncate font-display text-base font-semibold text-sidebar-accent-foreground">{platformMode || !school ? "Platform console" : school.name}</Dialog.Title>
+                <div className="truncate font-mono text-[11px] text-sidebar-foreground/60">{platformMode || !school ? "All schools · no tenant" : `${school.code}${school.county ? ` · ${school.county}` : ""}`}{tenantAccess ? (tenantAccess.writeEnabled ? " · Support write" : " · Support read-only") : ""}</div>
+              </div>
+              <Dialog.Close aria-label="Close menu" data-testid="button-close-more" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground"><X className="h-5 w-5" /></Dialog.Close>
+            </div>
+            <nav aria-label="All sections" className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {groups.map(group => (
+                <section key={group.label} aria-label={group.label}>
+                  <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">{group.label}</h2>
+                  <div className="grid grid-cols-3 gap-2">
+                    {group.items.map(n => (
+                      <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} onClick={() => setOpen(false)} data-testid={`link-more-${n.href.slice(1).replace(/\//g, "-") || "home"}`}
+                        className={cn("flex min-h-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-center text-[11.5px] font-medium leading-tight transition active:scale-95",
+                          active(n.href) ? "border-sidebar-primary/60 bg-sidebar-primary/10 text-sidebar-accent-foreground" : "border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground/85")}>
+                        <n.icon className={cn("h-5 w-5", active(n.href) ? "text-sidebar-primary" : "text-sidebar-foreground/70")} />
+                        <span className="line-clamp-2">{n.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </nav>
+            <div className="shrink-0 border-t border-sidebar-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-xs font-bold text-sidebar-primary">{initials(user.name)}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">{user.name}</div>
+                  <div className="text-[11px] text-sidebar-foreground/60">{ROLE_LABEL[user.role]}</div>
+                </div>
+                <Link href="/account" onClick={() => setOpen(false)} data-testid="link-more-account-menu" aria-label="My account" className="flex h-11 w-11 items-center justify-center rounded-full bg-sidebar-accent"><KeyRound className="h-4 w-4" /></Link>
+                <button type="button" data-testid="button-logout-mobile" disabled={logout.isPending} onClick={() => logout.mutate()} className="inline-flex h-11 items-center gap-1.5 rounded-full bg-sidebar-accent px-4 text-sm font-semibold text-sidebar-accent-foreground disabled:opacity-50">
+                  <LogOut className="h-4 w-4" />{logout.isPending ? "Signing out" : "Sign out"}
+                </button>
+              </div>
+              {logout.isError && <div role="alert" className="pt-2 text-xs text-red-300">Sign-out failed. Please retry.</div>}
+            </div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
       <TenantAccessBanner />
-      <main data-readonly={ro ? "true" : undefined} className="w-full min-w-0 px-4 py-6 md:py-8"
+      <main data-readonly={ro ? "true" : undefined} className="app-main w-full min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:py-8 lg:px-8"
         onSubmitCapture={ro ? (e) => {
           // Read-only support session: block every form save before it reaches the API (which also refuses).
           // Forms explicitly marked data-readonly-safe run server-allowlisted read-only POSTs (report runs).

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useCreateFinanceRecord, type FinanceRecord, type FinanceInputChequeStatus } from "@workspace/api-client-react";
 import { Banknote, Loader2, Plus } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab, Filters } from "@/components/kit";
 import { useFinanceRecords, useStudentNames, StatusPill, Money, MoneyInput, StudentPicker, DocumentButton, Table, td } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDateTime, TZ } from "@/lib/session";
 
@@ -103,19 +103,19 @@ export default function Payments() {
     <div className="space-y-6">
       <PageHeader eyebrow="Collections" title="Payments" meta={p.bursar ? "Record cash and cheques. Posted payments are final; corrections go through Approvals." : "Read-only. Only the bursar records payments."}>
         {p.collect && <StkPanel />}
-        {p.bursar && <Btn data-testid="button-new-payment" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Record payment</Btn>}
+        {p.bursar && <Btn data-testid="button-new-payment" className="max-md:hidden" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Record payment</Btn>}
       </PageHeader>
       {p.bursar && <FormDialog open={open} onOpenChange={setOpen} size="lg" title="Record a cash or cheque payment" description="Each submission carries a unique key; a retry after a network error cannot double-post."><RecordPayment onDone={() => setOpen(false)} /></FormDialog>}
       {p.bursar && <FormDialog open={!!cheque} onOpenChange={(o) => { if (!o) setCheque(null); }} title="Update cheque status" description={cheque ? `${sname(cheque.studentId)} · receipt ${rd(cheque, "receiptNo") ?? ""}` : undefined}>{cheque && <ChequeAction key={cheque.id} r={cheque} onDone={() => setCheque(null)} />}</FormDialog>}
       <Panel>
-        <div className="grid gap-2 border-b border-border/70 p-4 sm:grid-cols-3 lg:grid-cols-6">
-          <TextInput aria-label="Search payments" placeholder="Student, receipt or reference" value={fl.text} onChange={(e) => setFl({ ...fl, text: e.target.value })} />
+        <div className="border-b border-border/70 p-4"><Filters className="md:grid md:w-full md:grid-cols-3 lg:grid-cols-5" active={[fl.channel, fl.from, fl.to, fl.status, fl.cheque].filter(Boolean).length} onClear={() => setFl({ ...fl, channel: "", from: "", to: "", status: "", cheque: "" })}
+          lead={<TextInput aria-label="Search payments" data-testid="input-search-payments" placeholder="Student, receipt or reference" value={fl.text} onChange={(e) => setFl({ ...fl, text: e.target.value })} />}>
           <NativeSelect aria-label="Channel" value={fl.channel} onChange={(e) => setFl({ ...fl, channel: e.target.value })}><option value="">All channels</option><option value="cash">Cash</option><option value="cheque">Cheque</option></NativeSelect>
           <TextInput aria-label="Received from (Nairobi date)" type="date" value={fl.from} onChange={(e) => setFl({ ...fl, from: e.target.value })} />
           <TextInput aria-label="Received to (Nairobi date)" type="date" value={fl.to} min={fl.from || undefined} onChange={(e) => setFl({ ...fl, to: e.target.value })} />
           <NativeSelect aria-label="Status" value={fl.status} onChange={(e) => setFl({ ...fl, status: e.target.value })}><option value="">All statuses</option><option value="posted">Posted</option><option value="reversed">Reversed</option></NativeSelect>
           <NativeSelect aria-label="Cheque stage" value={fl.cheque} onChange={(e) => setFl({ ...fl, cheque: e.target.value, channel: e.target.value ? "cheque" : fl.channel })}><option value="">Any cheque stage</option><option value="received">Received</option><option value="banked">Banked</option><option value="cleared">Cleared</option><option value="bounced">Bounced</option></NativeSelect>
-        </div>
+        </Filters></div>
         {q.isLoading ? <SkeletonRows cols={6} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !list.length ? <Empty icon={<Banknote className="h-5 w-5" />} title={q.data?.length ? "No payments match" : "No payments yet"} body="Posted payments appear here with downloadable receipts." /> : (
           <Table head={["Receipt", "Student", "Channel", "Amount", "Received", "Status", ""]}>{list.map((r) => (
             <tr key={r.id} data-testid={`row-payment-${r.id}`}>
@@ -129,7 +129,8 @@ export default function Payments() {
             </tr>))}</Table>
         )}
       </Panel>
-      <div className="flex items-center justify-end gap-3"><span>{filtered.length} payments · page {currentPage}</span><Btn variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Btn><Btn variant="outline" disabled={currentPage * 50 >= filtered.length} onClick={() => setPage(currentPage + 1)}>Next</Btn></div>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm md:justify-end"><span className="w-full text-muted-foreground sm:w-auto">{filtered.length} payments · page {currentPage}</span><Btn variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Btn><Btn variant="outline" disabled={currentPage * 50 >= filtered.length} onClick={() => setPage(currentPage + 1)}>Next</Btn></div>
+      {p.bursar && <Fab testid="fab-new-payment" label="Record payment" icon={<Plus className="h-4 w-4" />} onClick={() => setOpen(true)} />}
     </div>
   );
 }

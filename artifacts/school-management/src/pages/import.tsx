@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePreviewStudentImport, useCommitStudentImport, getListStudentsQueryKey, getListGuardiansQueryKey, getListFamiliesQueryKey, getGetDashboardSummaryQueryKey, getListGradesQueryKey, getListStreamsQueryKey, getListAuditLogsQueryKey, type StudentImportRow, type StudentImportPreview, type StudentImportResult } from "@workspace/api-client-react";
 import { CheckCircle2, Download, FileSpreadsheet, Loader2, RotateCcw, Upload } from "lucide-react";
-import { PageHeader, Panel, Btn, FormError, Pill } from "@/components/kit";
+import { PageHeader, Panel, Btn, FormError, Pill, CardTable } from "@/components/kit";
 import { errMsg } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -178,8 +178,8 @@ export default function ImportPage() {
               ))}
             </div>
           </div>
-          <div className="max-h-[480px] overflow-auto">
-            <table className="w-full text-sm">
+          <div className="max-h-[60dvh] overflow-auto md:max-h-[480px]">
+            <CardTable><table className="w-full text-sm">
               <thead className="sticky top-0 bg-card text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2">Row</th><th className="px-3 py-2">Adm. no</th><th className="px-3 py-2">Student</th><th className="hidden px-3 py-2 md:table-cell">Guardian phone</th><th className="px-3 py-2">Result</th></tr></thead>
               <tbody>{shown.map((r) => (
                 <tr key={r.rowNumber} data-testid={`row-preview-${r.rowNumber}`} className={cn("border-b border-border/40 align-top", r.status === "error" && "bg-destructive/[0.03]")}>
@@ -192,7 +192,7 @@ export default function ImportPage() {
                     {r.warnings.map((w, i) => <div key={i} className="mt-1 text-xs text-amber-800">{w}</div>)}
                   </td>
                 </tr>))}</tbody>
-            </table>
+            </table></CardTable>
           </div>
           <div className="space-y-3 border-t border-border/70 p-5">
             <FormError msg={err} />
