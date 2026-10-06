@@ -615,6 +615,41 @@ model MessageDelivery {
   @@index([schoolId,status,scheduledAt])
   @@map("message_deliveries")
 }
+model EmailCampaign {
+  id String @id @default(uuid()) @db.Uuid
+  scope String
+  idempotencyKey String
+  kind String
+  subject String
+  html String
+  text String
+  publicOrigin String @default("")
+  createdAt DateTime @default(now())
+  recipients EmailRecipient[]
+  @@unique([scope, idempotencyKey])
+  @@map("email_campaigns")
+}
+model EmailRecipient {
+  id String @id @default(uuid()) @db.Uuid
+  campaignId String @db.Uuid
+  campaign EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  email String
+  status String @default("queued")
+  error String?
+  providerMessageId String?
+  unsubscribeToken String @unique @default(uuid()) @db.Uuid
+  updatedAt DateTime @default(now()) @updatedAt
+  @@unique([campaignId, email])
+  @@index([status, updatedAt])
+  @@map("email_recipients")
+}
+model EmailSuppression {
+  scope String
+  email String
+  createdAt DateTime @default(now())
+  @@id([scope, email])
+  @@map("email_suppressions")
+}
 model MessagingAccount {
   id String @id @default(uuid()) @db.Uuid
   scope String

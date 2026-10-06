@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PageTitleProvider, useRegisteredTitle } from "@/lib/page-title";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
-import { ShieldCheck, Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug, RadioTower } from "lucide-react";
+import { ShieldCheck, Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug, Mail } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLogout } from "@workspace/api-client-react";
 import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Menu, X, Settings, Users, UserCog } from "lucide-react";
@@ -51,6 +51,7 @@ function ShellInner({ children }: { children: ReactNode }) {
     { href: "/", label: N("/"), icon: LayoutDashboard, show: true },
     { href: "/schools", label: N("/schools"), icon: Building2, show: true },
     { href: "/platform/subscriptions", label: N("/platform/subscriptions"), icon: Wallet, show: true },
+    { href: "/platform/emails", label: N("/platform/emails"), icon: Mail, show: true },
     { href: "/platform/settings", label: N("/platform/settings"), icon: Settings, show: true },
     { href: "/platform/audit", label: N("/platform/audit"), icon: ScrollText, show: true },
     { href: "/account", label: N("/account"), icon: KeyRound, show: true },
@@ -74,7 +75,7 @@ function ShellInner({ children }: { children: ReactNode }) {
     { href: "/attendance", label: N("/attendance"), icon: CalendarCheck, show: p.academicRead },
     { href: "/report-cards", label: N("/report-cards"), icon: FileBadge, show: p.academicRead },
     { href: "/reports", label: N("/reports"), icon: BarChart3, show: p.reports },
-    { href: "/messaging", label: N("/messaging"), icon: RadioTower, show: p.integrations },
+    { href: "/emails", label: N("/emails"), icon: Mail, show: user.role === "school_admin" },
     { href: "/integrations", label: N("/integrations"), icon: Plug, show: p.integrations },
     { href: "/jobs", label: N("/jobs"), icon: Activity, show: p.financeJobs },
     { href: "/academics", label: N("/academics"), icon: BookOpen, show: p.manageSchool },
@@ -87,14 +88,14 @@ function ShellInner({ children }: { children: ReactNode }) {
   const nav = (platformMode ? platformNav : tenantNav).filter((n) => n.show);
 
   const groups = platformMode ? [
-    { label: "Platform", paths: ["/", "/schools", "/platform/subscriptions", "/platform/audit", "/platform/settings"] },
+    { label: "Platform", paths: ["/", "/schools", "/platform/subscriptions", "/platform/emails", "/platform/audit", "/platform/settings"] },
     { label: "Account", paths: ["/account"] },
   ].map(group => ({ label: group.label, items: group.paths.flatMap(path => nav.filter(item => item.href === path)) })) : [
     { label: "School", paths: ["/", "/students", "/guardians", "/import"] },
     { label: "Finance", paths: ["/fees", "/invoices", "/payments", "/reconciliation", "/payment-plans", "/sponsors", "/approvals"] },
     { label: "Academics", paths: ["/academics", "/curriculum", "/assessments", "/attendance", "/report-cards"] },
-    { label: "Communication & reports", paths: ["/notifications", "/reports"] },
-    { label: "Administration", paths: ["/staff", "/settings", "/subscription", "/messaging", "/integrations", "/jobs", "/audit", "/account"] },
+    { label: "Communication & reports", paths: ["/notifications", "/emails", "/reports"] },
+    { label: "Administration", paths: ["/staff", "/settings", "/subscription", "/integrations", "/jobs", "/audit", "/account"] },
   ].map(group => ({
     label: group.label,
     items: group.paths.flatMap(path => nav.filter(item => item.href === path)),

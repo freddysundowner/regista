@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetPlatformEmailSettings, getGetPlatformEmailSettingsQueryKey,
   useSavePlatformEmailSettings, useSendPlatformTestEmail,
+  useGetSchoolEmailSettings, getGetSchoolEmailSettingsQueryKey,
+  useSaveSchoolEmailSettings, useSendSchoolTestEmail,
   type PlatformEmailSettings, type PlatformEmailSettingsInput,
 } from "@workspace/api-client-react";
 import { Info, Loader2, Mail, Send, Settings2 } from "lucide-react";
@@ -13,10 +15,12 @@ import { useToast } from "@/hooks/use-toast";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function EmailForm({ s, onDone }: { s: PlatformEmailSettings; onDone: () => void }) {
+function EmailForm({ s, school, onDone }: { s: PlatformEmailSettings; school: boolean; onDone: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const save = useSavePlatformEmailSettings();
+  const savePlatform = useSavePlatformEmailSettings();
+  const saveSchool = useSaveSchoolEmailSettings();
+  const save = school ? saveSchool : savePlatform;
   const [senderName, setSenderName] = useState(s.senderName ?? "");
   const [senderEmail, setSenderEmail] = useState(s.senderEmail ?? "");
   const [replyTo, setReplyTo] = useState(s.replyTo ?? "");
@@ -38,7 +42,7 @@ function EmailForm({ s, onDone }: { s: PlatformEmailSettings; onDone: () => void
     save.mutate({ data }, {
       onSuccess: () => {
         setApiKey("");
-        qc.invalidateQueries({ queryKey: getGetPlatformEmailSettingsQueryKey() });
+        qc.invalidateQueries({ queryKey: school ? getGetSchoolEmailSettingsQueryKey() : getGetPlatformEmailSettingsQueryKey() });
         toast({ title: "Email settings saved", description: "The API key is encrypted on the server. Saving does not verify delivery." });
         onDone();
       },
@@ -68,7 +72,7 @@ function EmailForm({ s, onDone }: { s: PlatformEmailSettings; onDone: () => void
         </Field>}
         <label className="flex items-start gap-2 text-sm sm:col-span-2">
           <input type="checkbox" data-testid="toggle-email-enabled" className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          <span>Enabled <span className="block text-xs text-muted-foreground">When off, the platform will not send email through Brevo.</span></span>
+          <span>Enabled <span className="block text-xs text-muted-foreground">{school ? "When off, this school sends no email. There is no platform fallback." : "When off, the platform will not send email through Brevo."}</span></span>
         </label>
       </div>
       <p className="text-xs text-muted-foreground">The API key is write-only: it is never displayed again after saving.</p>
@@ -81,25 +85,27 @@ function EmailForm({ s, onDone }: { s: PlatformEmailSettings; onDone: () => void
   );
 }
 
-function TestForm({ onDone }: { onDone: () => void }) {
+function TestForm({ school, onDone }: { school: boolean; onDone: () => void }) {
   const { toast } = useToast();
-  const send = useSendPlatformTestEmail();
+  const sendPlatform = useSendPlatformTestEmail();
+  const sendSchool = useSendSchoolTestEmail();
+  const send = school ? sendSchool : sendPlatform;
   const [recipient, setRecipient] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const [result, setResult] = useState<{ message: string; messageId: string } | null>(null);
+  const [result, setResult] = useState<{ message: string; messageId?: string } | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
     const r = recipient.trim();
     if (!EMAIL_RE.test(r)) return setErr("Enter a valid recipient email address.");
     send.mutate({ data: { recipient: r } }, {
-      onSuccess: (res) => { setResult(res); toast({ title: "Test email accepted by Brevo", description: "Acceptance does not confirm delivery to the inbox." }); },
+      onSuccess: (res) => { setResult(res); toast({ title: res.messageId ? "Test email accepted by Brevo" : "Test email queued", description: "This does not confirm delivery to the inbox." }); },
       onError: (x) => setErr(errMsg(x)),
     });
   };
   if (result) return (
     <div className="space-y-4 p-5" data-testid="text-test-result">
-      <p className="text-sm"><b>Accepted by Brevo.</b> {result.message} This confirms Brevo accepted the request, not that it was delivered.</p>
-      <p className="break-all font-mono text-xs text-muted-foreground">Message ID {result.messageId}</p>
+      <p className="text-sm"><b>{result.messageId ? "Accepted by Brevo." : "Queued."}</b> {result.message} {result.messageId ? "This confirms Brevo accepted the request, not that it was delivered." : "Queued is not sent or delivered."}</p>
+      {result.messageId && <p className="break-all font-mono text-xs text-muted-foreground">Message ID {result.messageId}</p>}
       <FormActions><Btn type="button" onClick={onDone}>Done</Btn></FormActions>
     </div>
   );
@@ -127,8 +133,11 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function PlatformEmailSettingsPanel() {
-  const q = useGetPlatformEmailSettings({ query: { queryKey: getGetPlatformEmailSettingsQueryKey(), refetchInterval: 30_000, refetchOnWindowFocus: true } });
+export default function PlatformEmailSettingsPanel({ school = false }: { school?: boolean } = {}) {
+  const poll = { refetchInterval: 30_000, refetchOnWindowFocus: true } as const;
+  const pq = useGetPlatformEmailSettings({ query: { queryKey: getGetPlatformEmailSettingsQueryKey(), enabled: !school, ...poll } });
+  const sq = useGetSchoolEmailSettings({ query: { queryKey: getGetSchoolEmailSettingsQueryKey(), enabled: school, ...poll } });
+  const q = school ? sq : pq;
   const ro = useReadOnly();
   const [dlg, setDlg] = useState<null | "edit" | "test">(null);
   const [n, setN] = useState(0);
@@ -140,8 +149,9 @@ export default function PlatformEmailSettingsPanel() {
     <div className="space-y-4">
       <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <p>Platform email is sent through <b>Brevo</b>. The sender address must be an approved Brevo sender or belong to an authenticated domain. Results are reported as accepted by Brevo, not delivered.</p>
+        <p>{school ? <>This school sends email through <b>its own Brevo account</b>. There is no platform fallback: if this is not configured or disabled, school email (including campaigns) is not sent.</> : <>Platform email is sent through <b>Brevo</b>.</>} The sender address must be an approved Brevo sender or belong to an authenticated domain. Results are reported as accepted by Brevo, not delivered.</p>
       </div>
+      {!school && <p className="text-xs text-muted-foreground" data-testid="text-welcome-note">When email is enabled, a welcome email is queued automatically after each school registration. Sending problems never fail the registration; check the result under Emails history.</p>}
       <Panel title="Email provider">
         {q.isLoading ? <SkeletonRows rows={2} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error, "Could not load email settings.")} onRetry={() => q.refetch()} />
           : !s ? <Empty icon={<Mail className="h-5 w-5" />} title="No email settings" body="The server returned nothing. Retry shortly." />
@@ -162,17 +172,17 @@ export default function PlatformEmailSettingsPanel() {
                   <Row label="Reply-to" value={s.replyTo || "Same as sender"} />
                   <Row label="Last updated" value={s.updatedAt ? new Date(s.updatedAt).toLocaleString() : "—"} />
                 </dl>
-              ) : <p className="text-sm text-muted-foreground">Email is not configured yet. Add a Brevo API key and an approved sender to enable platform email.</p>}
-              {s.configured && !s.enabled && <p className="text-xs text-amber-800">Email is disabled. No platform email will be sent until it is enabled.</p>}
+              ) : <p className="text-sm text-muted-foreground">Email is not configured yet. Add a Brevo API key and an approved sender to enable {school ? "this school's" : "platform"} email.</p>}
+              {s.configured && !s.enabled && <p className="text-xs text-amber-800">Email is disabled. No {school ? "school" : "platform"} email will be sent until it is enabled.</p>}
             </div>
           )}
       </Panel>
       {s && <FormDialog open={dlg === "edit"} onOpenChange={(o) => !o && setDlg(null)} size="lg" testid="dialog-email-settings"
-        title={s.configured ? "Edit email settings" : "Configure email"} description="Brevo transactional email for the platform.">
-        {dlg === "edit" && <EmailForm key={n} s={s} onDone={() => setDlg(null)} />}
+        title={s.configured ? "Edit email settings" : "Configure email"} description={school ? "This school’s own Brevo account." : "Brevo transactional email for the platform."}>
+        {dlg === "edit" && <EmailForm key={n} s={s} school={school} onDone={() => setDlg(null)} />}
       </FormDialog>}
       <FormDialog open={dlg === "test"} onOpenChange={(o) => !o && setDlg(null)} size="sm" testid="dialog-test-email" title="Send test email">
-        {dlg === "test" && <TestForm key={n} onDone={() => setDlg(null)} />}
+        {dlg === "test" && <TestForm key={n} school={school} onDone={() => setDlg(null)} />}
       </FormDialog>
     </div>
   );

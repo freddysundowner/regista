@@ -4,6 +4,7 @@ export const PLATFORM_PAGE_NAMES: Record<string, string> = {
   "/schools": "Schools",
   "/platform/subscriptions": "Subscriptions",
   "/platform/settings": "Settings",
+  "/platform/emails": "Emails",
   "/platform/audit": "Platform audit",
   "/account": "My account",
 };
@@ -13,7 +14,7 @@ export const TENANT_PAGE_NAMES: Record<string, string> = {
   "/payment-plans": "Payment plans", "/reconciliation": "Reconciliation", "/notifications": "Messages",
   "/curriculum": "Curriculum", "/assessments": "Assessments", "/attendance": "Attendance", "/report-cards": "Report cards",
   "/reports": "Reports", "/messaging": "Messaging routing", "/integrations": "Integrations", "/jobs": "Finance jobs",
-  "/academics": "Academics", "/staff": "Staff", "/audit": "Audit history", "/settings": "School profile",
+  "/academics": "Academics", "/staff": "Staff", "/audit": "Audit history", "/settings": "Settings", "/emails": "Emails",
   "/subscription": "Subscriptions", "/account": "My account",
 };
 export function pageName(path: string, platform: boolean) {

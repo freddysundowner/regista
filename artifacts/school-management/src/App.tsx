@@ -41,7 +41,7 @@ import Assessments from '@/pages/assessments';
 import ReportCards from '@/pages/report-cards';
 import Attendance from '@/pages/attendance';
 import Reports from '@/pages/reports';
-import MessagingSettingsPage from '@/pages/messaging-settings';
+import EmailCampaignsPage from '@/pages/email-campaigns';
 import PlatformSettings from '@/pages/platform-settings';
 import { Shell } from '@/components/shell';
 import { SessionProvider, usePerms, useAuthSession, errMsg } from '@/lib/session';
@@ -98,6 +98,7 @@ function PlatformRoutes() {
       <Route path="/platform/settings" component={PlatformSettings} />
       <Route path="/platform/licence-plans"><Redirect to="/platform/settings?tab=licences" replace /></Route>
       <Route path="/platform/messaging"><Redirect to="/platform/settings?tab=messaging" replace /></Route>
+      <Route path="/platform/emails"><EmailCampaignsPage platform /></Route>
       <Route path="/account" component={Account} />
       <Route><ErrorState msg="That page belongs to a school workspace. Open a school from the Schools list to enter it with a recorded reason." /></Route>
     </Switch>
@@ -142,7 +143,9 @@ function AppRoutes() {
       <Route path="/platform/messaging"><Guard allow={false}><span /></Guard></Route>
       <Route path="/platform/subscriptions"><Guard allow={false}><span /></Guard></Route>
       <Route path="/platform/settings"><Guard allow={false}><span /></Guard></Route>
-      <Route path="/messaging"><Guard allow={p.integrations}><MessagingSettingsPage /></Guard></Route>
+      <Route path="/messaging"><Redirect to="/settings?tab=messaging" replace /></Route>
+      <Route path="/emails"><Guard allow={s.user.role === 'school_admin'}><EmailCampaignsPage /></Guard></Route>
+      <Route path="/platform/emails"><Guard allow={false}><span /></Guard></Route>
       <Route path="/subscription"><Guard allow={s.user.role !== 'super_admin'}><SubscriptionPage /></Guard></Route>
       <Route path="/fees"><Guard allow={p.financeRead}><Fees /></Guard></Route>
       <Route path="/invoices"><Guard allow={p.financeRead}><Invoices /></Guard></Route>

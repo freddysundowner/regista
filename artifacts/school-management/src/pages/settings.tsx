@@ -1,8 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useLocation, useSearch } from "wouter";
+import MessagingSettingsPage from "@/pages/messaging-settings";
+import EmailSettingsPanel from "@/pages/platform-email-settings";
+import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetSchool, useUpdateSchool, getGetSchoolQueryKey, getGetCurrentUserQueryKey, getGetDashboardSummaryQueryKey, SchoolType, SchoolSettingsSiblingSplitRule, SchoolSettingsSiblingFallbackRule, SchoolSettingsKnecColumnsItem, getListSchoolsQueryKey, type School, type SchoolSettings } from "@workspace/api-client-react";
 import { StoredImage, ImageUploadButton } from "@/components/stored-image";
-import { Building, Loader2, Pencil } from "lucide-react";
+import { Building, Loader2, Mail, Pencil, RadioTower } from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import { PageHeader, Panel, ErrorState, Btn, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
 import { errMsg, blank, fmtDate } from "@/lib/session";
@@ -165,14 +169,14 @@ function Facts({ rows }: { rows: [string, string][] }) {
   );
 }
 
-export default function SettingsPage() {
+export function SchoolProfileSection({ embedded = false }: { embedded?: boolean } = {}) {
   const q = useGetSchool({ query: { queryKey: getGetSchoolQueryKey() } });
   const [edit, setEdit] = useState<"profile" | "ops" | null>(null);
   const s = q.data;
   const st: SchoolSettings = s?.settings ?? {};
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Settings" title="School profile" meta="Appears on staff screens and future documents." />
+      {!embedded && <PageHeader eyebrow="Settings" title="School profile" meta="Appears on staff screens and future documents." />}
       {q.isLoading ? <Panel className="max-w-3xl"><div className="grid gap-4 p-5 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded bg-muted" />)}</div></Panel> :
         q.isError || !q.data ? <Panel className="max-w-3xl"><ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /></Panel> : (
           <>
@@ -197,6 +201,55 @@ export default function SettingsPage() {
             </FormDialog>
           </>
         )}
+    </div>
+  );
+}
+
+const TABS = [
+  { id: "profile", label: "Profile", icon: Building },
+  { id: "email", label: "Email", icon: Mail },
+  { id: "messaging", label: "Messaging", icon: RadioTower },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
+
+export default function SettingsPage() {
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const raw = new URLSearchParams(search).get("tab");
+  const tab: TabId = TABS.some((t) => t.id === raw) ? (raw as TabId) : "profile";
+  const refs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const go = (id: TabId) => { if (id !== tab) navigate(`/settings?tab=${id}`); };
+  const onKey = (e: KeyboardEvent) => {
+    const i = TABS.findIndex((t) => t.id === tab);
+    let n = -1;
+    if (e.key === "ArrowRight") n = (i + 1) % TABS.length;
+    else if (e.key === "ArrowLeft") n = (i - 1 + TABS.length) % TABS.length;
+    else if (e.key === "Home") n = 0;
+    else if (e.key === "End") n = TABS.length - 1;
+    if (n < 0) return;
+    e.preventDefault(); go(TABS[n].id); refs.current[TABS[n].id]?.focus();
+  };
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow="School" title="Settings" meta="School profile, this school's own email account and SMS/WhatsApp routing." />
+      <div role="tablist" aria-label="Settings sections" onKeyDown={onKey}
+        className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {TABS.map((t) => {
+          const on = t.id === tab;
+          return (
+            <button key={t.id} ref={(el) => { refs.current[t.id] = el; }} type="button" role="tab" id={`tab-${t.id}`} aria-selected={on} aria-controls={`panel-${t.id}`}
+              tabIndex={on ? 0 : -1} data-testid={`tab-settings-${t.id}`} onClick={() => go(t.id)}
+              className={cn("relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md px-3.5 py-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40",
+                on ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              <t.icon className={cn("h-4 w-4", on && "text-primary")} />{t.label}
+              <span className={cn("absolute inset-x-2 -bottom-px h-[2px] rounded-full bg-primary transition-transform", on ? "scale-x-100" : "scale-x-0")} />
+            </button>
+          );
+        })}
+      </div>
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} key={tab} className="rise">
+        {tab === "profile" ? <SchoolProfileSection embedded /> : tab === "email" ? <EmailSettingsPanel school /> : <MessagingSettingsPage embedded />}
+      </div>
     </div>
   );
 }

@@ -8,6 +8,165 @@
 import * as zod from 'zod';
 
 
+export const GetSchoolEmailSettingsResponse = zod.object({
+  "provider": zod.enum(['brevo']),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "senderName": zod.string(),
+  "senderEmail": zod.string(),
+  "replyTo": zod.string(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+export const saveSchoolEmailSettingsBodySenderNameMax = 100;
+
+export const saveSchoolEmailSettingsBodySenderEmailMax = 254;
+
+export const saveSchoolEmailSettingsBodyReplyToMax = 254;
+
+export const saveSchoolEmailSettingsBodyApiKeyMin = 10;
+export const saveSchoolEmailSettingsBodyApiKeyMax = 4096;
+
+
+
+export const SaveSchoolEmailSettingsBody = zod.object({
+  "enabled": zod.boolean(),
+  "senderName": zod.string().min(1).max(saveSchoolEmailSettingsBodySenderNameMax),
+  "senderEmail": zod.string().email().max(saveSchoolEmailSettingsBodySenderEmailMax),
+  "replyTo": zod.string().email().max(saveSchoolEmailSettingsBodyReplyToMax).optional(),
+  "apiKey": zod.string().min(saveSchoolEmailSettingsBodyApiKeyMin).max(saveSchoolEmailSettingsBodyApiKeyMax).optional().describe('Omit to retain the saved encrypted key. Never returned in responses.')
+})
+
+export const SaveSchoolEmailSettingsResponse = zod.object({
+  "provider": zod.enum(['brevo']),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "senderName": zod.string(),
+  "senderEmail": zod.string(),
+  "replyTo": zod.string(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+export const sendSchoolTestEmailBodyRecipientMax = 254;
+
+
+
+export const SendSchoolTestEmailBody = zod.object({
+  "recipient": zod.string().email().max(sendSchoolTestEmailBodyRecipientMax)
+})
+
+export const SendSchoolTestEmailResponse = zod.object({
+  "id": zod.string().optional(),
+  "total": zod.number().int().optional(),
+  "message": zod.string(),
+  "messageId": zod.string().optional()
+})
+
+
+export const ListPlatformEmailRecipientsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "schoolName": zod.string().optional()
+})
+export const ListPlatformEmailRecipientsResponse = zod.array(ListPlatformEmailRecipientsResponseItem)
+
+
+export const ListSchoolEmailRecipientsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "schoolName": zod.string().optional()
+})
+export const ListSchoolEmailRecipientsResponse = zod.array(ListSchoolEmailRecipientsResponseItem)
+
+
+export const ListPlatformEmailCampaignsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "subject": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "total": zod.number().int(),
+  "queued": zod.number().int(),
+  "accepted": zod.number().int(),
+  "failed": zod.number().int(),
+  "uncertain": zod.number().int(),
+  "skipped": zod.number().int()
+})
+export const ListPlatformEmailCampaignsResponse = zod.array(ListPlatformEmailCampaignsResponseItem)
+
+
+export const createPlatformEmailCampaignBodySubjectMax = 200;
+
+export const createPlatformEmailCampaignBodyHtmlMax = 100000;
+
+export const createPlatformEmailCampaignBodyRecipientsItemMax = 254;
+
+export const createPlatformEmailCampaignBodyRecipientsMax = 100;
+
+
+
+export const CreatePlatformEmailCampaignBody = zod.object({
+  "idempotencyKey": zod.string().uuid(),
+  "kind": zod.enum(['marketing', 'announcement', 'transactional']),
+  "subject": zod.string().min(1).max(createPlatformEmailCampaignBodySubjectMax),
+  "html": zod.string().min(1).max(createPlatformEmailCampaignBodyHtmlMax),
+  "recipients": zod.array(zod.string().email().max(createPlatformEmailCampaignBodyRecipientsItemMax)).min(1).max(createPlatformEmailCampaignBodyRecipientsMax),
+  "consentConfirmed": zod.boolean()
+})
+
+export const CreatePlatformEmailCampaignResponse = zod.object({
+  "id": zod.string().optional(),
+  "total": zod.number().int().optional(),
+  "message": zod.string(),
+  "messageId": zod.string().optional()
+})
+
+
+export const ListSchoolEmailCampaignsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "subject": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "total": zod.number().int(),
+  "queued": zod.number().int(),
+  "accepted": zod.number().int(),
+  "failed": zod.number().int(),
+  "uncertain": zod.number().int(),
+  "skipped": zod.number().int()
+})
+export const ListSchoolEmailCampaignsResponse = zod.array(ListSchoolEmailCampaignsResponseItem)
+
+
+export const createSchoolEmailCampaignBodySubjectMax = 200;
+
+export const createSchoolEmailCampaignBodyHtmlMax = 100000;
+
+export const createSchoolEmailCampaignBodyRecipientsItemMax = 254;
+
+export const createSchoolEmailCampaignBodyRecipientsMax = 100;
+
+
+
+export const CreateSchoolEmailCampaignBody = zod.object({
+  "idempotencyKey": zod.string().uuid(),
+  "kind": zod.enum(['marketing', 'announcement', 'transactional']),
+  "subject": zod.string().min(1).max(createSchoolEmailCampaignBodySubjectMax),
+  "html": zod.string().min(1).max(createSchoolEmailCampaignBodyHtmlMax),
+  "recipients": zod.array(zod.string().email().max(createSchoolEmailCampaignBodyRecipientsItemMax)).min(1).max(createSchoolEmailCampaignBodyRecipientsMax),
+  "consentConfirmed": zod.boolean()
+})
+
+export const CreateSchoolEmailCampaignResponse = zod.object({
+  "id": zod.string().optional(),
+  "total": zod.number().int().optional(),
+  "message": zod.string(),
+  "messageId": zod.string().optional()
+})
+
+
 export const GetPlatformEmailSettingsResponse = zod.object({
   "provider": zod.enum(['brevo']),
   "enabled": zod.boolean(),

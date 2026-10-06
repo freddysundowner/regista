@@ -12,6 +12,7 @@ import { coverage } from "../lib/licensing";
 import { platformMessagingRouter } from "./messaging-settings";
 import { platformSubscriptions } from "./platform-subscriptions";
 import { platformEmailRouter } from "./platform-email";
+import { platformCampaignRouter } from "./email-campaigns";
 
 const router = Router();
 // Mount only on platform paths: tenant endpoints retain their own middleware.
@@ -31,6 +32,7 @@ router.use(platformLicensing);
 router.use(platformMessagingRouter);
 router.use(platformSubscriptions);
 router.use(platformEmailRouter);
+router.use(platformCampaignRouter);
 async function schoolExists(id: string) {
   const school = await db.school.findUnique({ where: { id }, include: { licences: { where: { revokedAt: null }, orderBy: { startsAt: "desc" } } } });
   if (!school) throw new ApiError(404, "School not found");

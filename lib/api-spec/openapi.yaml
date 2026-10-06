@@ -31,6 +31,112 @@ tags:
   - name: audit
     description: Audit history
 paths:
+  /email/settings:
+    get:
+      operationId: getSchoolEmailSettings
+      responses:
+        "200":
+          description: This school's own Brevo configuration, without credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformEmailSettings" }
+    put:
+      operationId: saveSchoolEmailSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformEmailSettingsInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformEmailSettings" }
+  /email/settings/test:
+    post:
+      operationId: sendSchoolTestEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformEmailTestInput" }
+      responses:
+        "200":
+          description: Accepted by Brevo, not delivery confirmation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailQueuedResult" }
+  /platform/email-recipients:
+    get:
+      operationId: listPlatformEmailRecipients
+      responses:
+        "200":
+          description: School administrators available to platform owner
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EmailAudienceRecipient" }
+  /email-recipients:
+    get:
+      operationId: listSchoolEmailRecipients
+      responses:
+        "200":
+          description: Staff and guardians of the authenticated school
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EmailAudienceRecipient" }
+  /platform/emails:
+    get:
+      operationId: listPlatformEmailCampaigns
+      responses:
+        "200":
+          description: Latest platform emails
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EmailCampaignSummary" }
+    post:
+      operationId: createPlatformEmailCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailCampaignCreateInput" }
+      responses:
+        "200":
+          description: Queued for sending
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailQueuedResult" }
+  /emails:
+    get:
+      operationId: listSchoolEmailCampaigns
+      responses:
+        "200":
+          description: Latest emails for this school only
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EmailCampaignSummary" }
+    post:
+      operationId: createSchoolEmailCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailCampaignCreateInput" }
+      responses:
+        "200":
+          description: Queued for sending
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailQueuedResult" }
   /platform/settings/email:
     get:
       operationId: getPlatformEmailSettings
@@ -1419,6 +1525,53 @@ paths:
                   $ref: "#/components/schemas/AuditLog"
 components:
   schemas:
+    EmailAudienceRecipient:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        schoolName: { type: string }
+    EmailQueuedResult:
+      type: object
+      required: [message]
+      properties:
+        id: { type: string }
+        total: { type: integer }
+        message: { type: string }
+        messageId: { type: string }
+    EmailCampaignCreateInput:
+      type: object
+      required: [idempotencyKey, kind, subject, html, recipients, consentConfirmed]
+      properties:
+        idempotencyKey: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/OutboundEmailKind" }
+        subject: { type: string, minLength: 1, maxLength: 200 }
+        html: { type: string, minLength: 1, maxLength: 100000 }
+        recipients:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: string, format: email, maxLength: 254 }
+        consentConfirmed: { type: boolean }
+    OutboundEmailKind:
+      type: string
+      enum: [marketing, announcement, transactional]
+    EmailCampaignSummary:
+      type: object
+      required: [id, kind, subject, createdAt, total, queued, accepted, failed, uncertain, skipped]
+      properties:
+        id: { type: string }
+        kind: { type: string }
+        subject: { type: string }
+        createdAt: { type: string, format: date-time }
+        total: { type: integer }
+        queued: { type: integer }
+        accepted: { type: integer }
+        failed: { type: integer }
+        uncertain: { type: integer }
+        skipped: { type: integer }
     PlatformEmailTestInput:
       type: object
       required: [recipient]

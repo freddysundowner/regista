@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startFinanceWorker } from "./jobs/finance";
+import { startEmailWorker } from "./lib/email";
 
 const rawPort = process.env["PORT"];
 
@@ -23,5 +24,6 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startEmailWorker();
   startFinanceWorker().catch(err => logger.error({ err }, "Finance jobs unavailable; run explicit job schema installation"));
 });

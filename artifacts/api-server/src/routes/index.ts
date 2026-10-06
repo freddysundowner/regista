@@ -22,10 +22,13 @@ import reportsRouter from "./reports";
 import { authenticate } from "../lib/core";
 import { schoolSubscription } from "./licensing";
 import { schoolMessagingRouter } from "./messaging-settings";
+import { schoolEmailRouter } from "./platform-email";
+import { schoolCampaignRouter, emailUnsubscribeRouter } from "./email-campaigns";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(emailUnsubscribeRouter);
 router.use(authRouter);
 router.use(platformRouter);
 router.use(schoolSubscription);
@@ -35,6 +38,8 @@ router.use(messageDeliveryCallbacks);
 router.use(botRouter);
 router.use(authenticate);
 router.use(schoolMessagingRouter);
+router.use(schoolEmailRouter);
+router.use(schoolCampaignRouter);
 router.use(collectionsRouter);
 router.use(learningRouter);
 router.use(reportsRouter);

@@ -8,8 +8,12 @@ export type BrevoEmail = {
   recipient: string;
   subject: string;
   text: string;
+  html?: string;
 };
 
+export class BrevoSendError extends ApiError {
+  constructor(message: string, public outcome: "failed" | "uncertain") { super(502, message); }
+}
 /** Single attempt only: an uncertain response may already have sent an email. */
 export async function sendBrevoEmail(apiKey: string, email: BrevoEmail): Promise<string> {
   let response: Response;
@@ -23,11 +27,12 @@ export async function sendBrevoEmail(apiKey: string, email: BrevoEmail): Promise
         ...(email.replyTo ? { replyTo: { email: email.replyTo } } : {}),
         subject: email.subject,
         textContent: email.text,
+        ...(email.html ? { htmlContent: email.html } : {}),
       }),
       signal: AbortSignal.timeout(15000),
     });
   } catch {
-    throw new ApiError(502, "Brevo did not confirm the result. Check your Brevo transactional logs before retrying; the email may already have been sent.");
+    throw new BrevoSendError("Brevo did not confirm the result. Check your Brevo transactional logs before retrying; the email may already have been sent.", "uncertain");
   }
   if (!response.ok) {
     const known: Record<number, string> = {
@@ -37,9 +42,9 @@ export async function sendBrevoEmail(apiKey: string, email: BrevoEmail): Promise
       403: "Brevo denied sending. Check account permissions and your approved sender/domain.",
       429: "Brevo is rate limiting emails. Wait before trying again.",
     };
-    throw new ApiError(502, known[response.status] ?? "Brevo did not confirm acceptance. Check your transactional logs before retrying.");
+    throw new BrevoSendError(known[response.status] ?? "Brevo did not confirm acceptance. Check your transactional logs before retrying.", response.status >= 400 && response.status < 500 ? "failed" : "uncertain");
   }
   const result = z.object({ messageId: z.string().min(1) }).safeParse(await response.json().catch(() => null));
-  if (!result.success) throw new ApiError(502, "Brevo returned no message ID. Delivery is uncertain; check your transactional logs before retrying.");
+  if (!result.success) throw new BrevoSendError("Brevo returned no message ID. Delivery is uncertain; check your transactional logs before retrying.", "uncertain");
   return result.data.messageId;
 }

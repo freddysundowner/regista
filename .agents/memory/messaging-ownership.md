@@ -18,4 +18,10 @@ The user requested Brevo for system email and a tabbed platform Settings page co
 
 **Why:** The user explicitly selected Brevo; do not substitute another email provider.
 
-**How to apply:** Keep system email platform-owned and credentials write-only. Adding configuration does not authorize automatic emails for unrelated events; new notification triggers need their own explicit scope.
+**How to apply:** Keep platform email and school-owned email credentials separate and write-only. School email must not silently fall back to platform funds.
+
+The user explicitly requested welcome emails on registration, rich-text marketing and other admin emails, and school-owned email, SMS and LeadsIntel WhatsApp settings.
+
+**Why:** These are authorized product requirements, not optional follow-up suggestions.
+
+**How to apply:** Welcome emails use the platform account and must not fail registration on provider errors. Schools can configure their own sending accounts. Marketing requires recipient permission and a working unsubscribe path; ambiguous provider results must not be retried automatically.

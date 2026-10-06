@@ -48,6 +48,10 @@ import type {
   DashboardSummary,
   DecisionInput,
   DocumentView,
+  EmailAudienceRecipient,
+  EmailCampaignCreateInput,
+  EmailCampaignSummary,
+  EmailQueuedResult,
   ErrorResponse,
   ExceptionView,
   FailedJobsView,
@@ -213,6 +217,689 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetSchoolEmailSettingsUrl = () => {
+
+
+
+
+  return `/api/email/settings`
+}
+
+export const getSchoolEmailSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformEmailSettings> => {
+
+  return customFetch<PlatformEmailSettings>(getGetSchoolEmailSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSchoolEmailSettingsQueryKey = () => {
+    return [
+    `/api/email/settings`
+    ] as const;
+    }
+
+
+export const getGetSchoolEmailSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getSchoolEmailSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSchoolEmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSchoolEmailSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSchoolEmailSettings>>> = ({ signal }) => getSchoolEmailSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSchoolEmailSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSchoolEmailSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getSchoolEmailSettings>>>
+export type GetSchoolEmailSettingsQueryError = ErrorType<unknown>
+
+
+
+export function useGetSchoolEmailSettings<TData = Awaited<ReturnType<typeof getSchoolEmailSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSchoolEmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSchoolEmailSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveSchoolEmailSettingsUrl = () => {
+
+
+
+
+  return `/api/email/settings`
+}
+
+export const saveSchoolEmailSettings = async (platformEmailSettingsInput: PlatformEmailSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<PlatformEmailSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformEmailSettings>(getSaveSchoolEmailSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformEmailSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getSaveSchoolEmailSettingsMutationKey = () => ['saveSchoolEmailSettings'] as const;
+
+export const getSaveSchoolEmailSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSchoolEmailSettings>>, TError,SaveSchoolEmailSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSchoolEmailSettings>>, TError,SaveSchoolEmailSettingsMutationVariables, TContext> => {
+
+const mutationKey = getSaveSchoolEmailSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSchoolEmailSettings>>, SaveSchoolEmailSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveSchoolEmailSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSchoolEmailSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof saveSchoolEmailSettings>>>
+    export type SaveSchoolEmailSettingsMutationBody = BodyType<PlatformEmailSettingsInput>
+    export type SaveSchoolEmailSettingsMutationError = ErrorType<unknown>
+    export type SaveSchoolEmailSettingsMutationVariables = {data: BodyType<PlatformEmailSettingsInput>}
+
+    export const useSaveSchoolEmailSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSchoolEmailSettings>>, TError,SaveSchoolEmailSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveSchoolEmailSettings>>,
+        TError,
+        SaveSchoolEmailSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveSchoolEmailSettingsMutationOptions(options));
+    }
+
+export const getSendSchoolTestEmailUrl = () => {
+
+
+
+
+  return `/api/email/settings/test`
+}
+
+export const sendSchoolTestEmail = async (platformEmailTestInput: PlatformEmailTestInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailQueuedResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EmailQueuedResult>(getSendSchoolTestEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformEmailTestInput)
+  }
+);}
+
+
+
+
+
+export const getSendSchoolTestEmailMutationKey = () => ['sendSchoolTestEmail'] as const;
+
+export const getSendSchoolTestEmailMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSchoolTestEmail>>, TError,SendSchoolTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendSchoolTestEmail>>, TError,SendSchoolTestEmailMutationVariables, TContext> => {
+
+const mutationKey = getSendSchoolTestEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendSchoolTestEmail>>, SendSchoolTestEmailMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendSchoolTestEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendSchoolTestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendSchoolTestEmail>>>
+    export type SendSchoolTestEmailMutationBody = BodyType<PlatformEmailTestInput>
+    export type SendSchoolTestEmailMutationError = ErrorType<unknown>
+    export type SendSchoolTestEmailMutationVariables = {data: BodyType<PlatformEmailTestInput>}
+
+    export const useSendSchoolTestEmail = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSchoolTestEmail>>, TError,SendSchoolTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendSchoolTestEmail>>,
+        TError,
+        SendSchoolTestEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendSchoolTestEmailMutationOptions(options));
+    }
+
+export const getListPlatformEmailRecipientsUrl = () => {
+
+
+
+
+  return `/api/platform/email-recipients`
+}
+
+export const listPlatformEmailRecipients = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailAudienceRecipient[]> => {
+
+  return customFetch<EmailAudienceRecipient[]>(getListPlatformEmailRecipientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformEmailRecipientsQueryKey = () => {
+    return [
+    `/api/platform/email-recipients`
+    ] as const;
+    }
+
+
+export const getListPlatformEmailRecipientsQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformEmailRecipients>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformEmailRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformEmailRecipientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformEmailRecipients>>> = ({ signal }) => listPlatformEmailRecipients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformEmailRecipients>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformEmailRecipientsQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformEmailRecipients>>>
+export type ListPlatformEmailRecipientsQueryError = ErrorType<unknown>
+
+
+
+export function useListPlatformEmailRecipients<TData = Awaited<ReturnType<typeof listPlatformEmailRecipients>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformEmailRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformEmailRecipientsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSchoolEmailRecipientsUrl = () => {
+
+
+
+
+  return `/api/email-recipients`
+}
+
+export const listSchoolEmailRecipients = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailAudienceRecipient[]> => {
+
+  return customFetch<EmailAudienceRecipient[]>(getListSchoolEmailRecipientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSchoolEmailRecipientsQueryKey = () => {
+    return [
+    `/api/email-recipients`
+    ] as const;
+    }
+
+
+export const getListSchoolEmailRecipientsQueryOptions = <TData = Awaited<ReturnType<typeof listSchoolEmailRecipients>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSchoolEmailRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSchoolEmailRecipientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSchoolEmailRecipients>>> = ({ signal }) => listSchoolEmailRecipients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSchoolEmailRecipients>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSchoolEmailRecipientsQueryResult = NonNullable<Awaited<ReturnType<typeof listSchoolEmailRecipients>>>
+export type ListSchoolEmailRecipientsQueryError = ErrorType<unknown>
+
+
+
+export function useListSchoolEmailRecipients<TData = Awaited<ReturnType<typeof listSchoolEmailRecipients>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSchoolEmailRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSchoolEmailRecipientsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPlatformEmailCampaignsUrl = () => {
+
+
+
+
+  return `/api/platform/emails`
+}
+
+export const listPlatformEmailCampaigns = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailCampaignSummary[]> => {
+
+  return customFetch<EmailCampaignSummary[]>(getListPlatformEmailCampaignsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformEmailCampaignsQueryKey = () => {
+    return [
+    `/api/platform/emails`
+    ] as const;
+    }
+
+
+export const getListPlatformEmailCampaignsQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformEmailCampaigns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformEmailCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformEmailCampaignsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformEmailCampaigns>>> = ({ signal }) => listPlatformEmailCampaigns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformEmailCampaigns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformEmailCampaignsQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformEmailCampaigns>>>
+export type ListPlatformEmailCampaignsQueryError = ErrorType<unknown>
+
+
+
+export function useListPlatformEmailCampaigns<TData = Awaited<ReturnType<typeof listPlatformEmailCampaigns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformEmailCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformEmailCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePlatformEmailCampaignUrl = () => {
+
+
+
+
+  return `/api/platform/emails`
+}
+
+export const createPlatformEmailCampaign = async (emailCampaignCreateInput: EmailCampaignCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailQueuedResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EmailQueuedResult>(getCreatePlatformEmailCampaignUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailCampaignCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePlatformEmailCampaignMutationKey = () => ['createPlatformEmailCampaign'] as const;
+
+export const getCreatePlatformEmailCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformEmailCampaign>>, TError,CreatePlatformEmailCampaignMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlatformEmailCampaign>>, TError,CreatePlatformEmailCampaignMutationVariables, TContext> => {
+
+const mutationKey = getCreatePlatformEmailCampaignMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlatformEmailCampaign>>, CreatePlatformEmailCampaignMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPlatformEmailCampaign(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlatformEmailCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof createPlatformEmailCampaign>>>
+    export type CreatePlatformEmailCampaignMutationBody = BodyType<EmailCampaignCreateInput>
+    export type CreatePlatformEmailCampaignMutationError = ErrorType<unknown>
+    export type CreatePlatformEmailCampaignMutationVariables = {data: BodyType<EmailCampaignCreateInput>}
+
+    export const useCreatePlatformEmailCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformEmailCampaign>>, TError,CreatePlatformEmailCampaignMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlatformEmailCampaign>>,
+        TError,
+        CreatePlatformEmailCampaignMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePlatformEmailCampaignMutationOptions(options));
+    }
+
+export const getListSchoolEmailCampaignsUrl = () => {
+
+
+
+
+  return `/api/emails`
+}
+
+export const listSchoolEmailCampaigns = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailCampaignSummary[]> => {
+
+  return customFetch<EmailCampaignSummary[]>(getListSchoolEmailCampaignsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSchoolEmailCampaignsQueryKey = () => {
+    return [
+    `/api/emails`
+    ] as const;
+    }
+
+
+export const getListSchoolEmailCampaignsQueryOptions = <TData = Awaited<ReturnType<typeof listSchoolEmailCampaigns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSchoolEmailCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSchoolEmailCampaignsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSchoolEmailCampaigns>>> = ({ signal }) => listSchoolEmailCampaigns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSchoolEmailCampaigns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSchoolEmailCampaignsQueryResult = NonNullable<Awaited<ReturnType<typeof listSchoolEmailCampaigns>>>
+export type ListSchoolEmailCampaignsQueryError = ErrorType<unknown>
+
+
+
+export function useListSchoolEmailCampaigns<TData = Awaited<ReturnType<typeof listSchoolEmailCampaigns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSchoolEmailCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSchoolEmailCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSchoolEmailCampaignUrl = () => {
+
+
+
+
+  return `/api/emails`
+}
+
+export const createSchoolEmailCampaign = async (emailCampaignCreateInput: EmailCampaignCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailQueuedResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EmailQueuedResult>(getCreateSchoolEmailCampaignUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailCampaignCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSchoolEmailCampaignMutationKey = () => ['createSchoolEmailCampaign'] as const;
+
+export const getCreateSchoolEmailCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSchoolEmailCampaign>>, TError,CreateSchoolEmailCampaignMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSchoolEmailCampaign>>, TError,CreateSchoolEmailCampaignMutationVariables, TContext> => {
+
+const mutationKey = getCreateSchoolEmailCampaignMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSchoolEmailCampaign>>, CreateSchoolEmailCampaignMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSchoolEmailCampaign(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSchoolEmailCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof createSchoolEmailCampaign>>>
+    export type CreateSchoolEmailCampaignMutationBody = BodyType<EmailCampaignCreateInput>
+    export type CreateSchoolEmailCampaignMutationError = ErrorType<unknown>
+    export type CreateSchoolEmailCampaignMutationVariables = {data: BodyType<EmailCampaignCreateInput>}
+
+    export const useCreateSchoolEmailCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSchoolEmailCampaign>>, TError,CreateSchoolEmailCampaignMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSchoolEmailCampaign>>,
+        TError,
+        CreateSchoolEmailCampaignMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSchoolEmailCampaignMutationOptions(options));
+    }
 
 export const getGetPlatformEmailSettingsUrl = () => {
 

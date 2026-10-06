@@ -5,6 +5,64 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+export interface EmailAudienceRecipient {
+  id: string;
+  name: string;
+  email: string;
+  schoolName?: string;
+}
+
+export interface EmailQueuedResult {
+  id?: string;
+  total?: number;
+  message: string;
+  messageId?: string;
+}
+
+export type OutboundEmailKind = typeof OutboundEmailKind[keyof typeof OutboundEmailKind];
+
+
+export const OutboundEmailKind = {
+  marketing: 'marketing',
+  announcement: 'announcement',
+  transactional: 'transactional',
+} as const;
+
+export interface EmailCampaignCreateInput {
+  idempotencyKey: string;
+  kind: OutboundEmailKind;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 100000
+     */
+  html: string;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     * @items.maxLength 254
+     */
+  recipients: string[];
+  consentConfirmed: boolean;
+}
+
+export interface EmailCampaignSummary {
+  id: string;
+  kind: string;
+  subject: string;
+  createdAt: string;
+  total: number;
+  queued: number;
+  accepted: number;
+  failed: number;
+  uncertain: number;
+  skipped: number;
+}
+
 export interface PlatformEmailTestInput {
   /** @maxLength 254 */
   recipient: string;

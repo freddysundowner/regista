@@ -6,6 +6,7 @@ import { rateLimit } from "express-rate-limit";
 import { createHash, timingSafeEqual, randomUUID } from "node:crypto";
 import { ApiError, body, contacts, requireContact, session, clearSession, send, authenticateIdentity, audit, lock, phone, type Tx, type Actor } from "../lib/core";
 import { authView, platformAudit } from "../lib/platform";
+import { queueWelcome } from "../lib/email";
 
 const router = Router();
 const loginLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: "draft-7", legacyHeaders: false,
@@ -41,6 +42,7 @@ router.post("/auth/register", registrationLimit, async (req, res) => {
     const actor = { school, user, ip: req.ip, userAgent: req.get("user-agent")?.slice(0, 500) };
     await audit(tx, actor, "registration_submitted", "school", school.id, undefined, school);
     await audit(tx, actor, "created", "user", user.id, undefined, user);
+    await queueWelcome(tx, user, school);
     return { school, user };
   }, { timeout: 30000 });
   session(req, res, result.user);
@@ -54,6 +56,7 @@ export async function provision(tx: Tx, input: ReturnType<typeof z.CreateInitial
   const actor = { school, user: metadata.initiator ?? user, ip: metadata.ip, userAgent: metadata.userAgent };
   await audit(tx, actor, "created", "school", school.id, undefined, school);
   await audit(tx, actor, "created", "user", user.id, undefined, user);
+  if (role === "school_admin") await queueWelcome(tx, user, school);
   return { school, user };
 }
 router.get("/setup/status", async (_req, res) => {

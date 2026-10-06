@@ -141,6 +141,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 }
 export function csrf(req: Request, _res: Response, next: NextFunction) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) { next(); return; }
+  // This public action is authorized solely by its unguessable per-recipient token,
+  // never by session cookies. Privacy-preserving mail clients may send Origin:null.
+  // It can only suppress marketing; it cannot send mail or change an account.
+  if (req.method === "POST" && /^\/api\/email\/unsubscribe\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.path)) { next(); return; }
   const origin = req.get("origin");
   const expected = `${req.protocol}://${req.get("host")}`;
   if (req.get("sec-fetch-site") === "cross-site" || (origin && origin !== expected)) {
