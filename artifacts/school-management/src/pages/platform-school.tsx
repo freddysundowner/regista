@@ -31,7 +31,7 @@ export default function PlatformSchool() {
 
   return (
     <div className="space-y-6">
-      <Link href="/schools" data-testid="link-back-schools" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />All schools</Link>
+      <Link href="/schools" data-testid="link-back-schools" className="max-md:hidden inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />All schools</Link>
       <PageHeader eyebrow={`School · ${s.code}`} title={s.name} meta={<span className="flex items-center gap-2"><Pill tone={s.status === "active" ? "active" : "error"}>{s.status}</Pill>Registered {fmtDate(s.createdAt)}</span>}>
         <Btn variant="outline" data-testid="button-edit-school" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" />Edit school</Btn>
         <Btn data-testid="button-enter-school" onClick={() => setEntering(true)}><DoorOpen className="h-4 w-4" />Enter school</Btn>

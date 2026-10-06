@@ -513,3 +513,7 @@ body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
   .app-main button[aria-label]:has(> svg:only-child),.dialog-body button[aria-label]:has(> svg:only-child){min-width:2.75rem;min-height:2.75rem;display:inline-flex;align-items:center;justify-content:center}
   .app-main a[aria-label]:has(> svg:only-child){min-width:2.75rem;min-height:2.75rem;display:inline-flex;align-items:center;justify-content:center}
 }
+@media (max-width: 767px){
+  /* Inner-page header collapses fully when its only actions are desktop-only (FAB takes over). */
+  .page-header-inner:not(:has(.page-actions > :not(.max-md\:hidden))){display:none}
+}

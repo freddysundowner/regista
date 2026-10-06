@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { PageTitleProvider, useRegisteredTitle } from "@/lib/page-title";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
 import { Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug } from "lucide-react";
@@ -9,16 +10,27 @@ import { useAuthSession, useReadOnly, usePerms, ROLE_LABEL, initials } from "@/l
 import { TenantAccessBanner, hardReset } from "@/components/platform-kit";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, ChevronLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 export function Shell({ children }: { children: ReactNode }) {
+  return <PageTitleProvider><ShellInner>{children}</ShellInner></PageTitleProvider>;
+}
+
+function ShellInner({ children }: { children: ReactNode }) {
   const { user, school, mode, tenantAccess } = useAuthSession();
   const p = usePerms();
   const platformMode = mode === "platform";
   const ro = useReadOnly();
   const { toast } = useToast();
-  const [loc] = useLocation();
+  const [loc, navigate] = useLocation();
+  // In-app history: back only uses the browser stack when we know the previous entry is ours.
+  const stack = useRef<string[]>([]);
+  useEffect(() => {
+    const st = stack.current;
+    if (st[st.length - 1] === loc) return;
+    if (st[st.length - 2] === loc) st.pop(); else st.push(loc);
+  }, [loc]);
   useEffect(() => {
     document.querySelector(".app-main")?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0 });
@@ -81,6 +93,17 @@ export function Shell({ children }: { children: ReactNode }) {
   const dockPriority = platformMode ? ["/", "/schools", "/platform/audit", "/account"] : ["/", "/students", "/payments", "/attendance", "/fees", "/assessments", "/reports", "/account"];
   const dock = dockPriority.flatMap(path => nav.filter(item => item.href === path)).slice(0, 4);
   const dockLabel: Record<string, string> = { "/": "Home", "/platform/audit": "Audit", "/account": "Account" };
+
+  const parentOf = (path: string) => (/^\/students\/[^/]+/.test(path) ? "/students" : /^\/schools\/[^/]+/.test(path) ? "/schools" : "/");
+  const goBack = () => {
+    if (stack.current.length > 1) window.history.back();
+    else { const parent = parentOf(loc); stack.current = [parent]; navigate(parent, { replace: true }); }
+  };
+  const fallbackTitle = nav.find((n) => n.href !== "/" && n.href === loc)?.label
+    ?? (loc.startsWith("/students/") ? "Student" : loc.startsWith("/schools/") ? "School" : "Not found");
+  const registered = useRegisteredTitle(loc);
+  const pageTitle = registered ?? fallbackTitle;
+  const isHome = loc === "/";
 
   const active = (h: string) => (h === "/" ? loc === "/" : loc.startsWith(h));
 
@@ -152,13 +175,20 @@ export function Shell({ children }: { children: ReactNode }) {
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 md:block">{side}</aside>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-sidebar-foreground md:hidden">
-          <Link href="/" className="flex min-w-0 items-center gap-2.5">
+{isHome ? (
+                    <Link href="/" className="flex min-w-0 items-center gap-2.5">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</span>
             <span className="min-w-0">
               <span className="block font-display text-base font-semibold leading-tight text-sidebar-accent-foreground">Rejista</span>
               <span className="block truncate text-[11px] text-sidebar-foreground/60">{platformMode || !school ? "Platform console" : school.name}</span>
             </span>
           </Link>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <button type="button" onClick={goBack} aria-label="Back" data-testid="button-header-back" className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent"><ChevronLeft className="h-6 w-6" /></button>
+              <h1 data-testid="text-mobile-title" title={pageTitle} className="line-clamp-2 min-w-0 flex-1 break-words font-display text-[1.05rem] font-semibold leading-tight text-sidebar-accent-foreground">{pageTitle}</h1>
+            </div>
+          )}
           <Dialog.Trigger asChild><button data-testid="button-menu" aria-label="Open all sections" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent"><Menu className="h-5 w-5" /></button></Dialog.Trigger>
         </header>
         <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-sidebar-foreground md:hidden">

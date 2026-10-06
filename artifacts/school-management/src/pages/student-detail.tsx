@@ -1,3 +1,4 @@
+import { usePageTitle } from "@/lib/page-title";
 import { useState, type FormEvent } from "react";
 import { Link, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -77,6 +78,7 @@ export default function StudentDetail() {
   const { toast } = useToast();
   const upd = useUpdateStudent();
   const s = q.data;
+  usePageTitle(s?.fullName);
 
   if (q.isLoading) return <div className="space-y-4"><div className="h-10 w-72 max-w-full animate-pulse rounded bg-muted" /><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>;
   if (q.isError || !s) return <Panel><ErrorState msg={errMsg(q.error, "Student not found")} onRetry={() => q.refetch()} /></Panel>;
@@ -89,7 +91,7 @@ export default function StudentDetail() {
 
   return (
     <div className="space-y-6">
-      <Link href="/students" data-testid="link-back" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> All students</Link>
+      <Link href="/students" data-testid="link-back" className="max-md:hidden inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> All students</Link>
       <header className="rise flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center">
         <div className="flex items-end gap-3">
           <StoredImage refPath={s.photoUrl} alt={`Photo of ${s.fullName}`} className="h-16 w-16 rounded-md" fallback={<div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary font-display text-2xl font-semibold text-primary-foreground">{initials(s.fullName)}</div>} />
@@ -98,7 +100,7 @@ export default function StudentDetail() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-mono text-xs text-amber-800">{s.admissionNo}</div>
-          <h1 data-testid="text-student-name" className="font-display text-[1.75rem] font-semibold leading-tight [overflow-wrap:anywhere] md:text-4xl">{s.fullName}</h1>
+          <h1 data-testid="text-student-name" className="max-md:hidden font-display text-[1.75rem] font-semibold leading-tight [overflow-wrap:anywhere] md:text-4xl">{s.fullName}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2"><Pill tone={s.status}>{s.status}</Pill>{s.siblingCount > 0 && <span className="text-xs text-muted-foreground">{s.siblingCount} sibling{s.siblingCount > 1 ? "s" : ""} in school</span>}</div>
         </div>
         {p.writeStudents && <Btn data-testid="button-edit-student" variant="outline" className="w-full md:w-auto" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit record</Btn>}
