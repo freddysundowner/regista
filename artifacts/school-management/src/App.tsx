@@ -43,6 +43,7 @@ import Attendance from '@/pages/attendance';
 import Reports from '@/pages/reports';
 import EmailCampaignsPage from '@/pages/email-campaigns';
 import PlatformSettings from '@/pages/platform-settings';
+import WhatsappSettingsPage from '@/pages/whatsapp-settings';
 import { Shell } from '@/components/shell';
 import { SessionProvider, usePerms, useAuthSession, errMsg } from '@/lib/session';
 import { ErrorState } from '@/components/kit';
@@ -95,6 +96,7 @@ function PlatformRoutes() {
       <Route path="/schools/:id" component={PlatformSchool} />
       <Route path="/platform/audit" component={PlatformAuditPage} />
       <Route path="/platform/subscriptions" component={PlatformSubscriptions} />
+      <Route path="/platform/settings/whatsapp"><WhatsappSettingsPage platform /></Route>
       <Route path="/platform/settings" component={PlatformSettings} />
       <Route path="/platform/licence-plans"><Redirect to="/platform/settings?tab=licences" replace /></Route>
       <Route path="/platform/messaging"><Redirect to="/platform/settings?tab=messaging" replace /></Route>
@@ -134,6 +136,7 @@ function AppRoutes() {
       <Route path="/guardians"><Guard allow={p.viewGuardians}><Guardians /></Guard></Route>
       <Route path="/academics"><Guard allow={p.manageSchool}><Academics /></Guard></Route>
       <Route path="/staff"><Guard allow={p.manageSchool}><Staff /></Guard></Route>
+      <Route path="/settings/whatsapp"><Guard allow={p.manageSchool}><WhatsappSettingsPage /></Guard></Route>
       <Route path="/settings"><Guard allow={p.manageSchool}><SettingsPage /></Guard></Route>
       <Route path="/import"><Guard allow={p.importStudents}><ImportPage /></Guard></Route>
       <Route path="/schools">{s.user.role === 'super_admin' ? <div><ErrorState msg="Platform pages are unavailable inside a school workspace. Exit to the platform console first." /><PlatformRecovery /></div> : <Guard allow={false}><Schools /></Guard>}</Route>

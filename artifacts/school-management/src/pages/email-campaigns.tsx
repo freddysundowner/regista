@@ -82,6 +82,8 @@ function parseManual(t: string) {
 }
 
 function Composer({ platform, onClose }: { platform: boolean; onClose: () => void }) {
+  const MAX = platform ? 10000 : 100;
+  const [schoolChoice, setSchoolChoice] = useState("");
   const qc = useQueryClient();
   const { toast } = useToast();
   const ro = useReadOnly();
@@ -111,10 +113,17 @@ function Composer({ platform, onClose }: { platform: boolean; onClose: () => voi
   });
 
   const list: EmailAudienceRecipient[] = useMemo(() => (rq.data ?? []) as EmailAudienceRecipient[], [rq.data]);
+  const schools = useMemo(() => [...new Map(list.filter(r => r.schoolId).map(r => [r.schoolId!, { id: r.schoolId!, name: r.schoolName ?? "School" }])).values()].sort((a, b) => a.name.localeCompare(b.name)), [list]);
+  const chooseSchool = (value: string) => {
+    setSchoolChoice(value);
+    setFilter("");
+    setPicked(new Set((value === "all" ? list : list.filter(r => r.schoolId === value)).map(r => r.id)));
+  };
   const shown = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    return f ? list.filter((r) => `${r.name} ${r.email} ${r.schoolName ?? ""}`.toLowerCase().includes(f)) : list;
-  }, [list, filter]);
+    const scoped = platform && schoolChoice && schoolChoice !== "all" ? list.filter(r => r.schoolId === schoolChoice) : list;
+    return f ? scoped.filter((r) => `${r.name} ${r.email} ${r.schoolName ?? ""}`.toLowerCase().includes(f)) : scoped;
+  }, [list, filter, platform, schoolChoice]);
   const man = platform ? parseManual(manual) : { ok: [], bad: [] };
   const all = useMemo(() => Array.from(new Set([...list.filter((r) => picked.has(r.id)).map((r) => r.email.toLowerCase()), ...man.ok])), [list, picked, man.ok.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -195,13 +204,20 @@ function Composer({ platform, onClose }: { platform: boolean; onClose: () => voi
         </Panel>
         <Panel title="Recipients" note={`${all.length} of ${MAX} max`}>
           <div className="space-y-3 p-4">
+            {platform && <Field label="Send to a school" hint="Includes active administrators with email addresses. You can also enter an email below without selecting a school.">
+              <NativeSelect aria-label="Select a school or all schools" data-testid="select-email-school" value={schoolChoice} onChange={e => chooseSchool(e.target.value)} disabled={rq.isLoading || rq.isError}>
+                <option value="">Choose a school (optional)</option>
+                <option value="all">All schools ({schools.length})</option>
+                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </NativeSelect>
+            </Field>}
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <TextInput aria-label="Filter recipients" placeholder="Filter by name or email" className="pl-8" value={filter} onChange={(e) => setFilter(e.target.value)} />
             </div>
             <div className="flex items-center justify-between text-xs">
               <button type="button" className="font-semibold text-primary hover:underline" onClick={selectShown} disabled={!shown.length}>Select shown ({shown.length})</button>
-              <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setPicked(new Set())}>Clear</button>
+              <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setPicked(new Set()); setSchoolChoice(""); }}>Clear selection</button>
             </div>
             <div className="max-h-[320px] overflow-y-auto rounded-md border border-border">
               {rq.isLoading ? <SkeletonRows rows={4} cols={1} /> : rq.isError ? <ErrorState msg={errMsg(rq.error, "Could not load recipients.")} onRetry={() => rq.refetch()} />
@@ -216,7 +232,7 @@ function Composer({ platform, onClose }: { platform: boolean; onClose: () => voi
                     </label>
                   </li>))}</ul>}
             </div>
-            {platform && <Field label="Additional addresses" hint="Optional · comma or new line">
+            {platform && <Field label="Enter email addresses" hint="Use on their own or add to the selected school · comma or new line">
               <textarea data-testid="input-manual-recipients" rows={3} spellCheck={false} value={manual} onChange={(e) => setManual(e.target.value)}
                 className="w-full rounded-md border border-input bg-background/60 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
             </Field>}
@@ -303,7 +319,7 @@ export default function EmailCampaignsPage({ platform = false }: { platform?: bo
         {!composing && <Btn data-testid="button-compose" disabled={ro} title={ro ? "Read-only session" : undefined} onClick={() => setComposing((n) => n + 1)}><PenLine className="h-4 w-4" />Compose</Btn>}
       </PageHeader>
       {composing ? <Composer key={composing} platform={platform} onClose={() => setComposing(0)} /> : <>
-        <p className="text-xs text-muted-foreground">Up to {MAX} recipients per campaign. Requires {platform ? "platform email" : "this school's email"} to be configured and enabled in Settings — there is no fallback account.</p>
+        <p className="text-xs text-muted-foreground">Up to {platform ? "10,000" : MAX} recipients per campaign. Requires {platform ? "platform email" : "this school's email"} to be configured and enabled in Settings — there is no fallback account.</p>
         <History platform={platform} />
       </>}
     </div>

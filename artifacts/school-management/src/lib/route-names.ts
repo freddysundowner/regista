@@ -4,11 +4,13 @@ export const PLATFORM_PAGE_NAMES: Record<string, string> = {
   "/schools": "Schools",
   "/platform/subscriptions": "Subscriptions",
   "/platform/settings": "Settings",
+  "/platform/settings/whatsapp": "WhatsApp configuration",
   "/platform/emails": "Emails",
   "/platform/audit": "Platform audit",
   "/account": "My account",
 };
 export const TENANT_PAGE_NAMES: Record<string, string> = {
+  "/settings/whatsapp": "WhatsApp configuration",
   "/": "Overview", "/students": "Students", "/guardians": "Guardians & families", "/import": "Import register",
   "/fees": "Fees", "/invoices": "Invoices", "/payments": "Payments", "/approvals": "Approvals", "/sponsors": "Sponsors",
   "/payment-plans": "Payment plans", "/reconciliation": "Reconciliation", "/notifications": "Messages",

@@ -5,11 +5,57 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+export interface WhatsappSetupState {
+  platformKeyConfigured: boolean;
+  hasOwnConnection: boolean;
+  status: string;
+  phoneNumber: string;
+  businessName: string;
+  displayName: string;
+  error: string;
+  requestId?: string;
+  connectionActive: boolean;
+  inherited: boolean;
+  legacyConfigured: boolean;
+}
+
+export interface LeadsIntelKeyInput {
+  /**
+     * @minLength 10
+     * @maxLength 4096
+     */
+  apiKey: string;
+}
+
+export interface WhatsappStartInput {
+  /** @pattern ^[1-9][0-9]{0,3}$ */
+  countryCode: string;
+  /** @pattern ^[0-9]{4,14}$ */
+  phoneNumber: string;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  businessName: string;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  displayName: string;
+}
+
+export interface WhatsappRecoverInput {
+  /** @pattern ^\+[1-9][0-9]{6,14}$ */
+  phoneNumber: string;
+  confirmReceiverChange: boolean;
+}
+
 export interface EmailAudienceRecipient {
   id: string;
   name: string;
   email: string;
   schoolName?: string;
+  schoolId?: string;
 }
 
 export interface EmailQueuedResult {
@@ -43,7 +89,7 @@ export interface EmailCampaignCreateInput {
   html: string;
   /**
      * @minItems 1
-     * @maxItems 100
+     * @maxItems 10000
      * @items.maxLength 254
      */
   recipients: string[];

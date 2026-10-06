@@ -25,3 +25,9 @@ The user explicitly requested welcome emails on registration, rich-text marketin
 **Why:** These are authorized product requirements, not optional follow-up suggestions.
 
 **How to apply:** Welcome emails use the platform account and must not fail registration on provider errors. Schools can configure their own sending accounts. Marketing requires recipient permission and a working unsubscribe path; ambiguous provider results must not be retried automatically.
+
+For LeadsIntel, school-owned means each school's WhatsApp number, not a separate platform API key. Use one backend platform key and assisted number onboarding, not manual tenant/connection fields.
+
+**Why:** The user explicitly rejected generic credential configuration and required the external-platform flow documented at https://leadsintel.net/developers.html.
+
+**How to apply:** Generate stable customer/connection IDs and per-number signing secrets. Keep setup-request status distinct from active connection status. Phone lookup does not establish school ownership. Previously submitted numbers remain reserved even after failed/cancelled setup; never blindly resubmit them.

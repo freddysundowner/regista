@@ -19,7 +19,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0]?.replace(/(\/email\/unsubscribe\/|\/payments\/(?:validation|confirmation|prompt)\/|\/integrations\/leadsintel\/events\/|\/integrations\/(?:message-delivery|messaging-delivery)\/events\/|\/integrations\/kcb\/(?:account|till)-notification\/)[^/]+/, "$1[REDACTED]"),
+          url: req.url?.split("?")[0]?.replace(/(\/whatsapp\/inbound\/|\/email\/unsubscribe\/|\/payments\/(?:validation|confirmation|prompt)\/|\/integrations\/leadsintel\/events\/|\/integrations\/(?:message-delivery|messaging-delivery)\/events\/|\/integrations\/kcb\/(?:account|till)-notification\/)[^/]+/, "$1[REDACTED]"),
         };
       },
       res(res) {

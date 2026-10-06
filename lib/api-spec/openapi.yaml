@@ -31,6 +31,64 @@ tags:
   - name: audit
     description: Audit history
 paths:
+  /platform/whatsapp:
+    get:
+      operationId: getPlatformWhatsappSetup
+      responses: &waResponses
+        "200":
+          description: Connection setup state without credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhatsappSetupState" }
+  /whatsapp:
+    get:
+      operationId: getSchoolWhatsappSetup
+      responses: *waResponses
+  /platform/whatsapp/key:
+    put:
+      operationId: saveLeadsIntelPlatformKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LeadsIntelKeyInput" }
+      responses: *waResponses
+  /platform/whatsapp/start:
+    post:
+      operationId: startPlatformWhatsappSetup
+      requestBody: &waStart
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WhatsappStartInput" }
+      responses: *waResponses
+  /whatsapp/start:
+    post:
+      operationId: startSchoolWhatsappSetup
+      requestBody: *waStart
+      responses: *waResponses
+  /platform/whatsapp/recover:
+    post:
+      operationId: recoverPlatformWhatsapp
+      requestBody: &waRecover
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WhatsappRecoverInput" }
+      responses: *waResponses
+  /whatsapp/recover:
+    post:
+      operationId: recoverSchoolWhatsapp
+      requestBody: *waRecover
+      responses: *waResponses
+  /platform/whatsapp/refresh:
+    post:
+      operationId: refreshPlatformWhatsappSetup
+      responses: *waResponses
+  /whatsapp/refresh:
+    post:
+      operationId: refreshSchoolWhatsappSetup
+      responses: *waResponses
   /email/settings:
     get:
       operationId: getSchoolEmailSettings
@@ -1525,6 +1583,40 @@ paths:
                   $ref: "#/components/schemas/AuditLog"
 components:
   schemas:
+    WhatsappSetupState:
+      type: object
+      required: [platformKeyConfigured, hasOwnConnection, status, phoneNumber, businessName, displayName, error, connectionActive, inherited, legacyConfigured]
+      properties:
+        platformKeyConfigured: { type: boolean }
+        hasOwnConnection: { type: boolean }
+        status: { type: string }
+        phoneNumber: { type: string }
+        businessName: { type: string }
+        displayName: { type: string }
+        error: { type: string }
+        requestId: { type: string }
+        connectionActive: { type: boolean }
+        inherited: { type: boolean }
+        legacyConfigured: { type: boolean }
+    LeadsIntelKeyInput:
+      type: object
+      required: [apiKey]
+      properties:
+        apiKey: { type: string, minLength: 10, maxLength: 4096 }
+    WhatsappStartInput:
+      type: object
+      required: [countryCode, phoneNumber, businessName, displayName]
+      properties:
+        countryCode: { type: string, pattern: '^[1-9][0-9]{0,3}$' }
+        phoneNumber: { type: string, pattern: '^[0-9]{4,14}$' }
+        businessName: { type: string, minLength: 1, maxLength: 150 }
+        displayName: { type: string, minLength: 1, maxLength: 150 }
+    WhatsappRecoverInput:
+      type: object
+      required: [phoneNumber, confirmReceiverChange]
+      properties:
+        phoneNumber: { type: string, pattern: '^\+[1-9][0-9]{6,14}$' }
+        confirmReceiverChange: { type: boolean }
     EmailAudienceRecipient:
       type: object
       required: [id, name, email]
@@ -1533,6 +1625,7 @@ components:
         name: { type: string }
         email: { type: string }
         schoolName: { type: string }
+        schoolId: { type: string }
     EmailQueuedResult:
       type: object
       required: [message]
@@ -1552,7 +1645,7 @@ components:
         recipients:
           type: array
           minItems: 1
-          maxItems: 100
+          maxItems: 10000
           items: { type: string, format: email, maxLength: 254 }
         consentConfirmed: { type: boolean }
     OutboundEmailKind:

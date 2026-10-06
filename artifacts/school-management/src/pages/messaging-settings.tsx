@@ -4,13 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetPlatformMessaging, useSavePlatformMessaging, getGetPlatformMessagingQueryKey,
   useGetSchoolMessaging, useSaveSchoolMessaging, getGetSchoolMessagingQueryKey,
-  useCheckPlatformWhatsappConnection, useCheckSchoolWhatsappConnection,
-  getCheckPlatformWhatsappConnectionQueryKey, getCheckSchoolWhatsappConnectionQueryKey,
   type MessagingChannel, type MessagingProvider, type MessagingChannelState, type MessagingAccountInput,
 } from "@workspace/api-client-react";
-import { AlertTriangle, Loader2, MessageSquareText, Plug, RadioTower, Settings2, Undo2 } from "lucide-react";
+import { AlertTriangle, Loader2, MessageSquareText, Plug, Settings2, Undo2 } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
+import { WhatsappSetup } from "@/components/whatsapp-setup";
 import { errMsg, useReadOnly } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,7 +24,7 @@ const PROVIDERS: Record<MessagingProvider, PSpec> = {
   leadsintel: { label: "LeadsIntel", secrets: [{ key: "platformKey", label: "Platform key" }, { key: "tenantId", label: "Tenant ID" }], sender: null, connection: true, sandbox: false,
     note: "WhatsApp only. Saving does not verify connectivity." },
 };
-const CHANNEL_PROVIDERS: Record<MessagingChannel, MessagingProvider[]> = { sms: ["blessedtexts", "onfon", "africastalking"], whatsapp: ["leadsintel"] };
+const CHANNEL_PROVIDERS: Record<MessagingChannel, MessagingProvider[]> = { sms: ["blessedtexts", "onfon", "africastalking"], whatsapp: ["leadsintel"] }; // whatsapp edits now go through WhatsappSetup
 const CHANNEL_LABEL: Record<MessagingChannel, string> = { sms: "SMS", whatsapp: "WhatsApp" };
 const SOURCE_LABEL: Record<string, string> = { platform: "Platform default", school: "School override", legacy: "Legacy integration", none: "No route" };
 const STATUS: Record<string, { tone: string; label: string }> = {
@@ -94,11 +93,7 @@ function EditForm({ platform, state, onDone }: { platform: boolean; state: Messa
 
   return (
     <form onSubmit={submit} autoComplete="off" className="space-y-4 p-5" data-testid={`form-messaging-${ch}`}>
-      {blessed ? (
-        <div data-testid="text-blessed-contract" className="flex gap-3 rounded-md border border-red-300/70 bg-red-50/80 p-3 text-sm text-red-900">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><p><b>Awaiting API documentation.</b> {spec.note}</p>
-        </div>
-      ) : <p className="text-xs text-muted-foreground">{spec.note}</p>}
+      {!blessed && <p className="text-xs text-muted-foreground">{spec.note}</p>}
       {platform && <p className="text-xs text-amber-800">Changing this default immediately reroutes every school that inherits it, and all their messages are billed to this platform account.</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Provider" required>
@@ -164,14 +159,11 @@ function InheritConfirm({ state, onDone }: { state: MessagingChannelState; onDon
 
 function ChannelRow({ platform, s, ro }: { platform: boolean; s: MessagingChannelState; ro: boolean }) {
   const [dlg, setDlg] = useState<null | "edit" | "inherit">(null);
-  const platformCheck = useCheckPlatformWhatsappConnection({ query: { queryKey: getCheckPlatformWhatsappConnectionQueryKey(), enabled: false, retry: false, gcTime: 0 } });
-  const schoolCheck = useCheckSchoolWhatsappConnection({ query: { queryKey: getCheckSchoolWhatsappConnectionQueryKey(), enabled: false, retry: false, gcTime: 0 } });
-  const connection = platform ? platformCheck : schoolCheck;
   const st = STATUS[s.status] ?? { tone: "left", label: s.status.replace(/_/g, " ") };
   const isInheritingPlatform = !platform && s.mode === "inherit" && s.source === "platform";
   return (
     <li data-testid={`row-messaging-${s.channel}`} className="flex flex-wrap items-start gap-3 p-5">
-      {s.channel === "sms" ? <MessageSquareText className="mt-1 h-4 w-4 text-primary" /> : <RadioTower className="mt-1 h-4 w-4 text-primary" />}
+      <MessageSquareText className="mt-1 h-4 w-4 text-primary" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold">{CHANNEL_LABEL[s.channel]}</span>
@@ -187,15 +179,8 @@ function ChannelRow({ platform, s, ro }: { platform: boolean; s: MessagingChanne
         {!platform && <p className="text-xs text-muted-foreground">{s.source === "school" ? "Billed to this school's own account." : s.source === "legacy" ? "Routed via a legacy integration account. Configure an override or use the platform default to migrate." : s.source === "platform" ? "Billed to the shared platform account." : "No account will send on this channel."}</p>}
         {s.provider === "blessedtexts" && <p className="mt-1 text-xs font-medium text-red-800">Blessed Text: awaiting API documentation — cannot send until the contract is verified.</p>}
         {s.reason && <p className="mt-1 text-xs text-amber-800">{s.reason}</p>}
-        {s.channel === "whatsapp" && connection.data && <p role="status" className={`mt-2 text-sm ${connection.data.status === "active" ? "text-emerald-800" : "text-red-800"}`}>
-          Connection {connection.data.status}{connection.data.displayPhoneNumber ? ` · ${connection.data.displayPhoneNumber}` : ""}. This check did not send a message.
-        </p>}
-        {s.channel === "whatsapp" && connection.isError && <p role="alert" className="mt-2 text-sm text-red-800">{errMsg(connection.error, "Could not verify the connection.")}</p>}
       </div>
       <div className="flex flex-wrap gap-2">
-        {s.channel === "whatsapp" && s.provider === "leadsintel" && s.configured && <Btn variant="outline" disabled={connection.isFetching} data-testid="button-check-whatsapp-connection" onClick={() => connection.refetch()}>
-          {connection.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}Check connection
-        </Btn>}
         {!platform && !isInheritingPlatform && <Btn variant="ghost" disabled={ro} data-testid={`button-inherit-${s.channel}`} onClick={() => setDlg("inherit")}><Undo2 className="h-4 w-4" />Use platform default</Btn>}
         <Btn variant="outline" disabled={ro} data-testid={`button-configure-${s.channel}`} onClick={() => setDlg("edit")}><Settings2 className="h-4 w-4" />{platform ? (s.configured ? "Edit default" : "Configure default") : s.mode === "override" ? "Edit override" : "Configure override"}</Btn>
       </div>
@@ -238,7 +223,7 @@ export default function MessagingSettingsPage({ platform = false, embedded = fal
       <Panel>
         {q.isLoading ? <SkeletonRows rows={2} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} />
           : channels.length === 0 ? <Empty icon={<MessageSquareText className="h-5 w-5" />} title="No channels reported" body="The server returned no messaging channels. Retry shortly." />
-          : <ul className="divide-y divide-border/70">{channels.map((s) => <ChannelRow key={s.channel} platform={platform} s={s} ro={ro} />)}</ul>}
+          : <ul className="divide-y divide-border/70">{channels.map((s) => s.channel === "whatsapp" ? <WhatsappSetup key="whatsapp" platform={platform} compact /> : <ChannelRow key={s.channel} platform={platform} s={s} ro={ro} />)}</ul>}
       </Panel>
     </div>
   );

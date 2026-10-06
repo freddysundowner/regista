@@ -22,7 +22,7 @@ export interface EmailCampaignCreateInput {
   html: string;
   /**
      * @minItems 1
-     * @maxItems 100
+     * @maxItems 10000
      * @items.maxLength 254
      */
   recipients: string[];

@@ -87,6 +87,7 @@ import type {
   KcbAccountNotification,
   KcbTillNotification,
   KnecExportInput,
+  LeadsIntelKeyInput,
   LearnerRatingView,
   LicenceIssueInput,
   LicenceOrder,
@@ -188,7 +189,10 @@ import type {
   User,
   UserInput,
   UserUpdate,
-  WhatsappConnectionCheck
+  WhatsappConnectionCheck,
+  WhatsappRecoverInput,
+  WhatsappSetupState,
+  WhatsappStartInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -217,6 +221,694 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetPlatformWhatsappSetupUrl = () => {
+
+
+
+
+  return `/api/platform/whatsapp`
+}
+
+export const getPlatformWhatsappSetup = async ( options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+  return customFetch<WhatsappSetupState>(getGetPlatformWhatsappSetupUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformWhatsappSetupQueryKey = () => {
+    return [
+    `/api/platform/whatsapp`
+    ] as const;
+    }
+
+
+export const getGetPlatformWhatsappSetupQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformWhatsappSetup>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformWhatsappSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformWhatsappSetupQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformWhatsappSetup>>> = ({ signal }) => getPlatformWhatsappSetup({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformWhatsappSetup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformWhatsappSetupQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformWhatsappSetup>>>
+export type GetPlatformWhatsappSetupQueryError = ErrorType<unknown>
+
+
+
+export function useGetPlatformWhatsappSetup<TData = Awaited<ReturnType<typeof getPlatformWhatsappSetup>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformWhatsappSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformWhatsappSetupQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSchoolWhatsappSetupUrl = () => {
+
+
+
+
+  return `/api/whatsapp`
+}
+
+export const getSchoolWhatsappSetup = async ( options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+  return customFetch<WhatsappSetupState>(getGetSchoolWhatsappSetupUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSchoolWhatsappSetupQueryKey = () => {
+    return [
+    `/api/whatsapp`
+    ] as const;
+    }
+
+
+export const getGetSchoolWhatsappSetupQueryOptions = <TData = Awaited<ReturnType<typeof getSchoolWhatsappSetup>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSchoolWhatsappSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSchoolWhatsappSetupQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSchoolWhatsappSetup>>> = ({ signal }) => getSchoolWhatsappSetup({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSchoolWhatsappSetup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSchoolWhatsappSetupQueryResult = NonNullable<Awaited<ReturnType<typeof getSchoolWhatsappSetup>>>
+export type GetSchoolWhatsappSetupQueryError = ErrorType<unknown>
+
+
+
+export function useGetSchoolWhatsappSetup<TData = Awaited<ReturnType<typeof getSchoolWhatsappSetup>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSchoolWhatsappSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSchoolWhatsappSetupQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveLeadsIntelPlatformKeyUrl = () => {
+
+
+
+
+  return `/api/platform/whatsapp/key`
+}
+
+export const saveLeadsIntelPlatformKey = async (leadsIntelKeyInput: LeadsIntelKeyInput, options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WhatsappSetupState>(getSaveLeadsIntelPlatformKeyUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(leadsIntelKeyInput)
+  }
+);}
+
+
+
+
+
+export const getSaveLeadsIntelPlatformKeyMutationKey = () => ['saveLeadsIntelPlatformKey'] as const;
+
+export const getSaveLeadsIntelPlatformKeyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveLeadsIntelPlatformKey>>, TError,SaveLeadsIntelPlatformKeyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveLeadsIntelPlatformKey>>, TError,SaveLeadsIntelPlatformKeyMutationVariables, TContext> => {
+
+const mutationKey = getSaveLeadsIntelPlatformKeyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveLeadsIntelPlatformKey>>, SaveLeadsIntelPlatformKeyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveLeadsIntelPlatformKey(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveLeadsIntelPlatformKeyMutationResult = NonNullable<Awaited<ReturnType<typeof saveLeadsIntelPlatformKey>>>
+    export type SaveLeadsIntelPlatformKeyMutationBody = BodyType<LeadsIntelKeyInput>
+    export type SaveLeadsIntelPlatformKeyMutationError = ErrorType<unknown>
+    export type SaveLeadsIntelPlatformKeyMutationVariables = {data: BodyType<LeadsIntelKeyInput>}
+
+    export const useSaveLeadsIntelPlatformKey = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveLeadsIntelPlatformKey>>, TError,SaveLeadsIntelPlatformKeyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveLeadsIntelPlatformKey>>,
+        TError,
+        SaveLeadsIntelPlatformKeyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveLeadsIntelPlatformKeyMutationOptions(options));
+    }
+
+export const getStartPlatformWhatsappSetupUrl = () => {
+
+
+
+
+  return `/api/platform/whatsapp/start`
+}
+
+export const startPlatformWhatsappSetup = async (whatsappStartInput: WhatsappStartInput, options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WhatsappSetupState>(getStartPlatformWhatsappSetupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(whatsappStartInput)
+  }
+);}
+
+
+
+
+
+export const getStartPlatformWhatsappSetupMutationKey = () => ['startPlatformWhatsappSetup'] as const;
+
+export const getStartPlatformWhatsappSetupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startPlatformWhatsappSetup>>, TError,StartPlatformWhatsappSetupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startPlatformWhatsappSetup>>, TError,StartPlatformWhatsappSetupMutationVariables, TContext> => {
+
+const mutationKey = getStartPlatformWhatsappSetupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startPlatformWhatsappSetup>>, StartPlatformWhatsappSetupMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startPlatformWhatsappSetup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartPlatformWhatsappSetupMutationResult = NonNullable<Awaited<ReturnType<typeof startPlatformWhatsappSetup>>>
+    export type StartPlatformWhatsappSetupMutationBody = BodyType<WhatsappStartInput>
+    export type StartPlatformWhatsappSetupMutationError = ErrorType<unknown>
+    export type StartPlatformWhatsappSetupMutationVariables = {data: BodyType<WhatsappStartInput>}
+
+    export const useStartPlatformWhatsappSetup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startPlatformWhatsappSetup>>, TError,StartPlatformWhatsappSetupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startPlatformWhatsappSetup>>,
+        TError,
+        StartPlatformWhatsappSetupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartPlatformWhatsappSetupMutationOptions(options));
+    }
+
+export const getStartSchoolWhatsappSetupUrl = () => {
+
+
+
+
+  return `/api/whatsapp/start`
+}
+
+export const startSchoolWhatsappSetup = async (whatsappStartInput: WhatsappStartInput, options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WhatsappSetupState>(getStartSchoolWhatsappSetupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(whatsappStartInput)
+  }
+);}
+
+
+
+
+
+export const getStartSchoolWhatsappSetupMutationKey = () => ['startSchoolWhatsappSetup'] as const;
+
+export const getStartSchoolWhatsappSetupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startSchoolWhatsappSetup>>, TError,StartSchoolWhatsappSetupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startSchoolWhatsappSetup>>, TError,StartSchoolWhatsappSetupMutationVariables, TContext> => {
+
+const mutationKey = getStartSchoolWhatsappSetupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startSchoolWhatsappSetup>>, StartSchoolWhatsappSetupMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startSchoolWhatsappSetup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartSchoolWhatsappSetupMutationResult = NonNullable<Awaited<ReturnType<typeof startSchoolWhatsappSetup>>>
+    export type StartSchoolWhatsappSetupMutationBody = BodyType<WhatsappStartInput>
+    export type StartSchoolWhatsappSetupMutationError = ErrorType<unknown>
+    export type StartSchoolWhatsappSetupMutationVariables = {data: BodyType<WhatsappStartInput>}
+
+    export const useStartSchoolWhatsappSetup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startSchoolWhatsappSetup>>, TError,StartSchoolWhatsappSetupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startSchoolWhatsappSetup>>,
+        TError,
+        StartSchoolWhatsappSetupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartSchoolWhatsappSetupMutationOptions(options));
+    }
+
+export const getRecoverPlatformWhatsappUrl = () => {
+
+
+
+
+  return `/api/platform/whatsapp/recover`
+}
+
+export const recoverPlatformWhatsapp = async (whatsappRecoverInput: WhatsappRecoverInput, options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WhatsappSetupState>(getRecoverPlatformWhatsappUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(whatsappRecoverInput)
+  }
+);}
+
+
+
+
+
+export const getRecoverPlatformWhatsappMutationKey = () => ['recoverPlatformWhatsapp'] as const;
+
+export const getRecoverPlatformWhatsappMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recoverPlatformWhatsapp>>, TError,RecoverPlatformWhatsappMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recoverPlatformWhatsapp>>, TError,RecoverPlatformWhatsappMutationVariables, TContext> => {
+
+const mutationKey = getRecoverPlatformWhatsappMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recoverPlatformWhatsapp>>, RecoverPlatformWhatsappMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recoverPlatformWhatsapp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecoverPlatformWhatsappMutationResult = NonNullable<Awaited<ReturnType<typeof recoverPlatformWhatsapp>>>
+    export type RecoverPlatformWhatsappMutationBody = BodyType<WhatsappRecoverInput>
+    export type RecoverPlatformWhatsappMutationError = ErrorType<unknown>
+    export type RecoverPlatformWhatsappMutationVariables = {data: BodyType<WhatsappRecoverInput>}
+
+    export const useRecoverPlatformWhatsapp = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recoverPlatformWhatsapp>>, TError,RecoverPlatformWhatsappMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recoverPlatformWhatsapp>>,
+        TError,
+        RecoverPlatformWhatsappMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecoverPlatformWhatsappMutationOptions(options));
+    }
+
+export const getRecoverSchoolWhatsappUrl = () => {
+
+
+
+
+  return `/api/whatsapp/recover`
+}
+
+export const recoverSchoolWhatsapp = async (whatsappRecoverInput: WhatsappRecoverInput, options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WhatsappSetupState>(getRecoverSchoolWhatsappUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(whatsappRecoverInput)
+  }
+);}
+
+
+
+
+
+export const getRecoverSchoolWhatsappMutationKey = () => ['recoverSchoolWhatsapp'] as const;
+
+export const getRecoverSchoolWhatsappMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recoverSchoolWhatsapp>>, TError,RecoverSchoolWhatsappMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recoverSchoolWhatsapp>>, TError,RecoverSchoolWhatsappMutationVariables, TContext> => {
+
+const mutationKey = getRecoverSchoolWhatsappMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recoverSchoolWhatsapp>>, RecoverSchoolWhatsappMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  recoverSchoolWhatsapp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecoverSchoolWhatsappMutationResult = NonNullable<Awaited<ReturnType<typeof recoverSchoolWhatsapp>>>
+    export type RecoverSchoolWhatsappMutationBody = BodyType<WhatsappRecoverInput>
+    export type RecoverSchoolWhatsappMutationError = ErrorType<unknown>
+    export type RecoverSchoolWhatsappMutationVariables = {data: BodyType<WhatsappRecoverInput>}
+
+    export const useRecoverSchoolWhatsapp = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recoverSchoolWhatsapp>>, TError,RecoverSchoolWhatsappMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recoverSchoolWhatsapp>>,
+        TError,
+        RecoverSchoolWhatsappMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecoverSchoolWhatsappMutationOptions(options));
+    }
+
+export const getRefreshPlatformWhatsappSetupUrl = () => {
+
+
+
+
+  return `/api/platform/whatsapp/refresh`
+}
+
+export const refreshPlatformWhatsappSetup = async ( options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+  return customFetch<WhatsappSetupState>(getRefreshPlatformWhatsappSetupUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshPlatformWhatsappSetupMutationKey = () => ['refreshPlatformWhatsappSetup'] as const;
+
+export const getRefreshPlatformWhatsappSetupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshPlatformWhatsappSetup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshPlatformWhatsappSetup>>, TError,void, TContext> => {
+
+const mutationKey = getRefreshPlatformWhatsappSetupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshPlatformWhatsappSetup>>, void> = () => {
+
+
+          return  refreshPlatformWhatsappSetup(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshPlatformWhatsappSetupMutationResult = NonNullable<Awaited<ReturnType<typeof refreshPlatformWhatsappSetup>>>
+
+    export type RefreshPlatformWhatsappSetupMutationError = ErrorType<unknown>
+
+
+    export const useRefreshPlatformWhatsappSetup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshPlatformWhatsappSetup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshPlatformWhatsappSetup>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshPlatformWhatsappSetupMutationOptions(options));
+    }
+
+export const getRefreshSchoolWhatsappSetupUrl = () => {
+
+
+
+
+  return `/api/whatsapp/refresh`
+}
+
+export const refreshSchoolWhatsappSetup = async ( options?: Parameters<typeof customFetch>[1]): Promise<WhatsappSetupState> => {
+
+  return customFetch<WhatsappSetupState>(getRefreshSchoolWhatsappSetupUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshSchoolWhatsappSetupMutationKey = () => ['refreshSchoolWhatsappSetup'] as const;
+
+export const getRefreshSchoolWhatsappSetupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshSchoolWhatsappSetup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshSchoolWhatsappSetup>>, TError,void, TContext> => {
+
+const mutationKey = getRefreshSchoolWhatsappSetupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshSchoolWhatsappSetup>>, void> = () => {
+
+
+          return  refreshSchoolWhatsappSetup(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshSchoolWhatsappSetupMutationResult = NonNullable<Awaited<ReturnType<typeof refreshSchoolWhatsappSetup>>>
+
+    export type RefreshSchoolWhatsappSetupMutationError = ErrorType<unknown>
+
+
+    export const useRefreshSchoolWhatsappSetup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshSchoolWhatsappSetup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshSchoolWhatsappSetup>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshSchoolWhatsappSetupMutationOptions(options));
+    }
 
 export const getGetSchoolEmailSettingsUrl = () => {
 

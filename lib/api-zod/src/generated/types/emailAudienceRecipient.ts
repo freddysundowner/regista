@@ -11,4 +11,5 @@ export interface EmailAudienceRecipient {
   name: string;
   email: string;
   schoolName?: string;
+  schoolId?: string;
 }

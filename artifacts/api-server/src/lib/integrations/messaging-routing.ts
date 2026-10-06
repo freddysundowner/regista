@@ -2,6 +2,7 @@ import { db, Prisma } from "@workspace/db";
 import { ApiError, lock, type Identity } from "../core";
 import { platformAudit } from "../platform";
 import { decryptCredentials, digest, encryptCredentials } from "./security";
+import { platformKey } from "./whatsapp-setup";
 
 export type Channel = "sms" | "whatsapp";
 export const providerKeys: Record<string, string[]> = {
@@ -39,6 +40,7 @@ export async function resolveMessaging(schoolId: string, channel: Channel) {
   if (account.provider === "blessedtexts") throw new ApiError(503, "Blessed Text sending requires verified API response documentation.");
   if (!account.encryptedCredentials) throw new ApiError(503, "Messaging account credentials are not configured.");
   const credentials = decryptCredentials(account.encryptedCredentials);
+  if (credentials.managedPlatformKey === "true") credentials.platformKey = await platformKey();
   const publicConfig = account.publicConfig as Record<string, string>;
   // Preserve the old AT account's sender-id location without exposing it in responses.
   const config: Record<string, string> = { ...publicConfig, senderId: publicConfig.senderId ?? credentials.senderId ?? "" };

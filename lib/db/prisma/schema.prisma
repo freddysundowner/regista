@@ -615,6 +615,32 @@ model MessageDelivery {
   @@index([schoolId,status,scheduledAt])
   @@map("message_deliveries")
 }
+model LeadsIntelPlatform {
+  id String @id @default("platform")
+  encryptedCredentials String
+}
+model WhatsappSetup {
+  scope String @id
+  tenantId String
+  connectionId String @default(uuid())
+  phoneNumber String @unique
+  businessName String
+  displayName String
+  status String @default("submitting")
+  requestId String?
+  phoneNumberId String? @unique
+  error String @default("")
+  encryptedCredentials String
+  webhookToken String @unique @default(uuid())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId, connectionId])
+}
+model WhatsappInbound {
+  eventId String @id
+  scope String
+  payload Json
+  createdAt DateTime @default(now())
+}
 model EmailCampaign {
   id String @id @default(uuid()) @db.Uuid
   scope String

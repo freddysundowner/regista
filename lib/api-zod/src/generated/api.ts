@@ -8,6 +8,196 @@
 import * as zod from 'zod';
 
 
+export const GetPlatformWhatsappSetupResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const GetSchoolWhatsappSetupResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const saveLeadsIntelPlatformKeyBodyApiKeyMin = 10;
+export const saveLeadsIntelPlatformKeyBodyApiKeyMax = 4096;
+
+
+
+export const SaveLeadsIntelPlatformKeyBody = zod.object({
+  "apiKey": zod.string().min(saveLeadsIntelPlatformKeyBodyApiKeyMin).max(saveLeadsIntelPlatformKeyBodyApiKeyMax)
+})
+
+export const SaveLeadsIntelPlatformKeyResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const startPlatformWhatsappSetupBodyCountryCodeRegExp = new RegExp('^[1-9][0-9]{0,3}$');
+export const startPlatformWhatsappSetupBodyPhoneNumberRegExp = new RegExp('^[0-9]{4,14}$');
+export const startPlatformWhatsappSetupBodyBusinessNameMax = 150;
+
+export const startPlatformWhatsappSetupBodyDisplayNameMax = 150;
+
+
+
+export const StartPlatformWhatsappSetupBody = zod.object({
+  "countryCode": zod.string().regex(startPlatformWhatsappSetupBodyCountryCodeRegExp),
+  "phoneNumber": zod.string().regex(startPlatformWhatsappSetupBodyPhoneNumberRegExp),
+  "businessName": zod.string().min(1).max(startPlatformWhatsappSetupBodyBusinessNameMax),
+  "displayName": zod.string().min(1).max(startPlatformWhatsappSetupBodyDisplayNameMax)
+})
+
+export const StartPlatformWhatsappSetupResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const startSchoolWhatsappSetupBodyCountryCodeRegExp = new RegExp('^[1-9][0-9]{0,3}$');
+export const startSchoolWhatsappSetupBodyPhoneNumberRegExp = new RegExp('^[0-9]{4,14}$');
+export const startSchoolWhatsappSetupBodyBusinessNameMax = 150;
+
+export const startSchoolWhatsappSetupBodyDisplayNameMax = 150;
+
+
+
+export const StartSchoolWhatsappSetupBody = zod.object({
+  "countryCode": zod.string().regex(startSchoolWhatsappSetupBodyCountryCodeRegExp),
+  "phoneNumber": zod.string().regex(startSchoolWhatsappSetupBodyPhoneNumberRegExp),
+  "businessName": zod.string().min(1).max(startSchoolWhatsappSetupBodyBusinessNameMax),
+  "displayName": zod.string().min(1).max(startSchoolWhatsappSetupBodyDisplayNameMax)
+})
+
+export const StartSchoolWhatsappSetupResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const recoverPlatformWhatsappBodyPhoneNumberRegExp = new RegExp('^\\+[1-9][0-9]{6,14}$');
+
+
+export const RecoverPlatformWhatsappBody = zod.object({
+  "phoneNumber": zod.string().regex(recoverPlatformWhatsappBodyPhoneNumberRegExp),
+  "confirmReceiverChange": zod.boolean()
+})
+
+export const RecoverPlatformWhatsappResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const recoverSchoolWhatsappBodyPhoneNumberRegExp = new RegExp('^\\+[1-9][0-9]{6,14}$');
+
+
+export const RecoverSchoolWhatsappBody = zod.object({
+  "phoneNumber": zod.string().regex(recoverSchoolWhatsappBodyPhoneNumberRegExp),
+  "confirmReceiverChange": zod.boolean()
+})
+
+export const RecoverSchoolWhatsappResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const RefreshPlatformWhatsappSetupResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
+export const RefreshSchoolWhatsappSetupResponse = zod.object({
+  "platformKeyConfigured": zod.boolean(),
+  "hasOwnConnection": zod.boolean(),
+  "status": zod.string(),
+  "phoneNumber": zod.string(),
+  "businessName": zod.string(),
+  "displayName": zod.string(),
+  "error": zod.string(),
+  "requestId": zod.string().optional(),
+  "connectionActive": zod.boolean(),
+  "inherited": zod.boolean(),
+  "legacyConfigured": zod.boolean()
+})
+
+
 export const GetSchoolEmailSettingsResponse = zod.object({
   "provider": zod.enum(['brevo']),
   "enabled": zod.boolean(),
@@ -69,7 +259,8 @@ export const ListPlatformEmailRecipientsResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "schoolName": zod.string().optional()
+  "schoolName": zod.string().optional(),
+  "schoolId": zod.string().optional()
 })
 export const ListPlatformEmailRecipientsResponse = zod.array(ListPlatformEmailRecipientsResponseItem)
 
@@ -78,7 +269,8 @@ export const ListSchoolEmailRecipientsResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "schoolName": zod.string().optional()
+  "schoolName": zod.string().optional(),
+  "schoolId": zod.string().optional()
 })
 export const ListSchoolEmailRecipientsResponse = zod.array(ListSchoolEmailRecipientsResponseItem)
 
@@ -104,7 +296,7 @@ export const createPlatformEmailCampaignBodyHtmlMax = 100000;
 
 export const createPlatformEmailCampaignBodyRecipientsItemMax = 254;
 
-export const createPlatformEmailCampaignBodyRecipientsMax = 100;
+export const createPlatformEmailCampaignBodyRecipientsMax = 10000;
 
 
 
@@ -146,7 +338,7 @@ export const createSchoolEmailCampaignBodyHtmlMax = 100000;
 
 export const createSchoolEmailCampaignBodyRecipientsItemMax = 254;
 
-export const createSchoolEmailCampaignBodyRecipientsMax = 100;
+export const createSchoolEmailCampaignBodyRecipientsMax = 10000;
 
 
 

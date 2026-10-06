@@ -24,10 +24,12 @@ import { schoolSubscription } from "./licensing";
 import { schoolMessagingRouter } from "./messaging-settings";
 import { schoolEmailRouter } from "./platform-email";
 import { schoolCampaignRouter, emailUnsubscribeRouter } from "./email-campaigns";
+import { schoolWhatsappRouter, whatsappInboundRouter } from "./whatsapp-setup";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(whatsappInboundRouter);
 router.use(emailUnsubscribeRouter);
 router.use(authRouter);
 router.use(platformRouter);
@@ -38,6 +40,7 @@ router.use(messageDeliveryCallbacks);
 router.use(botRouter);
 router.use(authenticate);
 router.use(schoolMessagingRouter);
+router.use(schoolWhatsappRouter);
 router.use(schoolEmailRouter);
 router.use(schoolCampaignRouter);
 router.use(collectionsRouter);

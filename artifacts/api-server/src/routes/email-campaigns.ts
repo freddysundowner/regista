@@ -13,13 +13,16 @@ export const emailUnsubscribeRouter = Router();
 
 async function audience(scope: string) {
   const users = await db.user.findMany({ where: { isActive: true, email: { not: null }, ...(scope === "platform" ? { role: "school_admin" } : { schoolId: scope }) },
-    select: { id: true, name: true, email: true } });
+    select: { id: true, name: true, email: true, schoolId: true, school: { select: { name: true } } } });
   const guardians = scope === "platform" ? [] : await db.guardian.findMany({ where: { schoolId: scope, email: { not: null } }, select: { id: true, name: true, email: true } });
-  const unique = new Map<string, { id: string; name: string; email: string }>();
-  for (const row of [...users, ...guardians]) {
+  const unique = new Map<string, { id: string; name: string; email: string; schoolId?: string; schoolName?: string }>();
+  for (const row of [...users, ...guardians.map(g => ({ ...g, schoolId: null, school: null }))]) {
     if (row.email && z.string().email().safeParse(row.email).success) {
       const email = row.email.toLowerCase();
-      if (!unique.has(email)) unique.set(email, { id: row.id, name: row.name, email });
+      const school = row.school;
+      const schoolId = row.schoolId;
+      const key = `${schoolId ?? ""}:${email}`;
+      if (!unique.has(key)) unique.set(key, { id: row.id, name: row.name, email, ...(school && schoolId ? { schoolId, schoolName: school.name } : {}) });
     }
   }
   return [...unique.values()];
@@ -51,6 +54,7 @@ function mountCampaigns(router: Router, platform: boolean) {
     if (input.kind === "marketing" && !input.consentConfirmed) throw new ApiError(400, "Confirm that all selected recipients gave permission for marketing email.");
     const content = cleanEmailHtml(input.html);
     const recipients = [...new Set(input.recipients.map(e => e.toLowerCase()))].sort();
+    if (!platform && recipients.length > 100) throw new ApiError(400, "School campaigns support up to 100 recipients.");
     if (!platform) {
       const permitted = new Set((await audience(scope)).map(r => r.email));
       if (recipients.some(e => !permitted.has(e))) throw new ApiError(403, "Recipients must be staff or guardians belonging to your school.");
