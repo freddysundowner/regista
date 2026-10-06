@@ -6,6 +6,7 @@ import { ApiError, authenticateIdentity, body, contacts, requireContact, lock, p
 import { authView, platformAudit, requirePlatform } from "../lib/platform";
 import { hashPassword } from "../lib/password";
 import { provision } from "./auth";
+import billingRouter from "./platform-billing";
 
 const router = Router();
 // Mount only on platform paths: tenant endpoints retain their own middleware.
@@ -20,6 +21,7 @@ router.use(["/platform", "/schools"], authenticateIdentity, async (req, _res, ne
   } catch (error) { next(error); }
 });
 const ids = validator.object({ schoolId: validator.string().uuid(), userId: validator.string().uuid().optional() });
+router.use("/platform/schools/:schoolId/billing", billingRouter);
 async function schoolExists(id: string) {
   const school = await db.school.findUnique({ where: { id } });
   if (!school) throw new ApiError(404, "School not found");
@@ -54,13 +56,36 @@ router.patch(["/platform/schools/:schoolId", "/schools/:schoolId"], async (req, 
     await lock(tx, schoolId);
     const old = await tx.school.findUnique({ where: { id: schoolId } });
     if (!old) throw new ApiError(404, "School not found");
-    const effective = { ...old, ...data };
+    if (["pending", "rejected"].includes(old.status)) throw new ApiError(409, "Review this school's registration before editing the school.");
+    const normalized = contacts(data);
+    const effective = { ...old, ...normalized };
     if (effective.subscriptionStartDate && effective.subscriptionEndDate && effective.subscriptionStartDate > effective.subscriptionEndDate) throw new ApiError(400, "Subscription end date must follow start date");
-    const updated = await tx.school.update({ where: { id: schoolId }, data });
+    const updated = await tx.school.update({ where: { id: schoolId }, data: normalized });
     await platformAudit(tx, req.identity, "school.updated", reason, schoolId, schoolId, old, updated);
     return updated;
   });
   send(res, "EditPlatformSchool", record);
+});
+router.post("/platform/schools/:schoolId/registration", async (req, res) => {
+  const { schoolId } = parse(ids, req.params);
+  const input = body(z.ReviewSchoolRegistrationBody.strict(), req.body);
+  const reason = input.reason?.trim();
+  if (input.decision === "reject" && (!reason || reason.length < 3)) throw new ApiError(400, "Please give a reason for declining this registration.");
+  const school = await db.$transaction(async tx => {
+    await lock(tx, schoolId);
+    const old = await tx.school.findUnique({ where: { id: schoolId } });
+    if (!old) throw new ApiError(404, "School not found");
+    if (!["pending", "rejected"].includes(old.status)) throw new ApiError(409, "This registration has already been approved.");
+    if (old.status === "rejected" && input.decision === "reject") throw new ApiError(409, "This registration has already been declined.");
+    const updated = await tx.school.update({ where: { id: schoolId }, data: {
+      status: input.decision === "approve" ? "active" : "rejected",
+      registrationNote: input.decision === "reject" ? reason : null,
+    } });
+    await platformAudit(tx, req.identity, `school.registration_${input.decision === "approve" ? "approved" : "rejected"}`,
+      reason || "School registration approved", schoolId, schoolId, old, updated);
+    return updated;
+  });
+  send(res, "ReviewSchoolRegistration", school);
 });
 router.get("/platform/schools/:schoolId/admins", async (req, res) => {
   const { schoolId } = parse(ids, req.params);

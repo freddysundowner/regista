@@ -15,6 +15,7 @@ model School {
   phone String?
   email String?
   status String @default("active")
+  registrationNote String?
   logoUrl String?
   settings Json @default("{}")
   subscriptionPlan String @default("foundation")
@@ -35,7 +36,38 @@ model School {
   files StoredFile[]
   tenantGrants PlatformTenantGrant[]
   platformAudits PlatformAudit[]
+  platformInvoices PlatformBillingInvoice[]
   @@map("schools")
+}
+model PlatformBillingInvoice {
+  id String @id @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  number String @unique
+  description String
+  amount Decimal @db.Decimal(12,2)
+  issuedOn DateTime @db.Date
+  dueOn DateTime @db.Date
+  periodStart DateTime? @db.Date
+  periodEnd DateTime? @db.Date
+  voidedAt DateTime?
+  createdAt DateTime @default(now())
+  payments PlatformBillingPayment[]
+  @@index([schoolId,createdAt])
+  @@map("platform_billing_invoices")
+}
+model PlatformBillingPayment {
+  id String @id @db.Uuid
+  invoiceId String @db.Uuid
+  invoice PlatformBillingInvoice @relation(fields:[invoiceId], references:[id])
+  amount Decimal @db.Decimal(12,2)
+  paidOn DateTime @db.Date
+  method String
+  reference String
+  reversedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([invoiceId])
+  @@map("platform_billing_payments")
 }
 model User {
   id String @id @default(uuid()) @db.Uuid

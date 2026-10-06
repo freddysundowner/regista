@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useListPlatformSchools, getListPlatformSchoolsQueryKey, type School } from "@workspace/api-client-react";
-import { Building2, ChevronRight, DoorOpen, KeyRound, Pencil, Plus, Search } from "lucide-react";
+import { Building2, ChevronRight, ClipboardCheck, DoorOpen, KeyRound, Plus, Search } from "lucide-react";
+import { RegistrationReviewDialog } from "@/components/registration-review";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, TextInput, NativeSelect, Pill, CardTable, Filters, Fab } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
-import { ProvisionForm, SchoolEditForm } from "@/components/platform-forms";
-import { EnterSchoolDialog } from "@/components/platform-kit";
+import { ProvisionForm } from "@/components/platform-forms";
 import { errMsg, fmtDate } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,10 +14,11 @@ export default function Schools() {
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [edit, setEdit] = useState<School | null>(null);
-  const [enter, setEnter] = useState<School | null>(null);
   const [term, setTerm] = useState("");
-  const [status, setStatus] = useState("all");
+  const search = useSearch();
+  const [status, setStatus] = useState(() => new URLSearchParams(search).get("status") ?? "all");
+  const [review, setReview] = useState<School | null>(null);
+  const pendingCount = (q.data ?? []).filter((s) => s.status === "pending").length;
   const [sub, setSub] = useState("all");
 
   const rows = useMemo(() => {
@@ -30,7 +31,7 @@ export default function Schools() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Platform console" title="Schools" meta="Every school is an isolated register. Provision, adjust subscriptions, manage administrators, or open an audited support session.">
+      <PageHeader eyebrow="Platform console" title="Schools" meta="Every school is an isolated register. Open a school to manage its profile, subscription, billing and administrators.">
         <Btn data-testid="button-new-school" className="max-md:hidden" onClick={() => { setCreating(true); setNotice(null); }}><Plus className="h-4 w-4" /> Provision school</Btn>
       </PageHeader>
       {notice && <div data-testid="text-provision-notice" className="rise flex items-start gap-2 rounded-md border border-primary/25 bg-primary/5 px-4 py-3 text-sm"><KeyRound className="mt-0.5 h-4 w-4 text-primary" />{notice}</div>}
@@ -38,16 +39,14 @@ export default function Schools() {
       <FormDialog open={creating} onOpenChange={setCreating} size="lg" title="Provision a new school" description="Creates the school and its first school administrator.">
         <ProvisionForm onCancel={() => setCreating(false)} onDone={(s, signIn) => { setCreating(false); setNotice(`${s.name} provisioned. The administrator signs in with ${signIn}.`); toast({ title: "School provisioned" }); }} />
       </FormDialog>
-      <FormDialog open={!!edit} onOpenChange={(o) => { if (!o) setEdit(null); }} size="lg" title={`Edit ${edit?.name ?? "school"}`} description="Profile, status and operational subscription.">
-        {edit && <SchoolEditForm key={edit.id} school={edit} onDone={() => setEdit(null)} />}
-      </FormDialog>
-      <EnterSchoolDialog school={enter} open={!!enter} onOpenChange={(o) => { if (!o) setEnter(null); }} />
+      <RegistrationReviewDialog school={review} open={!!review} onOpenChange={(o) => { if (!o) setReview(null); }} />
+      {pendingCount > 0 && status !== "pending" && <button type="button" data-testid="button-pending-banner" onClick={() => setStatus("pending")} className="rise flex w-full items-center gap-2 rounded-md border border-amber-600/35 bg-amber-500/10 px-4 py-3 text-left text-sm hover:bg-amber-500/15"><ClipboardCheck className="h-4 w-4 text-amber-700" /><span><span className="font-semibold">{pendingCount} registration{pendingCount === 1 ? "" : "s"} pending review.</span> Show them</span><ChevronRight className="ml-auto h-4 w-4" /></button>}
 
       <div className="rise-1"><Filters active={(status !== "all" ? 1 : 0) + (sub !== "all" ? 1 : 0)} onClear={() => { setStatus("all"); setSub("all"); }} lead={<div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <TextInput data-testid="input-search-schools" aria-label="Search schools" placeholder="Search name, code, county, email or plan" className="pl-9" value={term} onChange={(e) => setTerm(e.target.value)} />
         </div>}>
-        <NativeSelect data-testid="select-filter-status" aria-label="School status" className="sm:w-40" value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></NativeSelect>
+        <NativeSelect data-testid="select-filter-status" aria-label="School status" className="sm:w-40" value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="pending">Pending review{pendingCount ? ` (${pendingCount})` : ""}</option><option value="rejected">Rejected</option></NativeSelect>
         <NativeSelect data-testid="select-filter-subscription" aria-label="Subscription" className="sm:w-44" value={sub} onChange={(e) => setSub(e.target.value)}><option value="all">All subscriptions</option>{["trial", "active", "expired", "cancelled"].map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect>
       </Filters></div>
 
@@ -64,11 +63,10 @@ export default function Schools() {
                 <td className="hidden px-3 py-3 capitalize md:table-cell">{s.county ?? "\u2014"} · {s.type}</td>
                 <td className="hidden px-3 py-3 font-mono text-xs text-muted-foreground lg:table-cell">{fmtDate(s.createdAt)}</td>
                 <td className="px-3 py-3 text-xs"><div className="font-semibold">{s.subscriptionPlan || "\u2014"}</div><div className="capitalize text-muted-foreground">{s.subscriptionStatus ?? "\u2014"}{s.subscriptionEndDate && ` · to ${fmtDate(s.subscriptionEndDate)}`}</div></td>
-                <td className="px-3 py-3"><Pill tone={s.status === "active" ? "active" : "error"}>{s.status}</Pill></td>
+                <td className="px-3 py-3"><Pill tone={s.status === "active" ? "active" : s.status === "pending" ? "duplicate" : "error"}>{s.status === "pending" ? "pending review" : s.status}</Pill></td>
                 <td className="px-3 py-3"><div className="flex items-center justify-end gap-0.5">
-                  <button data-testid={`button-enter-school-${s.id}`} aria-label={`Enter ${s.name}`} title="Enter school" onClick={() => setEnter(s)} className="rounded p-1.5 text-muted-foreground max-md:border max-md:border-border max-md:p-3 hover:bg-muted hover:text-foreground"><DoorOpen className="h-3.5 w-3.5" /></button>
-                  <button data-testid={`button-edit-school-${s.id}`} aria-label={`Edit ${s.name}`} title="Edit" onClick={() => setEdit(s)} className="rounded p-1.5 text-muted-foreground max-md:border max-md:border-border max-md:p-3 hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                  <Link href={`/schools/${s.id}`} aria-label={`Manage ${s.name}`} title="Manage" className="rounded p-1.5 text-muted-foreground max-md:border max-md:border-border max-md:p-3 hover:bg-muted hover:text-foreground"><ChevronRight className="h-3.5 w-3.5" /></Link>
+                  {(s.status === "pending" || s.status === "rejected") && <button data-testid={`button-review-school-${s.id}`} aria-label={`Review ${s.name}`} title="Review registration" onClick={() => setReview(s)} className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-primary max-md:border max-md:border-border max-md:p-3 hover:bg-muted"><ClipboardCheck className="h-3.5 w-3.5" />Review</button>}
+                  <Link href={`/schools/${s.id}`} data-testid={`button-manage-school-${s.id}`} aria-label={`Manage ${s.name}`} title="Manage school" className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-muted-foreground max-md:border max-md:border-border max-md:p-3 hover:bg-muted hover:text-foreground"><DoorOpen className="h-3.5 w-3.5" /><span className="max-sm:sr-only">Manage</span></Link>
                 </div></td>
               </tr>
             ))}</tbody>

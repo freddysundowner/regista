@@ -12,4 +12,6 @@ export type SchoolStatus = typeof SchoolStatus[keyof typeof SchoolStatus];
 export const SchoolStatus = {
   active: 'active',
   suspended: 'suspended',
+  pending: 'pending',
+  rejected: 'rejected',
 } as const;

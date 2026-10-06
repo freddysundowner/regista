@@ -31,6 +31,118 @@ tags:
   - name: audit
     description: Audit history
 paths:
+  /platform/schools/{schoolId}/billing:
+    get:
+      operationId: getPlatformBilling
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Manual platform billing, separate from student fees
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformBilling" }
+  /platform/schools/{schoolId}/billing/invoices:
+    post:
+      operationId: createPlatformInvoice
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformInvoiceInput" }
+      responses:
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformInvoice" }
+  /platform/schools/{schoolId}/billing/invoices/{invoiceId}/void:
+    post:
+      operationId: voidPlatformInvoice
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformBillingCorrection" }
+      responses:
+        "200":
+          description: Invoice voided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformInvoice" }
+  /platform/schools/{schoolId}/billing/invoices/{invoiceId}/payments:
+    post:
+      operationId: recordPlatformPayment
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformPaymentInput" }
+      responses:
+        "201":
+          description: Payment recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformInvoice" }
+  /platform/schools/{schoolId}/billing/invoices/{invoiceId}/payments/{paymentId}/reverse:
+    post:
+      operationId: reversePlatformPayment
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: paymentId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformBillingCorrection" }
+      responses:
+        "200":
+          description: Payment reversed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformInvoice" }
+  /auth/register:
+    post:
+      operationId: registerSchool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SchoolRegistrationInput" }
+      responses:
+        "201":
+          description: School account created, pending platform approval
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSession" }
+  /platform/schools/{schoolId}/registration:
+    post:
+      operationId: reviewSchoolRegistration
+      parameters:
+        - name: schoolId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SchoolRegistrationReview" }
+      responses:
+        "200":
+          description: Registration reviewed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/School" }
   /platform/overview:
     get:
       operationId: getPlatformOverview
@@ -1251,7 +1363,8 @@ components:
         address: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }
         email: { type: ["string", "null"] }
-        status: { type: string, enum: [active, suspended] }
+        status: { type: string, enum: [active, suspended, pending, rejected] }
+        registrationNote: { type: ["string", "null"] }
         logoUrl: { $ref: "#/components/schemas/AssetReference" }
         settings: { $ref: "#/components/schemas/SchoolSettings" }
         subscriptionPlan: { type: string }
@@ -1279,6 +1392,23 @@ components:
         phone: { type: string, minLength: 9, maxLength: 20 }
         password: { type: string, minLength: 10, maxLength: 128 }
       required: [schoolName, schoolCode, schoolType, adminName, password]
+    SchoolRegistrationInput:
+      type: object
+      additionalProperties: false
+      required: [schoolName, schoolType, adminName, email, password]
+      properties:
+        schoolName: { type: string, minLength: 2, maxLength: 180 }
+        schoolType: { $ref: "#/components/schemas/SchoolType" }
+        adminName: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: string, format: email, maxLength: 180 }
+        password: { type: string, minLength: 10, maxLength: 128 }
+    SchoolRegistrationReview:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        reason: { type: string, minLength: 3, maxLength: 500 }
     LoginInput:
       type: object
       properties:
@@ -1306,7 +1436,7 @@ components:
           anyOf:
             - { $ref: "#/components/schemas/School" }
             - { type: "null" }
-        mode: { type: string, enum: [platform, tenant] }
+        mode: { type: string, enum: [platform, tenant, registration] }
         tenantAccess:
           anyOf:
             - { $ref: "#/components/schemas/TenantAccess" }
@@ -1791,6 +1921,9 @@ components:
         reason: { type: string, minLength: 3, maxLength: 500 }
         confirmation: { type: string, enum: [CONFIRM] }
         name: { type: string, minLength: 2, maxLength: 180 }
+        address: { type: ["string", "null"], maxLength: 250 }
+        phone: { type: ["string", "null"], maxLength: 20 }
+        email: { type: ["string", "null"], format: email }
         county: { type: ["string", "null"], maxLength: 100 }
         type: { $ref: "#/components/schemas/SchoolType" }
         status: { type: string, enum: [active, suspended] }
@@ -1798,6 +1931,76 @@ components:
         subscriptionStatus: { type: string, enum: [trial, active, expired, cancelled] }
         subscriptionStartDate: { type: ["string", "null"], format: date }
         subscriptionEndDate: { type: ["string", "null"], format: date }
+    BillingAmount:
+      type: string
+      pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$'
+    PlatformInvoiceInput:
+      type: object
+      additionalProperties: false
+      required: [requestId, description, amount, issuedOn, dueOn]
+      properties:
+        requestId: { type: string, format: uuid }
+        description: { type: string, minLength: 3, maxLength: 250 }
+        amount: { $ref: "#/components/schemas/BillingAmount" }
+        issuedOn: { type: string, format: date }
+        dueOn: { type: string, format: date }
+        periodStart: { type: ["string", "null"], format: date }
+        periodEnd: { type: ["string", "null"], format: date }
+    PlatformPaymentInput:
+      type: object
+      additionalProperties: false
+      required: [requestId, amount, paidOn, method, reference]
+      properties:
+        requestId: { type: string, format: uuid }
+        amount: { $ref: "#/components/schemas/BillingAmount" }
+        paidOn: { type: string, format: date }
+        method: { type: string, enum: [bank, mpesa, cash, other] }
+        reference: { type: string, minLength: 2, maxLength: 120 }
+    PlatformBillingCorrection:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    PlatformBillingPayment:
+      type: object
+      required: [id, amount, paidOn, method, reference, reversedAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        amount: { type: string }
+        paidOn: { type: string, format: date }
+        method: { type: string }
+        reference: { type: string }
+        reversedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    PlatformInvoice:
+      type: object
+      required: [id, number, schoolId, description, amount, issuedOn, dueOn, periodStart, periodEnd, status, paid, balance, payments, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: string }
+        schoolId: { type: string, format: uuid }
+        description: { type: string }
+        amount: { type: string }
+        issuedOn: { type: string, format: date }
+        dueOn: { type: string, format: date }
+        periodStart: { type: ["string", "null"], format: date }
+        periodEnd: { type: ["string", "null"], format: date }
+        status: { type: string, enum: [unpaid, partial, paid, overdue, void] }
+        paid: { type: string }
+        balance: { type: string }
+        payments: { type: array, items: { $ref: "#/components/schemas/PlatformBillingPayment" } }
+        createdAt: { type: string, format: date-time }
+    PlatformBilling:
+      type: object
+      required: [currency, totalBilled, totalPaid, outstanding, overdue, invoices]
+      properties:
+        currency: { type: string, enum: [KES] }
+        totalBilled: { type: string }
+        totalPaid: { type: string }
+        outstanding: { type: string }
+        overdue: { type: string }
+        invoices: { type: array, items: { $ref: "#/components/schemas/PlatformInvoice" } }
     PasswordChangeInput:
       type: object
       required: [currentPassword, newPassword]

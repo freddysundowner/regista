@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import { Prisma } from "@workspace/db";
+import { db, Prisma } from "@workspace/db";
 import { ApiError, redactSnapshot, resolveTenant, type Identity, type Tx } from "./core";
 
 export function requirePlatform(req: Request) {
@@ -16,6 +16,12 @@ export async function platformAudit(tx: Tx, identity: Identity, action: string, 
 export async function authView(req: Request) {
   if (req.identity.user.role === "super_admin" && !req.identity.grantId) {
     return { user: req.identity.user, school: null, mode: "platform", tenantAccess: null };
+  }
+  if (req.identity.user.role !== "super_admin" && req.identity.user.schoolId) {
+    const school = await db.school.findUnique({ where: { id: req.identity.user.schoolId } });
+    if (school && ["pending", "rejected"].includes(school.status)) {
+      return { user: req.identity.user, school, mode: "registration", tenantAccess: null };
+    }
   }
   const actor = await resolveTenant(req);
   return { user: actor.user, school: actor.school, mode: "tenant", tenantAccess: actor.tenantAccess ?? null };

@@ -12,4 +12,5 @@ export type AuthSessionMode = typeof AuthSessionMode[keyof typeof AuthSessionMod
 export const AuthSessionMode = {
   platform: 'platform',
   tenant: 'tenant',
+  registration: 'registration',
 } as const;

@@ -75,45 +75,64 @@ export function ProvisionForm({ onDone, onCancel }: { onDone: (s: School, signIn
   );
 }
 
-export function SchoolEditForm({ school, onDone }: { school: School; onDone: () => void }) {
+export function SchoolEditForm({ school, onDone, section = "profile" }: { school: School; onDone: () => void; section?: "profile" | "subscription" }) {
   const refresh = useRefreshPlatform();
   const { toast } = useToast();
   const m = useEditPlatformSchool();
-  const [f, setF] = useState({ name: school.name, county: school.county ?? "", type: school.type as string, status: school.status as string, plan: school.subscriptionPlan ?? "", subStatus: (school.subscriptionStatus ?? "trial") as string, start: school.subscriptionStartDate?.slice(0, 10) ?? "", end: school.subscriptionEndDate?.slice(0, 10) ?? "" });
+  const [f, setF] = useState({ name: school.name, county: school.county ?? "", type: school.type as string, status: school.status as string, address: school.address ?? "", phone: school.phone ?? "", email: school.email ?? "", plan: school.subscriptionPlan ?? "", subStatus: (school.subscriptionStatus ?? "trial") as string, start: school.subscriptionStartDate?.slice(0, 10) ?? "", end: school.subscriptionEndDate?.slice(0, 10) ?? "" });
   const [c, setC] = useState(EMPTY_CONFIRM);
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const profile = section === "profile";
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
-    if (f.name.trim().length < 2) return setErr("School name needs at least 2 characters.");
-    if (!f.plan.trim()) return setErr("Enter a plan name.");
-    if (f.start && f.end && f.end < f.start) return setErr("End date must be on or after the start date.");
+    if (profile) {
+      if (f.name.trim().length < 2) return setErr("School name needs at least 2 characters.");
+      if (f.address.trim().length > 250) return setErr("Address must be 250 characters or fewer.");
+      if (f.phone.trim().length > 20) return setErr("Phone must be 20 characters or fewer.");
+      if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) return setErr("Enter a valid email address.");
+    } else {
+      if (!f.plan.trim()) return setErr("Enter a plan name.");
+      if (f.start && f.end && f.end < f.start) return setErr("End date must be on or after the start date.");
+    }
     const ce = confirmError(c); if (ce) return setErr(ce);
-    m.mutate({ schoolId: school.id, data: { name: f.name.trim(), county: f.county || null, type: f.type as SchoolType, status: f.status as PlatformSchoolUpdateStatus, subscriptionPlan: f.plan.trim(), subscriptionStatus: f.subStatus as PlatformSchoolUpdateSubscriptionStatus, subscriptionStartDate: f.start || null, subscriptionEndDate: f.end || null, ...confirmBody(c) } }, {
-      onSuccess: (s) => { refresh(s.id); toast({ title: `${s.name} updated` }); onDone(); },
+    const data = profile
+      ? { name: f.name.trim(), county: f.county || null, type: f.type as SchoolType, status: f.status as PlatformSchoolUpdateStatus, address: f.address.trim() || null, phone: f.phone.trim() || null, email: f.email.trim() || null }
+      : { subscriptionPlan: f.plan.trim(), subscriptionStatus: f.subStatus as PlatformSchoolUpdateSubscriptionStatus, subscriptionStartDate: f.start || null, subscriptionEndDate: f.end || null };
+    m.mutate({ schoolId: school.id, data: { ...data, ...confirmBody(c) } }, {
+      onSuccess: (s) => { refresh(s.id); toast({ title: profile ? `${s.name} updated` : "Subscription updated" }); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
   };
   return (
     <form onSubmit={submit} className="space-y-5 p-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="School name" required className="sm:col-span-2"><TextInput data-testid="input-school-name" required minLength={2} maxLength={180} value={f.name} onChange={set("name")} /></Field>
-        <Field label="County"><NativeSelect data-testid="select-school-county" value={f.county} onChange={set("county")}><option value="">Not set</option>{COUNTIES.map((x) => <option key={x}>{x}</option>)}</NativeSelect></Field>
-        <Field label="Level"><NativeSelect data-testid="select-school-type" value={f.type} onChange={set("type")}>{Object.values(SchoolType).map((t) => <option key={t} value={t}>{cap(t)}</option>)}</NativeSelect></Field>
-      </div>
-      <Divider>Status and subscription</Divider>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="School status" className="sm:col-span-2" hint="Suspending blocks the school's staff from signing in."><NativeSelect data-testid="select-school-status" value={f.status} onChange={set("status")}>{Object.values(PlatformSchoolUpdateStatus).map((v) => <option key={v} value={v}>{cap(v)}</option>)}</NativeSelect></Field>
-        <Field label="Plan" required><TextInput data-testid="input-subscription-plan" required maxLength={80} value={f.plan} onChange={set("plan")} placeholder="Standard" /></Field>
-        <Field label="Subscription"><NativeSelect data-testid="select-subscription-status" value={f.subStatus} onChange={set("subStatus")}>{Object.values(PlatformSchoolUpdateSubscriptionStatus).map((v) => <option key={v} value={v}>{cap(v)}</option>)}</NativeSelect></Field>
-        <Field label="Start date"><TextInput data-testid="input-subscription-start" type="date" value={f.start} onChange={set("start")} /></Field>
-        <Field label="End date"><TextInput data-testid="input-subscription-end" type="date" value={f.end} onChange={set("end")} /></Field>
-      </div>
-      <p className="text-xs text-muted-foreground">Operational tracking only; no card billing.</p>
+      {profile ? <>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="School name" required className="sm:col-span-2"><TextInput data-testid="input-school-name" required minLength={2} maxLength={180} value={f.name} onChange={set("name")} /></Field>
+          <Field label="County"><NativeSelect data-testid="select-school-county" value={f.county} onChange={set("county")}><option value="">Not set</option>{COUNTIES.map((x) => <option key={x}>{x}</option>)}</NativeSelect></Field>
+          <Field label="Level"><NativeSelect data-testid="select-school-type" value={f.type} onChange={set("type")}>{Object.values(SchoolType).map((t) => <option key={t} value={t}>{cap(t)}</option>)}</NativeSelect></Field>
+        </div>
+        <Divider>Contact</Divider>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Email"><TextInput data-testid="input-school-email" type="email" value={f.email} onChange={set("email")} /></Field>
+          <Field label="Phone"><TextInput data-testid="input-school-phone" type="tel" maxLength={20} value={f.phone} onChange={set("phone")} /></Field>
+          <Field label="Address" className="sm:col-span-2"><TextInput data-testid="input-school-address" maxLength={250} value={f.address} onChange={set("address")} /></Field>
+        </div>
+        <Divider>Access</Divider>
+        <Field label="School status" hint="Suspending blocks the school's staff from signing in."><NativeSelect data-testid="select-school-status" value={f.status} onChange={set("status")}>{Object.values(PlatformSchoolUpdateStatus).map((v) => <option key={v} value={v}>{cap(v)}</option>)}</NativeSelect></Field>
+      </> : <>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Plan" required><TextInput data-testid="input-subscription-plan" required maxLength={80} value={f.plan} onChange={set("plan")} placeholder="Standard" /></Field>
+          <Field label="Subscription"><NativeSelect data-testid="select-subscription-status" value={f.subStatus} onChange={set("subStatus")}>{Object.values(PlatformSchoolUpdateSubscriptionStatus).map((v) => <option key={v} value={v}>{cap(v)}</option>)}</NativeSelect></Field>
+          <Field label="Start date"><TextInput data-testid="input-subscription-start" type="date" value={f.start} onChange={set("start")} /></Field>
+          <Field label="End date" hint="Renewal due on this date"><TextInput data-testid="input-subscription-end" type="date" value={f.end} onChange={set("end")} /></Field>
+        </div>
+        <p className="text-xs text-muted-foreground">Changed explicitly here only. Invoices and payments never change the subscription or access.</p>
+      </>}
       <ConfirmFields value={c} onChange={setC} prefix="school" />
       <FormError msg={err} />
       <FormActions>
-        <Btn data-testid="button-save-school" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Save changes</Btn>
+        <Btn data-testid="button-save-school" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{profile ? "Save profile" : "Save subscription"}</Btn>
         <Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn>
       </FormActions>
     </form>

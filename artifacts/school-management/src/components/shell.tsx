@@ -209,9 +209,9 @@ function ShellInner({ children }: { children: ReactNode }) {
           </div>
         </nav>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-[hsl(188_40%_8%/0.55)] backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 md:hidden" />
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 md:hidden" />
           <Dialog.Content aria-describedby={undefined} data-testid="sheet-more"
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-2xl bg-sidebar text-sidebar-foreground outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom md:hidden">
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-2xl bg-sidebar text-sidebar-foreground outline-none md:hidden">
             <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-sidebar-foreground/25" />
             <div className="flex shrink-0 items-center gap-3 border-b border-sidebar-border px-4 pb-3 pt-2">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</span>

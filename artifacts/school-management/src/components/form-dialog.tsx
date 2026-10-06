@@ -22,7 +22,7 @@ export function FormDialog({ open, onOpenChange, title, description, children, s
   return (
     <D.Root open={open} onOpenChange={(o) => { if (!o && busy) return; onOpenChange(o); }}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-50 bg-[hsl(188_40%_10%/0.55)] backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <D.Overlay className="fixed inset-0 z-50 bg-black/40" />
         <D.Content
           data-testid={testid ?? "form-dialog"}
           onOpenAutoFocus={() => { opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
@@ -34,10 +34,10 @@ export function FormDialog({ open, onOpenChange, title, description, children, s
           }}
           onEscapeKeyDown={block} onPointerDownOutside={block} onInteractOutside={block}
           className={cn(
-            "fixed z-50 flex flex-col border border-card-border bg-card shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0",
+            "fixed z-50 flex flex-col border border-card-border bg-card shadow-lg outline-none",
             full
               ? "inset-0 pt-[env(safe-area-inset-top)] sm:inset-4 sm:rounded-lg sm:pt-0"
-              : cn("inset-x-0 bottom-0 max-h-[94dvh] rounded-t-xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg data-[state=open]:slide-in-from-bottom-4 sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0", w),
+              : cn("inset-x-0 bottom-0 max-h-[94dvh] rounded-t-xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg", w),
           )}
         >
           <div className="flex items-start justify-between gap-4 border-b border-border/70 px-4 py-3.5 sm:px-5 sm:py-4">

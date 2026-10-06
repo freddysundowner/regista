@@ -59,7 +59,7 @@ export function send(res: Response, operation: string, data: unknown, status = 2
   res.status(status).json(serialize(schema.parse(data)));
 }
 function serialize(value: any, key = ""): any {
-  if (value instanceof Date) return ["startDate", "endDate", "dateOfBirth", "admissionDate", "subscriptionStartDate", "subscriptionEndDate"].includes(key) ? dateView(value) : value.toISOString();
+  if (value instanceof Date) return ["startDate", "endDate", "dateOfBirth", "admissionDate", "subscriptionStartDate", "subscriptionEndDate", "issuedOn", "dueOn", "paidOn", "periodStart", "periodEnd"].includes(key) ? dateView(value) : value.toISOString();
   if (Array.isArray(value)) return value.map(v => serialize(v));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, serialize(v, k)]));
   return value;
@@ -69,7 +69,7 @@ export function body<T extends ZodTypeAny>(schema: T, data: unknown): T["_output
   // Generated schemas coerce date strings; reject overflow dates before coercion.
   if (cleaned && typeof cleaned === "object" && !Array.isArray(cleaned)) {
     for (const [key, value] of Object.entries(cleaned)) {
-      if (["startDate", "endDate", "dueDate", "dateOfBirth", "admissionDate", "subscriptionStartDate", "subscriptionEndDate"].includes(key) && value !== null && value !== undefined && (typeof value !== "string" || !validDate(value))) {
+      if (["startDate", "endDate", "dueDate", "dateOfBirth", "admissionDate", "subscriptionStartDate", "subscriptionEndDate", "issuedOn", "dueOn", "paidOn", "periodStart", "periodEnd"].includes(key) && value !== null && value !== undefined && (typeof value !== "string" || !validDate(value))) {
         throw new ApiError(400, `${key} must be a real date (YYYY-MM-DD)`);
       }
     }

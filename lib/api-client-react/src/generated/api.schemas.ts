@@ -76,6 +76,8 @@ export type SchoolStatus = typeof SchoolStatus[keyof typeof SchoolStatus];
 export const SchoolStatus = {
   active: 'active',
   suspended: 'suspended',
+  pending: 'pending',
+  rejected: 'rejected',
 } as const;
 
 export type SchoolSubscriptionStatus = typeof SchoolSubscriptionStatus[keyof typeof SchoolSubscriptionStatus];
@@ -253,6 +255,8 @@ export interface School {
   /** @nullable */
   email?: string | null;
   status: SchoolStatus;
+  /** @nullable */
+  registrationNote?: string | null;
   logoUrl?: AssetReference | null;
   settings?: SchoolSettings;
   subscriptionPlan?: string;
@@ -303,6 +307,44 @@ export interface InitialSetupInput {
   password: string;
 }
 
+export interface SchoolRegistrationInput {
+  /**
+     * @minLength 2
+     * @maxLength 180
+     */
+  schoolName: string;
+  schoolType: SchoolType;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  adminName: string;
+  /** @maxLength 180 */
+  email: string;
+  /**
+     * @minLength 10
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export type SchoolRegistrationReviewDecision = typeof SchoolRegistrationReviewDecision[keyof typeof SchoolRegistrationReviewDecision];
+
+
+export const SchoolRegistrationReviewDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface SchoolRegistrationReview {
+  decision: SchoolRegistrationReviewDecision;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason?: string;
+}
+
 export interface LoginInput {
   /**
      * @minLength 3
@@ -338,6 +380,7 @@ export type AuthSessionMode = typeof AuthSessionMode[keyof typeof AuthSessionMod
 export const AuthSessionMode = {
   platform: 'platform',
   tenant: 'tenant',
+  registration: 'registration',
 } as const;
 
 export interface TenantAccess {
@@ -1065,6 +1108,18 @@ export interface PlatformSchoolUpdate {
      */
   name?: string;
   /**
+     * @maxLength 250
+     * @nullable
+     */
+  address?: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /**
      * @maxLength 100
      * @nullable
      */
@@ -1081,6 +1136,114 @@ export interface PlatformSchoolUpdate {
   subscriptionStartDate?: string | null;
   /** @nullable */
   subscriptionEndDate?: string | null;
+}
+
+/**
+ * @pattern ^[0-9]{1,10}(\.[0-9]{1,2})?$
+ */
+export type BillingAmount = string;
+
+export interface PlatformInvoiceInput {
+  requestId: string;
+  /**
+     * @minLength 3
+     * @maxLength 250
+     */
+  description: string;
+  amount: BillingAmount;
+  issuedOn: string;
+  dueOn: string;
+  /** @nullable */
+  periodStart?: string | null;
+  /** @nullable */
+  periodEnd?: string | null;
+}
+
+export type PlatformPaymentInputMethod = typeof PlatformPaymentInputMethod[keyof typeof PlatformPaymentInputMethod];
+
+
+export const PlatformPaymentInputMethod = {
+  bank: 'bank',
+  mpesa: 'mpesa',
+  cash: 'cash',
+  other: 'other',
+} as const;
+
+export interface PlatformPaymentInput {
+  requestId: string;
+  amount: BillingAmount;
+  paidOn: string;
+  method: PlatformPaymentInputMethod;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  reference: string;
+}
+
+export interface PlatformBillingCorrection {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface PlatformBillingPayment {
+  id: string;
+  amount: string;
+  paidOn: string;
+  method: string;
+  reference: string;
+  /** @nullable */
+  reversedAt: string | null;
+  createdAt: string;
+}
+
+export type PlatformInvoiceStatus = typeof PlatformInvoiceStatus[keyof typeof PlatformInvoiceStatus];
+
+
+export const PlatformInvoiceStatus = {
+  unpaid: 'unpaid',
+  partial: 'partial',
+  paid: 'paid',
+  overdue: 'overdue',
+  void: 'void',
+} as const;
+
+export interface PlatformInvoice {
+  id: string;
+  number: string;
+  schoolId: string;
+  description: string;
+  amount: string;
+  issuedOn: string;
+  dueOn: string;
+  /** @nullable */
+  periodStart: string | null;
+  /** @nullable */
+  periodEnd: string | null;
+  status: PlatformInvoiceStatus;
+  paid: string;
+  balance: string;
+  payments: PlatformBillingPayment[];
+  createdAt: string;
+}
+
+export type PlatformBillingCurrency = typeof PlatformBillingCurrency[keyof typeof PlatformBillingCurrency];
+
+
+export const PlatformBillingCurrency = {
+  KES: 'KES',
+} as const;
+
+export interface PlatformBilling {
+  currency: PlatformBillingCurrency;
+  totalBilled: string;
+  totalPaid: string;
+  outstanding: string;
+  overdue: string;
+  invoices: PlatformInvoice[];
 }
 
 export interface PasswordChangeInput {

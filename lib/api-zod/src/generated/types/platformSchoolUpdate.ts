@@ -23,6 +23,18 @@ export interface PlatformSchoolUpdate {
      */
   name?: string;
   /**
+     * @maxLength 250
+     * @nullable
+     */
+  address?: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /**
      * @maxLength 100
      * @nullable
      */

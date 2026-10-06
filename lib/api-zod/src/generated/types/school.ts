@@ -25,6 +25,8 @@ export interface School {
   /** @nullable */
   email?: string | null;
   status: SchoolStatus;
+  /** @nullable */
+  registrationNote?: string | null;
   logoUrl?: AssetReference | null;
   settings?: SchoolSettings;
   subscriptionPlan?: string;

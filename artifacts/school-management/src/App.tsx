@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { SetupPage, LoginPage } from '@/pages/auth';
+import { RegisterPage, RegistrationStatusPage } from '@/pages/register';
 import Dashboard from '@/pages/dashboard';
 import Students from '@/pages/students';
 import StudentDetail from '@/pages/student-detail';
@@ -139,6 +140,8 @@ function AppRoutes() {
 }
 
 function Gate() {
+  const [loc] = useLocation();
+  const unauth = loc === '/register' ? <RegisterPage /> : <LoginPage />;
   const setup = useGetSetupStatus();
   const needsSetup = setup.data?.needsSetup;
   const me = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), enabled: needsSetup === false, retry: false } });
@@ -148,10 +151,11 @@ function Gate() {
   if (needsSetup) return <SetupPage />;
   if (me.isLoading) return <Splash />;
   if (me.isError) {
-    if (me.error?.status === 401) return <LoginPage />;
+    if (me.error?.status === 401) return unauth;
     return <div className="min-h-[100dvh] bg-background pt-24"><ErrorState msg={`${errMsg(me.error, 'Could not load your session.')} Your sign-in is kept; check the connection and retry.`} onRetry={() => me.refetch()} />{me.error?.status === 403 && <PlatformRecovery />}</div>;
   }
-  if (!me.data) return <LoginPage />;
+  if (!me.data) return unauth;
+  if (me.data.mode === 'registration') return <RegistrationStatusPage session={me.data} />;
   return (
     <SessionProvider session={me.data}>
       <Shell>

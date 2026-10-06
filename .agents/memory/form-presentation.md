@@ -22,3 +22,9 @@ Wizard navigation must not reuse the final submit button's DOM identity.
 **Why:** A Next click can synchronously change a React button into a submit button before the browser applies the click's default action, prematurely persisting a record without review.
 
 **How to apply:** Use distinct keys for navigation and final submit controls and prevent the navigation click's default action. Verify that advancing to review makes no writes before explicit Save.
+
+Keep modal opening lightweight: plain dim overlays without backdrop blur or entrance/exit motion.
+
+**Why:** The user reported that dialogs felt heavy and appeared to consume too many resources.
+
+**How to apply:** Do not reintroduce full-screen blur or compound zoom/slide/fade effects when changing shared dialogs and sheets.

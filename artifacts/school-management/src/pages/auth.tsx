@@ -2,14 +2,15 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateInitialSchool, useLogin, useGetSetupStatus, getGetCurrentUserQueryKey, getGetSetupStatusQueryKey, SchoolType, type AuthSession } from "@workspace/api-client-react";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { Link } from "wouter";
 import { Field, TextInput, NativeSelect, FormError, Btn } from "@/components/kit";
 import { errMsg } from "@/lib/session";
 
 export const COUNTIES = ["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"];
 
-function Frame({ children, side }: { children: ReactNode; side: ReactNode }) {
+export function Frame({ children, side }: { children: ReactNode; side: ReactNode }) {
   return (
-    <div className="grid min-h-[100dvh] bg-background lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+    <div className="grid min-h-[100dvh] grid-cols-1 bg-background lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       <aside className="relative hidden overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0 39px, currentColor 39px 40px)" }} />
         <div className="absolute bottom-0 left-16 top-0 w-px bg-sidebar-primary/40" />
@@ -20,13 +21,13 @@ function Frame({ children, side }: { children: ReactNode; side: ReactNode }) {
         <div className="relative pl-10">{side}</div>
         <div className="relative pl-10 font-mono text-[11px] uppercase tracking-[0.2em] text-sidebar-foreground/50">Admission register · Guardians · Audit trail</div>
       </aside>
-      <div className="flex flex-col">
+      <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-2.5 bg-sidebar px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-sidebar-foreground lg:hidden">
-          <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-sidebar-primary font-display text-lg font-bold text-sidebar-primary-foreground">R</div>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-lg font-bold text-sidebar-primary-foreground">R</div>
           <div className="min-w-0"><div className="font-display text-lg font-semibold leading-tight text-sidebar-accent-foreground">Rejista</div><div className="truncate font-mono text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">Admission register · Guardians · Audit</div></div>
         </div>
         <div className="flex flex-1 items-start justify-center px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-8 md:items-center md:px-12 md:py-10">
-          <div className="rise w-full max-w-xl">{children}</div>
+          <div className="rise min-w-0 w-full max-w-xl">{children}</div>
         </div>
       </div>
     </div>
@@ -125,7 +126,8 @@ export function LoginPage() {
           <Btn data-testid="button-login" type="submit" disabled={m.isPending} className="h-11 w-full">
             {m.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Sign in <ArrowRight className="h-4 w-4" /></>}
           </Btn>
-          <p className="pt-2 text-xs text-muted-foreground">Forgot your password? Ask your school administrator to reset your account.</p>
+          <p className="pt-2 text-sm text-muted-foreground">New school? <Link href="/register" data-testid="link-register" className="font-semibold text-primary hover:underline">Register for review</Link></p>
+          <p className="text-xs text-muted-foreground">Forgot your password? Ask your school administrator to reset your account.</p>
         </form>
       </div>
     </Frame>

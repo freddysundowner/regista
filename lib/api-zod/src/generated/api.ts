@@ -8,6 +8,473 @@
 import * as zod from 'zod';
 
 
+export const GetPlatformBillingParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const GetPlatformBillingResponse = zod.object({
+  "currency": zod.enum(['KES']),
+  "totalBilled": zod.string(),
+  "totalPaid": zod.string(),
+  "outstanding": zod.string(),
+  "overdue": zod.string(),
+  "invoices": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "schoolId": zod.string().uuid(),
+  "description": zod.string(),
+  "amount": zod.string(),
+  "issuedOn": zod.coerce.date(),
+  "dueOn": zod.coerce.date(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'overdue', 'void']),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "amount": zod.string(),
+  "paidOn": zod.coerce.date(),
+  "method": zod.string(),
+  "reference": zod.string(),
+  "reversedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+export const CreatePlatformInvoiceParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const createPlatformInvoiceBodyDescriptionMin = 3;
+export const createPlatformInvoiceBodyDescriptionMax = 250;
+
+export const createPlatformInvoiceBodyAmountRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+
+
+export const CreatePlatformInvoiceBody = zod.object({
+  "requestId": zod.string().uuid(),
+  "description": zod.string().min(createPlatformInvoiceBodyDescriptionMin).max(createPlatformInvoiceBodyDescriptionMax),
+  "amount": zod.string().regex(createPlatformInvoiceBodyAmountRegExp),
+  "issuedOn": zod.coerce.date(),
+  "dueOn": zod.coerce.date(),
+  "periodStart": zod.coerce.date().nullish(),
+  "periodEnd": zod.coerce.date().nullish()
+})
+
+export const CreatePlatformInvoiceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "schoolId": zod.string().uuid(),
+  "description": zod.string(),
+  "amount": zod.string(),
+  "issuedOn": zod.coerce.date(),
+  "dueOn": zod.coerce.date(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'overdue', 'void']),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "amount": zod.string(),
+  "paidOn": zod.coerce.date(),
+  "method": zod.string(),
+  "reference": zod.string(),
+  "reversedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const VoidPlatformInvoiceParams = zod.object({
+  "schoolId": zod.coerce.string().uuid(),
+  "invoiceId": zod.coerce.string().uuid()
+})
+
+export const voidPlatformInvoiceBodyReasonMin = 3;
+export const voidPlatformInvoiceBodyReasonMax = 500;
+
+
+
+export const VoidPlatformInvoiceBody = zod.object({
+  "reason": zod.string().min(voidPlatformInvoiceBodyReasonMin).max(voidPlatformInvoiceBodyReasonMax)
+})
+
+export const VoidPlatformInvoiceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "schoolId": zod.string().uuid(),
+  "description": zod.string(),
+  "amount": zod.string(),
+  "issuedOn": zod.coerce.date(),
+  "dueOn": zod.coerce.date(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'overdue', 'void']),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "amount": zod.string(),
+  "paidOn": zod.coerce.date(),
+  "method": zod.string(),
+  "reference": zod.string(),
+  "reversedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const RecordPlatformPaymentParams = zod.object({
+  "schoolId": zod.coerce.string().uuid(),
+  "invoiceId": zod.coerce.string().uuid()
+})
+
+export const recordPlatformPaymentBodyAmountRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+export const recordPlatformPaymentBodyReferenceMin = 2;
+export const recordPlatformPaymentBodyReferenceMax = 120;
+
+
+
+export const RecordPlatformPaymentBody = zod.object({
+  "requestId": zod.string().uuid(),
+  "amount": zod.string().regex(recordPlatformPaymentBodyAmountRegExp),
+  "paidOn": zod.coerce.date(),
+  "method": zod.enum(['bank', 'mpesa', 'cash', 'other']),
+  "reference": zod.string().min(recordPlatformPaymentBodyReferenceMin).max(recordPlatformPaymentBodyReferenceMax)
+})
+
+export const RecordPlatformPaymentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "schoolId": zod.string().uuid(),
+  "description": zod.string(),
+  "amount": zod.string(),
+  "issuedOn": zod.coerce.date(),
+  "dueOn": zod.coerce.date(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'overdue', 'void']),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "amount": zod.string(),
+  "paidOn": zod.coerce.date(),
+  "method": zod.string(),
+  "reference": zod.string(),
+  "reversedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const ReversePlatformPaymentParams = zod.object({
+  "schoolId": zod.coerce.string().uuid(),
+  "invoiceId": zod.coerce.string().uuid(),
+  "paymentId": zod.coerce.string().uuid()
+})
+
+export const reversePlatformPaymentBodyReasonMin = 3;
+export const reversePlatformPaymentBodyReasonMax = 500;
+
+
+
+export const ReversePlatformPaymentBody = zod.object({
+  "reason": zod.string().min(reversePlatformPaymentBodyReasonMin).max(reversePlatformPaymentBodyReasonMax)
+})
+
+export const ReversePlatformPaymentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "schoolId": zod.string().uuid(),
+  "description": zod.string(),
+  "amount": zod.string(),
+  "issuedOn": zod.coerce.date(),
+  "dueOn": zod.coerce.date(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'overdue', 'void']),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "amount": zod.string(),
+  "paidOn": zod.coerce.date(),
+  "method": zod.string(),
+  "reference": zod.string(),
+  "reversedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const registerSchoolBodySchoolNameMin = 2;
+export const registerSchoolBodySchoolNameMax = 180;
+
+export const registerSchoolBodyAdminNameMin = 2;
+export const registerSchoolBodyAdminNameMax = 160;
+
+export const registerSchoolBodyEmailMax = 180;
+
+export const registerSchoolBodyPasswordMin = 10;
+export const registerSchoolBodyPasswordMax = 128;
+
+
+
+export const RegisterSchoolBody = zod.object({
+  "schoolName": zod.string().min(registerSchoolBodySchoolNameMin).max(registerSchoolBodySchoolNameMax),
+  "schoolType": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "adminName": zod.string().min(registerSchoolBodyAdminNameMin).max(registerSchoolBodyAdminNameMax),
+  "email": zod.string().email().max(registerSchoolBodyEmailMax),
+  "password": zod.string().min(registerSchoolBodyPasswordMin).max(registerSchoolBodyPasswordMax)
+})
+
+export const registerSchoolResponseSchoolOneLogoUrlMax = 500;
+
+
+export const registerSchoolResponseSchoolOneLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const registerSchoolResponseSchoolOneSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const registerSchoolResponseSchoolOneSettingsAutoPostThresholdMin = 0;
+export const registerSchoolResponseSchoolOneSettingsAutoPostThresholdMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsFuzzyNameThresholdMin = 0.8;
+export const registerSchoolResponseSchoolOneSettingsFuzzyNameThresholdMax = 1;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresExactMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresExactMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresAliasMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresAliasMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresGuardianMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresGuardianMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresNameMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresNameMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresTypoMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresTypoMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresBonusMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresBonusMax = 30;
+
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresInactiveMin = 0;
+export const registerSchoolResponseSchoolOneSettingsMatchingScoresInactiveMax = 150;
+
+export const registerSchoolResponseSchoolOneSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const registerSchoolResponseSchoolOneSettingsChronicAbsencePercentMax = 100;
+
+export const registerSchoolResponseSchoolOneSettingsSiblingReplyHoursMax = 168;
+
+export const registerSchoolResponseSchoolOneSettingsReminderDaysItemMin = -365;
+export const registerSchoolResponseSchoolOneSettingsReminderDaysItemMax = 365;
+
+export const registerSchoolResponseSchoolOneSettingsReminderDaysMax = 20;
+
+export const registerSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const registerSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const RegisterSchoolResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "lastLoginAt": zod.coerce.date().nullish(),
+  "name": zod.string(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}),
+  "school": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
+  "logoUrl": zod.string().max(registerSchoolResponseSchoolOneLogoUrlMax).regex(registerSchoolResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(registerSchoolResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(registerSchoolResponseSchoolOneSettingsAutoPostThresholdMin).max(registerSchoolResponseSchoolOneSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(registerSchoolResponseSchoolOneSettingsFuzzyNameThresholdMin).max(registerSchoolResponseSchoolOneSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresExactMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresAliasMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresGuardianMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresNameMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresTypoMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresBonusMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(registerSchoolResponseSchoolOneSettingsMatchingScoresInactiveMin).max(registerSchoolResponseSchoolOneSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(registerSchoolResponseSchoolOneSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(registerSchoolResponseSchoolOneSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(registerSchoolResponseSchoolOneSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(registerSchoolResponseSchoolOneSettingsReminderDaysItemMin).max(registerSchoolResponseSchoolOneSettingsReminderDaysItemMax)).max(registerSchoolResponseSchoolOneSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(registerSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(registerSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "mode": zod.enum(['platform', 'tenant', 'registration']),
+  "tenantAccess": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "reason": zod.string(),
+  "writeEnabled": zod.boolean(),
+  "expiresAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+export const ReviewSchoolRegistrationParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const reviewSchoolRegistrationBodyReasonMin = 3;
+export const reviewSchoolRegistrationBodyReasonMax = 500;
+
+
+
+export const ReviewSchoolRegistrationBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "reason": zod.string().min(reviewSchoolRegistrationBodyReasonMin).max(reviewSchoolRegistrationBodyReasonMax).optional()
+})
+
+export const reviewSchoolRegistrationResponseLogoUrlMax = 500;
+
+
+export const reviewSchoolRegistrationResponseLogoUrlRegExp = new RegExp('^/api/storage/files/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const reviewSchoolRegistrationResponseSettingsHighValuePaymentThresholdRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const reviewSchoolRegistrationResponseSettingsAutoPostThresholdMin = 0;
+export const reviewSchoolRegistrationResponseSettingsAutoPostThresholdMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsFuzzyNameThresholdMin = 0.8;
+export const reviewSchoolRegistrationResponseSettingsFuzzyNameThresholdMax = 1;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresExactMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresExactMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresNormalizedMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresNormalizedMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresAliasMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresAliasMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresGuardianMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresGuardianMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresNameMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresNameMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresTypoMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresTypoMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresBonusMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresBonusMax = 30;
+
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresInactiveMin = 0;
+export const reviewSchoolRegistrationResponseSettingsMatchingScoresInactiveMax = 150;
+
+export const reviewSchoolRegistrationResponseSettingsAutoApprovePlanLimitRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,2})?$');
+export const reviewSchoolRegistrationResponseSettingsChronicAbsencePercentMax = 100;
+
+export const reviewSchoolRegistrationResponseSettingsSiblingReplyHoursMax = 168;
+
+export const reviewSchoolRegistrationResponseSettingsReminderDaysItemMin = -365;
+export const reviewSchoolRegistrationResponseSettingsReminderDaysItemMax = 365;
+
+export const reviewSchoolRegistrationResponseSettingsReminderDaysMax = 20;
+
+export const reviewSchoolRegistrationResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
+
+export const reviewSchoolRegistrationResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const ReviewSchoolRegistrationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "county": zod.string().nullish(),
+  "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
+  "logoUrl": zod.string().max(reviewSchoolRegistrationResponseLogoUrlMax).regex(reviewSchoolRegistrationResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
+  "settings": zod.object({
+  "highValuePaymentThreshold": zod.string().regex(reviewSchoolRegistrationResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
+  "autoPostThreshold": zod.number().int().min(reviewSchoolRegistrationResponseSettingsAutoPostThresholdMin).max(reviewSchoolRegistrationResponseSettingsAutoPostThresholdMax).optional(),
+  "fuzzyNameThreshold": zod.number().min(reviewSchoolRegistrationResponseSettingsFuzzyNameThresholdMin).max(reviewSchoolRegistrationResponseSettingsFuzzyNameThresholdMax).optional(),
+  "matchingScores": zod.object({
+  "exact": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresExactMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresExactMax).optional(),
+  "normalized": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresNormalizedMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresNormalizedMax).optional(),
+  "alias": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresAliasMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresAliasMax).optional(),
+  "guardian": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresGuardianMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresGuardianMax).optional(),
+  "name": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresNameMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresNameMax).optional(),
+  "typo": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresTypoMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresTypoMax).optional(),
+  "bonus": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresBonusMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresBonusMax).optional(),
+  "inactive": zod.number().int().min(reviewSchoolRegistrationResponseSettingsMatchingScoresInactiveMin).max(reviewSchoolRegistrationResponseSettingsMatchingScoresInactiveMax).optional()
+}).optional(),
+  "autoApprovePlanLimit": zod.string().regex(reviewSchoolRegistrationResponseSettingsAutoApprovePlanLimitRegExp).optional(),
+  "messageTemplates": zod.record(zod.string(), zod.object({
+  "transport": zod.enum(['template', 'text']).optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "components": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "knecColumns": zod.array(zod.enum(['admissionNo', 'upi', 'studentName', 'learningArea', 'percent', 'level', 'term'])).optional(),
+  "chronicAbsencePercent": zod.number().min(1).max(reviewSchoolRegistrationResponseSettingsChronicAbsencePercentMax).optional(),
+  "siblingSplitRule": zod.enum(['ask_parent', 'proportional_to_balance', 'oldest_arrears_first']).optional(),
+  "siblingFallbackRule": zod.enum(['proportional_to_balance', 'oldest_arrears_first', 'leave_in_queue']).optional(),
+  "siblingReplyHours": zod.number().int().min(1).max(reviewSchoolRegistrationResponseSettingsSiblingReplyHoursMax).optional(),
+  "reminderDays": zod.array(zod.number().int().min(reviewSchoolRegistrationResponseSettingsReminderDaysItemMin).max(reviewSchoolRegistrationResponseSettingsReminderDaysItemMax)).max(reviewSchoolRegistrationResponseSettingsReminderDaysMax).optional(),
+  "defaultAfterMissedInstallments": zod.number().int().min(1).max(reviewSchoolRegistrationResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
+  "absenceAlertsEnabled": zod.boolean().optional(),
+  "absenceAlertTime": zod.string().regex(reviewSchoolRegistrationResponseSettingsAbsenceAlertTimeRegExp).optional()
+}).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
+  "subscriptionPlan": zod.string().optional(),
+  "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
+  "subscriptionStartDate": zod.coerce.date().nullish(),
+  "subscriptionEndDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
 export const GetPlatformOverviewResponse = zod.object({
   "schools": zod.number().int(),
   "activeSchools": zod.number().int(),
@@ -76,7 +543,8 @@ export const ListPlatformSchoolsResponseItem = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(listPlatformSchoolsResponseLogoUrlMax).regex(listPlatformSchoolsResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(listPlatformSchoolsResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -216,7 +684,8 @@ export const ProvisionPlatformSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(provisionPlatformSchoolResponseLogoUrlMax).regex(provisionPlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(provisionPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -320,7 +789,8 @@ export const GetPlatformSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(getPlatformSchoolResponseLogoUrlMax).regex(getPlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(getPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -371,6 +841,10 @@ export const editPlatformSchoolBodyReasonMax = 500;
 export const editPlatformSchoolBodyNameMin = 2;
 export const editPlatformSchoolBodyNameMax = 180;
 
+export const editPlatformSchoolBodyAddressMax = 250;
+
+export const editPlatformSchoolBodyPhoneMax = 20;
+
 export const editPlatformSchoolBodyCountyMax = 100;
 
 export const editPlatformSchoolBodySubscriptionPlanMax = 80;
@@ -381,6 +855,9 @@ export const EditPlatformSchoolBody = zod.object({
   "reason": zod.string().min(editPlatformSchoolBodyReasonMin).max(editPlatformSchoolBodyReasonMax),
   "confirmation": zod.enum(['CONFIRM']),
   "name": zod.string().min(editPlatformSchoolBodyNameMin).max(editPlatformSchoolBodyNameMax).optional(),
+  "address": zod.string().max(editPlatformSchoolBodyAddressMax).nullish(),
+  "phone": zod.string().max(editPlatformSchoolBodyPhoneMax).nullish(),
+  "email": zod.string().email().nullish(),
   "county": zod.string().max(editPlatformSchoolBodyCountyMax).nullish(),
   "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']).optional(),
   "status": zod.enum(['active', 'suspended']).optional(),
@@ -449,7 +926,8 @@ export const EditPlatformSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(editPlatformSchoolResponseLogoUrlMax).regex(editPlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(editPlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -738,7 +1216,8 @@ export const EnterTenantAccessResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(enterTenantAccessResponseSchoolOneLogoUrlMax).regex(enterTenantAccessResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(enterTenantAccessResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -777,7 +1256,7 @@ export const EnterTenantAccessResponse = zod.object({
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
 }),zod.null()]),
-  "mode": zod.enum(['platform', 'tenant']),
+  "mode": zod.enum(['platform', 'tenant', 'registration']),
   "tenantAccess": zod.union([zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
@@ -859,7 +1338,8 @@ export const ExitTenantAccessResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(exitTenantAccessResponseSchoolOneLogoUrlMax).regex(exitTenantAccessResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(exitTenantAccessResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -898,7 +1378,7 @@ export const ExitTenantAccessResponse = zod.object({
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
 }),zod.null()]),
-  "mode": zod.enum(['platform', 'tenant']),
+  "mode": zod.enum(['platform', 'tenant', 'registration']),
   "tenantAccess": zod.union([zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
@@ -3091,6 +3571,10 @@ export const updatePlatformSchoolBodyReasonMax = 500;
 export const updatePlatformSchoolBodyNameMin = 2;
 export const updatePlatformSchoolBodyNameMax = 180;
 
+export const updatePlatformSchoolBodyAddressMax = 250;
+
+export const updatePlatformSchoolBodyPhoneMax = 20;
+
 export const updatePlatformSchoolBodyCountyMax = 100;
 
 export const updatePlatformSchoolBodySubscriptionPlanMax = 80;
@@ -3101,6 +3585,9 @@ export const UpdatePlatformSchoolBody = zod.object({
   "reason": zod.string().min(updatePlatformSchoolBodyReasonMin).max(updatePlatformSchoolBodyReasonMax),
   "confirmation": zod.enum(['CONFIRM']),
   "name": zod.string().min(updatePlatformSchoolBodyNameMin).max(updatePlatformSchoolBodyNameMax).optional(),
+  "address": zod.string().max(updatePlatformSchoolBodyAddressMax).nullish(),
+  "phone": zod.string().max(updatePlatformSchoolBodyPhoneMax).nullish(),
+  "email": zod.string().email().nullish(),
   "county": zod.string().max(updatePlatformSchoolBodyCountyMax).nullish(),
   "type": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']).optional(),
   "status": zod.enum(['active', 'suspended']).optional(),
@@ -3169,7 +3656,8 @@ export const UpdatePlatformSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(updatePlatformSchoolResponseLogoUrlMax).regex(updatePlatformSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(updatePlatformSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -3404,7 +3892,8 @@ export const ListSchoolsResponseItem = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(listSchoolsResponseLogoUrlMax).regex(listSchoolsResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(listSchoolsResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -3544,7 +4033,8 @@ export const CreateSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(createSchoolResponseLogoUrlMax).regex(createSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(createSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -3866,7 +4356,8 @@ export const CreateInitialSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(createInitialSchoolResponseSchoolOneLogoUrlMax).regex(createInitialSchoolResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(createInitialSchoolResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -3905,7 +4396,7 @@ export const CreateInitialSchoolResponse = zod.object({
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
 }),zod.null()]),
-  "mode": zod.enum(['platform', 'tenant']),
+  "mode": zod.enum(['platform', 'tenant', 'registration']),
   "tenantAccess": zod.union([zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
@@ -4002,7 +4493,8 @@ export const LoginResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(loginResponseSchoolOneLogoUrlMax).regex(loginResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(loginResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -4041,7 +4533,7 @@ export const LoginResponse = zod.object({
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
 }),zod.null()]),
-  "mode": zod.enum(['platform', 'tenant']),
+  "mode": zod.enum(['platform', 'tenant', 'registration']),
   "tenantAccess": zod.union([zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
@@ -4134,7 +4626,8 @@ export const GetCurrentUserResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(getCurrentUserResponseSchoolOneLogoUrlMax).regex(getCurrentUserResponseSchoolOneLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(getCurrentUserResponseSchoolOneSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -4173,7 +4666,7 @@ export const GetCurrentUserResponse = zod.object({
   "subscriptionEndDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
 }),zod.null()]),
-  "mode": zod.enum(['platform', 'tenant']),
+  "mode": zod.enum(['platform', 'tenant', 'registration']),
   "tenantAccess": zod.union([zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
@@ -4274,7 +4767,8 @@ export const GetSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(getSchoolResponseLogoUrlMax).regex(getSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(getSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
@@ -4477,7 +4971,8 @@ export const UpdateSchoolResponse = zod.object({
   "address": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "status": zod.enum(['active', 'suspended']),
+  "status": zod.enum(['active', 'suspended', 'pending', 'rejected']),
+  "registrationNote": zod.string().nullish(),
   "logoUrl": zod.string().max(updateSchoolResponseLogoUrlMax).regex(updateSchoolResponseLogoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "settings": zod.object({
   "highValuePaymentThreshold": zod.string().regex(updateSchoolResponseSettingsHighValuePaymentThresholdRegExp).optional().describe('Positive KES threshold, default 100000. Invalid or nonpositive provider configuration fails closed.'),
