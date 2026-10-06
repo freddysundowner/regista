@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AssetReference } from './assetReference';
+import type { LicenceCoverageStatus } from './licenceCoverageStatus';
 import type { SchoolSettings } from './schoolSettings';
 import type { SchoolStatus } from './schoolStatus';
 import type { SchoolSubscriptionStatus } from './schoolSubscriptionStatus';
@@ -30,6 +31,12 @@ export interface School {
   logoUrl?: AssetReference | null;
   settings?: SchoolSettings;
   subscriptionPlan?: string;
+  licenceManaged?: boolean;
+  licenceStatus?: LicenceCoverageStatus;
+  /** @nullable */
+  licencePlanName?: string | null;
+  /** @nullable */
+  licenceExpiresAt?: Date | null;
   subscriptionStatus?: SchoolSubscriptionStatus;
   /** @nullable */
   subscriptionStartDate?: Date | null;

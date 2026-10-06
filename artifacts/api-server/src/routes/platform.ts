@@ -7,6 +7,9 @@ import { authView, platformAudit, requirePlatform } from "../lib/platform";
 import { hashPassword } from "../lib/password";
 import { provision } from "./auth";
 import billingRouter from "./platform-billing";
+import { platformLicensing } from "./licensing";
+import { coverage } from "../lib/licensing";
+import { platformMessagingRouter } from "./messaging-settings";
 
 const router = Router();
 // Mount only on platform paths: tenant endpoints retain their own middleware.
@@ -22,20 +25,29 @@ router.use(["/platform", "/schools"], authenticateIdentity, async (req, _res, ne
 });
 const ids = validator.object({ schoolId: validator.string().uuid(), userId: validator.string().uuid().optional() });
 router.use("/platform/schools/:schoolId/billing", billingRouter);
+router.use(platformLicensing);
+router.use(platformMessagingRouter);
 async function schoolExists(id: string) {
-  const school = await db.school.findUnique({ where: { id } });
+  const school = await db.school.findUnique({ where: { id }, include: { licences: { where: { revokedAt: null }, orderBy: { startsAt: "desc" } } } });
   if (!school) throw new ApiError(404, "School not found");
-  return school;
+  return licensedSchoolView(school);
+}
+function licensedSchoolView<T extends { licenceManaged: boolean; licences: { startsAt: Date; expiresAt: Date; revokedAt: Date | null; planName: string }[] }>(school: T) {
+  const now = new Date();
+  const current = coverage(school.licenceManaged, school.licences, now);
+  const plan = school.licences.find(l => l.startsAt <= now && l.expiresAt > now) ?? school.licences.at(-1);
+  return { ...school, licenceStatus: current.status, licenceExpiresAt: current.currentEndsAt, licencePlanName: plan?.planName ?? null };
 }
 router.get("/platform/overview", async (_req, res) => {
   const [schools, activeSchools, suspendedSchools, activeSubscriptions, administrators] = await Promise.all([
     db.school.count(), db.school.count({ where: { status: "active" } }), db.school.count({ where: { status: "suspended" } }),
-    db.school.count({ where: { subscriptionStatus: "active" } }), db.user.count({ where: { role: "school_admin", isActive: true } }),
+    db.school.count({ where: { licenceManaged: true, licences: { some: { revokedAt: null, startsAt: { lte: new Date() }, expiresAt: { gt: new Date() } } } } }), db.user.count({ where: { role: "school_admin", isActive: true } }),
   ]);
   send(res, "GetPlatformOverview", { schools, activeSchools, suspendedSchools, activeSubscriptions, administrators });
 });
 router.get(["/platform/schools", "/schools"], async (_req, res) => {
-  send(res, "ListPlatformSchools", await db.school.findMany({ orderBy: { createdAt: "desc" } }));
+  const schools = await db.school.findMany({ include: { licences: { where: { revokedAt: null }, orderBy: { startsAt: "desc" } } }, orderBy: { createdAt: "desc" } });
+  send(res, "ListPlatformSchools", schools.map(licensedSchoolView));
 });
 router.get("/platform/schools/:schoolId", async (req, res) => {
   send(res, "GetPlatformSchool", await schoolExists(parse(ids, req.params).schoolId));
@@ -143,10 +155,10 @@ router.get("/platform/audit", async (req, res) => {
   };
   const [total, rows] = await db.$transaction([
     db.platformAudit.count({ where }),
-    db.platformAudit.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: limit, skip: (page - 1) * limit }),
+    db.platformAudit.findMany({ where, include: { actor: { select: { name: true } }, school: { select: { name: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: limit, skip: (page - 1) * limit }),
   ], { isolationLevel: "RepeatableRead" });
   res.setHeader("X-Total-Count", String(total));
-  send(res, "ListPlatformAudit", rows);
+  send(res, "ListPlatformAudit", rows.map(({ actor, school, ...row }) => ({ ...row, actorName: actor?.name ?? null, schoolName: school?.name ?? null })));
 });
 router.post("/platform/tenant-access", async (req, res) => {
   const input = body(z.EnterTenantAccessBody, req.body);

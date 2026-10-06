@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEnterTenantAccess, useExitTenantAccess, type School } from "@workspace/api-client-react";
-import { DoorOpen, Eye, Loader2, LogOut, PenLine, ShieldAlert, TimerOff } from "lucide-react";
-import { Field, TextInput, NativeSelect, FormError, FormActions, Btn } from "@/components/kit";
+import { DoorOpen, Eye, Loader2, LogOut, PenLine, TimerOff } from "lucide-react";
+import { Field, NativeSelect, FormError, FormActions, Btn } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
 import { useAuthSession, errMsg, fmtDateTime } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -18,34 +18,9 @@ export async function hardReset(qc: QueryClient) {
   window.location.replace(import.meta.env.BASE_URL);
 }
 
-export type Confirm = { reason: string; confirm: string };
-export const EMPTY_CONFIRM: Confirm = { reason: "", confirm: "" };
-
-export function confirmError(c: Confirm) {
-  const r = c.reason.trim();
-  if (r.length < 3) return "Give a reason of at least 3 characters. It is recorded in the platform audit log.";
-  if (r.length > 500) return "Keep the reason under 500 characters.";
-  if (c.confirm !== "CONFIRM") return "Type CONFIRM in capitals to proceed.";
-  return null;
-}
-
-export function confirmBody(c: Confirm) {
-  return { reason: c.reason.trim(), confirmation: "CONFIRM" as const };
-}
-
-export function ConfirmFields({ value, onChange, prefix }: { value: Confirm; onChange: (c: Confirm) => void; prefix: string }) {
-  return (
-    <div className="space-y-3 rounded-md border border-amber-700/25 bg-amber-500/5 p-4">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-800"><ShieldAlert className="h-3.5 w-3.5" />Audited platform action</div>
-      <Field label="Reason" required hint="3 to 500 characters; stored with the audit entry">
-        <textarea data-testid={`input-${prefix}-reason`} required minLength={3} maxLength={500} rows={2} value={value.reason} onChange={(e) => onChange({ ...value, reason: e.target.value })}
-          className="w-full rounded-md border border-input bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary focus:bg-card focus:ring-2 focus:ring-ring/20" />
-      </Field>
-      <Field label='Type "CONFIRM"' required>
-        <TextInput data-testid={`input-${prefix}-confirm`} autoComplete="off" className="font-mono tracking-widest" value={value.confirm} onChange={(e) => onChange({ ...value, confirm: e.target.value })} placeholder="CONFIRM" />
-      </Field>
-    </div>
-  );
+/** The submit button confirms the action; keep the existing audited API contract. */
+export function platformAction(description: string) {
+  return { reason: description, confirmation: "CONFIRM" as const };
 }
 
 const DURATIONS = [15, 30, 60, 90, 120];
@@ -56,14 +31,12 @@ export function EnterSchoolDialog({ school, open, onOpenChange }: { school: Scho
   const m = useEnterTenantAccess();
   const [write, setWrite] = useState(false);
   const [mins, setMins] = useState(30);
-  const [c, setC] = useState(EMPTY_CONFIRM);
   const [err, setErr] = useState<string | null>(null);
   const blockedByGrant = session.mode === "tenant";
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
     if (!school) return;
-    const ce = confirmError(c); if (ce) return setErr(ce);
-    m.mutate({ data: { schoolId: school.id, writeEnabled: write, durationMinutes: mins, ...confirmBody(c) } }, {
+    m.mutate({ data: { schoolId: school.id, writeEnabled: write, durationMinutes: mins, ...platformAction(`${write ? "Write-enabled" : "Read-only"} support session requested for ${mins} minutes from platform console`) } }, {
       onSuccess: () => { void hardReset(qc); },
       onError: (x) => setErr(errMsg(x, "Could not open the school workspace")),
     });
@@ -85,7 +58,6 @@ export function EnterSchoolDialog({ school, open, onOpenChange }: { school: Scho
         <Field label="Expires after" hint="Between 5 and 120 minutes. Exit any time.">
           <NativeSelect data-testid="select-access-duration" value={mins} onChange={(e) => setMins(Number(e.target.value))}>{DURATIONS.map((d) => <option key={d} value={d}>{d} minutes</option>)}</NativeSelect>
         </Field>
-        <ConfirmFields value={c} onChange={setC} prefix="access" />
         {blockedByGrant && <FormError msg="You are already inside a school workspace. Exit to the platform first." />}
         <FormError msg={err} />
         <FormActions>

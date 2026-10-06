@@ -1,0 +1,203 @@
+paths:
+  plans:
+    get:
+      operationId: listLicencePlans
+      responses:
+        "200":
+          description: All licence plans, including archived plans
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/LicencePlan' } }
+    post:
+      operationId: createLicencePlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LicencePlanInput' }
+      responses:
+        "201":
+          description: Plan created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicencePlan' }
+  plan:
+    parameters:
+      - { name: planId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: editLicencePlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LicencePlanInput' }
+      responses:
+        "200":
+          description: Plan updated; existing purchases retain their terms
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicencePlan' }
+  school:
+    get:
+      operationId: getPlatformLicensing
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: School licence coverage and requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SchoolSubscription' }
+  issue:
+    post:
+      operationId: issueSchoolLicence
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LicenceIssueInput' }
+      responses:
+        "201":
+          description: Licence issued directly by platform owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SchoolLicence' }
+  revoke:
+    post:
+      operationId: revokeSchoolLicence
+      parameters:
+        - { name: schoolId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: licenceId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Licence revoked; history retained
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SchoolLicence' }
+  subscription:
+    get:
+      operationId: getSchoolSubscription
+      responses:
+        "200":
+          description: Own school subscription, accessible when expired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SchoolSubscription' }
+  orders:
+    post:
+      operationId: requestLicenceRenewal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LicenceRenewalInput' }
+      responses:
+        "201":
+          description: Invoice and renewal request created; payment must be recorded by platform owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenceOrder' }
+  cancel:
+    post:
+      operationId: cancelLicenceRenewal
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Unpaid renewal cancelled and its invoice voided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenceOrder' }
+components:
+  schemas:
+    LicenceIssueInput:
+      type: object
+      required: [requestId, planId]
+      properties:
+        requestId: { type: string, format: uuid }
+        planId: { type: string, format: uuid }
+        startsAt: { type: string, format: date-time }
+    LicenceRenewalInput:
+      type: object
+      required: [requestId, planId]
+      properties:
+        requestId: { type: string, format: uuid }
+        planId: { type: string, format: uuid }
+    LicencePlanInput:
+      type: object
+      required: [name, durationDays, price, subscriptionPrice, isActive]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        description: { type: string, maxLength: 500 }
+        durationDays: { type: integer, minimum: 1, maximum: 3650 }
+        price: { type: string, pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$' }
+        subscriptionPrice: { type: string, pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$' }
+        isActive: { type: boolean }
+    LicencePlan:
+      type: object
+      required: [id, name, description, durationDays, price, subscriptionPrice, currency, isActive]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        durationDays: { type: integer }
+        price: { type: string }
+        subscriptionPrice: { type: string }
+        currency: { type: string, enum: [KES] }
+        isActive: { type: boolean }
+    SchoolLicence:
+      type: object
+      required: [id, schoolId, planId, planName, durationDays, price, startsAt, expiresAt, source, status, revokedAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        schoolId: { type: string, format: uuid }
+        planId: { type: string, format: uuid }
+        planName: { type: string }
+        durationDays: { type: integer }
+        price: { type: string }
+        startsAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        source: { type: string, enum: [admin, payment] }
+        status: { type: string, enum: [active, scheduled, expired, revoked] }
+        revokedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    LicenceOrder:
+      type: object
+      required: [id, invoiceId, invoiceNumber, planName, durationDays, price, paid, balance, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        invoiceId: { type: string, format: uuid }
+        invoiceNumber: { type: string }
+        planName: { type: string }
+        durationDays: { type: integer }
+        price: { type: string }
+        paid: { type: string }
+        balance: { type: string }
+        status: { type: string, enum: [pending, partial, paid, cancelled] }
+        createdAt: { type: string, format: date-time }
+    SchoolSubscription:
+      type: object
+      required: [managed, accessAllowed, status, currentEndsAt, plans, licences, orders, paymentMethods]
+      properties:
+        managed: { type: boolean }
+        accessAllowed: { type: boolean }
+        status: { $ref: '#/components/schemas/LicenceCoverageStatus' }
+        currentEndsAt: { type: ["string", "null"], format: date-time }
+        plans: { type: array, items: { $ref: '#/components/schemas/LicencePlan' } }
+        licences: { type: array, items: { $ref: '#/components/schemas/SchoolLicence' } }
+        orders: { type: array, items: { $ref: '#/components/schemas/LicenceOrder' } }
+        paymentMethods:
+          type: array
+          items:
+            type: object
+            required: [id, name, available, reason]
+            properties:
+              id: { type: string, enum: [manual, mpesa, stripe, paystack] }
+              name: { type: string }
+              available: { type: boolean }
+              reason: { type: string }
+    LicenceCoverageStatus:
+      type: string
+      enum: [unmanaged, active, scheduled, expired]

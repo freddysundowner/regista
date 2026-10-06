@@ -25,8 +25,8 @@ export default function Schools() {
     const t = term.trim().toLowerCase();
     return (q.data ?? []).filter((s) =>
       (status === "all" || s.status === status) &&
-      (sub === "all" || s.subscriptionStatus === sub) &&
-      (!t || [s.name, s.code, s.county, s.email, s.subscriptionPlan].some((v) => v?.toLowerCase().includes(t))));
+      (sub === "all" || s.licenceStatus === sub) &&
+      (!t || [s.name, s.code, s.county, s.email, s.licencePlanName].some((v) => v?.toLowerCase().includes(t))));
   }, [q.data, term, status, sub]);
 
   return (
@@ -47,7 +47,7 @@ export default function Schools() {
           <TextInput data-testid="input-search-schools" aria-label="Search schools" placeholder="Search name, code, county, email or plan" className="pl-9" value={term} onChange={(e) => setTerm(e.target.value)} />
         </div>}>
         <NativeSelect data-testid="select-filter-status" aria-label="School status" className="sm:w-40" value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="pending">Pending review{pendingCount ? ` (${pendingCount})` : ""}</option><option value="rejected">Rejected</option></NativeSelect>
-        <NativeSelect data-testid="select-filter-subscription" aria-label="Subscription" className="sm:w-44" value={sub} onChange={(e) => setSub(e.target.value)}><option value="all">All subscriptions</option>{["trial", "active", "expired", "cancelled"].map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect>
+        <NativeSelect data-testid="select-filter-subscription" aria-label="Licence status" className="sm:w-44" value={sub} onChange={(e) => setSub(e.target.value)}><option value="all">All licences</option>{["unmanaged", "active", "scheduled", "expired"].map((v) => <option key={v} value={v}>{v[0].toUpperCase() + v.slice(1)}</option>)}</NativeSelect>
       </Filters></div>
 
       <Panel className="rise-1">
@@ -62,7 +62,7 @@ export default function Schools() {
                 <td className="px-3 py-3 font-mono text-xs">{s.code}</td>
                 <td className="hidden px-3 py-3 capitalize md:table-cell">{s.county ?? "\u2014"} · {s.type}</td>
                 <td className="hidden px-3 py-3 font-mono text-xs text-muted-foreground lg:table-cell">{fmtDate(s.createdAt)}</td>
-                <td className="px-3 py-3 text-xs"><div className="font-semibold">{s.subscriptionPlan || "\u2014"}</div><div className="capitalize text-muted-foreground">{s.subscriptionStatus ?? "\u2014"}{s.subscriptionEndDate && ` · to ${fmtDate(s.subscriptionEndDate)}`}</div></td>
+                <td className="px-3 py-3 text-xs"><div className="font-semibold">{s.licencePlanName || "Not yet licensed"}</div><div className="capitalize text-muted-foreground">{s.licenceStatus ?? "unmanaged"}{s.licenceExpiresAt && ` · to ${fmtDate(s.licenceExpiresAt)}`}</div></td>
                 <td className="px-3 py-3"><Pill tone={s.status === "active" ? "active" : s.status === "pending" ? "duplicate" : "error"}>{s.status === "pending" ? "pending review" : s.status}</Pill></td>
                 <td className="px-3 py-3"><div className="flex items-center justify-end gap-0.5">
                   {(s.status === "pending" || s.status === "rejected") && <button data-testid={`button-review-school-${s.id}`} aria-label={`Review ${s.name}`} title="Review registration" onClick={() => setReview(s)} className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-primary max-md:border max-md:border-border max-md:p-3 hover:bg-muted"><ClipboardCheck className="h-3.5 w-3.5" />Review</button>}

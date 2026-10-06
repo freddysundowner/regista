@@ -62,7 +62,7 @@ export default function Account() {
   const where = mode === "platform" || !school ? "Platform console" : tenantAccess ? `${school.name} (support session)` : school.name;
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Your account" title={user.name} meta={<span data-testid="text-account-meta">{ROLE_LABEL[user.role]} · {where} · Last sign-in {fmtDateTime(user.lastLoginAt)} (Nairobi)</span>} />
+      <PageHeader eyebrow="Your account" title={user.name} meta={<span data-testid="text-account-meta">{ROLE_LABEL[user.role]} · {where} · Last sign-in {fmtDateTime(user.lastLoginAt)} (your local time)</span>} />
       {ro ? <Panel className="w-full" title="Change password"><p data-testid="text-password-readonly" className="p-5 text-sm text-muted-foreground">Password changes are disabled during a read-only support session. Exit to the platform console to change your password.</p></Panel>
         : <Panel className="w-full" title="Change password"><PasswordForm /></Panel>}
       {p.limitedToAssigned && mode === "tenant" && <Panel className="w-full" title="My streams" note="Streams you can view as a teacher."><MyStreams /></Panel>}

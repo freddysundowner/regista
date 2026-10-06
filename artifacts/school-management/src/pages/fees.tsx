@@ -3,7 +3,7 @@ import { useCreateFinanceRecord, useUpdateFinanceRecord, type FinanceRecord, typ
 import { Layers, Loader2, Pencil, Plus, Receipt, Tag } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
 import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, StatusPill, Money, MoneyInput, StudentPicker, TermSelect, GradeSelect, YearSelect, FeeItemSelect, LinesEditor, Table, td } from "@/components/finance-kit";
-import { usePerms, errMsg, fmtDate, nairobiToday } from "@/lib/session";
+import { usePerms, errMsg, fmtDate, localToday } from "@/lib/session";
 import { useIdemKey, useFinanceInvalidate, validMoney, rd, recLines, type Line } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { FormDialog } from "@/components/form-dialog";
@@ -138,7 +138,7 @@ function OptionalCharges({ canEdit }: { canEdit: boolean }) {
   const inv = useFinanceInvalidate();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ studentId: "", feeItemId: "", amount: "", startDate: nairobiToday(), termId: "", endDate: "" });
+  const [f, setF] = useState({ studentId: "", feeItemId: "", amount: "", startDate: localToday(), termId: "", endDate: "" });
   const [err, setErr] = useState<string | null>(null);
   const [ending, setEnding] = useState<{ id: string; endDate: string; reason: string } | null>(null);
   const [endErr, setEndErr] = useState<string | null>(null);
@@ -184,7 +184,7 @@ function OptionalCharges({ canEdit }: { canEdit: boolean }) {
             <td className={td}>{sname(r.studentId)}</td><td className={td}>{item(rd(r, "feeItemId"))}</td><td className={td}><Money v={r.amount} /></td>
             <td className={`${td} text-xs`}>{fmtDate(rd(r, "startDate"))} to {rd(r, "endDate") ? fmtDate(rd(r, "endDate")) : "open"}{r.termId && <div className="text-muted-foreground">{term(r.termId)}</div>}</td>
             <td className={td}><StatusPill status={r.status} /></td>
-            <td className={td}>{canEdit && <Btn variant="ghost" className="h-7 px-2 text-xs" data-testid={`button-end-charge-${r.id}`} onClick={() => { setEndErr(null); setEnding({ id: r.id, endDate: nairobiToday(), reason: "" }); }}>Set end date</Btn>}</td>
+            <td className={td}>{canEdit && <Btn variant="ghost" className="h-7 px-2 text-xs" data-testid={`button-end-charge-${r.id}`} onClick={() => { setEndErr(null); setEnding({ id: r.id, endDate: localToday(), reason: "" }); }}>Set end date</Btn>}</td>
           </tr>))}</Table>
       )}
     </Panel>

@@ -9,7 +9,7 @@ import {
 import { ArrowLeftRight, FileSpreadsheet, HandCoins, Loader2, Plus, Upload, X } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { useFinanceRecords, useStudentNames, Money, MoneyInput, StudentPicker, Table, td } from "@/components/finance-kit";
-import { usePerms, errMsg, fmtDateTime, nairobiToday } from "@/lib/session";
+import { usePerms, errMsg, fmtDateTime, localToday } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, sumMoney, toCents, kes } from "@/lib/finance";
 import { readSheet, fileBase64 } from "@/lib/sheets";
 import { CollectionRefundsPanel, SponsorBatchesPanel } from "@/components/collections-extra";
@@ -227,7 +227,7 @@ function SponsorAllocate({ pays, onDone }: { pays: IncomingPaymentView[]; onDone
 const MAPKEYS = [["providerTxnId", "Transaction reference", true], ["amount", "Amount", true], ["transactionTime", "Date / time", true], ["accountReference", "Account reference", false], ["payerName", "Payer name", false], ["payerPhone", "Payer phone", false]] as const;
 function Statement({ onDone }: { onDone: () => void }) {
   const preview = usePreviewBankStatement(); const commit = useReconcileStatement(); const inv = useReconInvalidate(); const { toast } = useToast();
-  const [f, setF] = useState({ provider: "", fromDate: "", toDate: nairobiToday(), complete: true });
+  const [f, setF] = useState({ provider: "", fromDate: "", toDate: localToday(), complete: true });
   const [file, setFile] = useState<File | null>(null);
   const [header, setHeader] = useState<string[]>([]);
   const [map, setMap] = useState<Record<string, string>>({});

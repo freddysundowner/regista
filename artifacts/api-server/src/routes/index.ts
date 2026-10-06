@@ -20,17 +20,21 @@ import collectionsRouter from "./collections";
 import learningRouter from "./learning";
 import reportsRouter from "./reports";
 import { authenticate } from "../lib/core";
+import { schoolSubscription } from "./licensing";
+import { schoolMessagingRouter } from "./messaging-settings";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(platformRouter);
+router.use(schoolSubscription);
 router.use(providerCallbacks);
 router.use(kcbCallbacks);
 router.use(messageDeliveryCallbacks);
 router.use(botRouter);
 router.use(authenticate);
+router.use(schoolMessagingRouter);
 router.use(collectionsRouter);
 router.use(learningRouter);
 router.use(reportsRouter);

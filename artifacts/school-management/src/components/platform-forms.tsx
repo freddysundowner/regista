@@ -7,7 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 import { Field, TextInput, NativeSelect, FormError, FormActions, Btn } from "@/components/kit";
-import { ConfirmFields, EMPTY_CONFIRM, confirmBody, confirmError } from "@/components/platform-kit";
+import { platformAction } from "@/components/platform-kit";
 import { COUNTIES } from "@/pages/auth";
 import { errMsg } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
@@ -80,7 +80,6 @@ export function SchoolEditForm({ school, onDone, section = "profile" }: { school
   const { toast } = useToast();
   const m = useEditPlatformSchool();
   const [f, setF] = useState({ name: school.name, county: school.county ?? "", type: school.type as string, status: school.status as string, address: school.address ?? "", phone: school.phone ?? "", email: school.email ?? "", plan: school.subscriptionPlan ?? "", subStatus: (school.subscriptionStatus ?? "trial") as string, start: school.subscriptionStartDate?.slice(0, 10) ?? "", end: school.subscriptionEndDate?.slice(0, 10) ?? "" });
-  const [c, setC] = useState(EMPTY_CONFIRM);
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const profile = section === "profile";
@@ -95,11 +94,10 @@ export function SchoolEditForm({ school, onDone, section = "profile" }: { school
       if (!f.plan.trim()) return setErr("Enter a plan name.");
       if (f.start && f.end && f.end < f.start) return setErr("End date must be on or after the start date.");
     }
-    const ce = confirmError(c); if (ce) return setErr(ce);
     const data = profile
       ? { name: f.name.trim(), county: f.county || null, type: f.type as SchoolType, status: f.status as PlatformSchoolUpdateStatus, address: f.address.trim() || null, phone: f.phone.trim() || null, email: f.email.trim() || null }
       : { subscriptionPlan: f.plan.trim(), subscriptionStatus: f.subStatus as PlatformSchoolUpdateSubscriptionStatus, subscriptionStartDate: f.start || null, subscriptionEndDate: f.end || null };
-    m.mutate({ schoolId: school.id, data: { ...data, ...confirmBody(c) } }, {
+    m.mutate({ schoolId: school.id, data: { ...data, ...platformAction(profile ? "School profile updated from platform console" : "School subscription updated from platform console") } }, {
       onSuccess: (s) => { refresh(s.id); toast({ title: profile ? `${s.name} updated` : "Subscription updated" }); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
@@ -127,9 +125,8 @@ export function SchoolEditForm({ school, onDone, section = "profile" }: { school
           <Field label="Start date"><TextInput data-testid="input-subscription-start" type="date" value={f.start} onChange={set("start")} /></Field>
           <Field label="End date" hint="Renewal due on this date"><TextInput data-testid="input-subscription-end" type="date" value={f.end} onChange={set("end")} /></Field>
         </div>
-        <p className="text-xs text-muted-foreground">Changed explicitly here only. Invoices and payments never change the subscription or access.</p>
+        <p className="text-xs text-muted-foreground">These are legacy reference fields. For licence-managed schools, access is controlled by timed licences and paid licence-renewal invoices, not these fields.</p>
       </>}
-      <ConfirmFields value={c} onChange={setC} prefix="school" />
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-save-school" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{profile ? "Save profile" : "Save subscription"}</Btn>
@@ -145,7 +142,6 @@ export function AdminForm({ schoolId, admin, onDone }: { schoolId: string; admin
   const create = useCreatePlatformAdmin();
   const edit = useEditPlatformAdmin();
   const [f, setF] = useState({ name: admin?.name ?? "", email: admin?.email ?? "", phone: admin?.phone ?? "", password: "" });
-  const [c, setC] = useState(EMPTY_CONFIRM);
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const pending = create.isPending || edit.isPending;
@@ -154,8 +150,7 @@ export function AdminForm({ schoolId, admin, onDone }: { schoolId: string; admin
     if (f.name.trim().length < 2) return setErr("Name needs at least 2 characters.");
     if (!f.email.trim() && !f.phone.trim()) return setErr("An email or phone is needed to sign in.");
     if (!admin && (f.password.length < 10 || f.password.length > 128)) return setErr("Initial password must be 10 to 128 characters.");
-    const ce = confirmError(c); if (ce) return setErr(ce);
-    const base = { name: f.name.trim(), email: f.email.trim() || null, phone: f.phone.trim() || null, ...confirmBody(c) };
+    const base = { name: f.name.trim(), email: f.email.trim() || null, phone: f.phone.trim() || null, ...platformAction(admin ? "Administrator details updated from platform console" : "Administrator added from platform console") };
     const ok = (u: User) => { refresh(schoolId); toast({ title: admin ? `${u.name} updated` : `${u.name} added as school administrator` }); onDone(); };
     if (admin) edit.mutate({ schoolId, userId: admin.id, data: base }, { onSuccess: ok, onError: (x) => setErr(errMsg(x)) });
     else create.mutate({ schoolId, data: { ...base, password: f.password } }, { onSuccess: ok, onError: (x) => setErr(errMsg(x)) });
@@ -169,7 +164,6 @@ export function AdminForm({ schoolId, admin, onDone }: { schoolId: string; admin
         {!admin && <Field label="Initial password" required className="sm:col-span-2" hint="10 to 128 characters; share privately"><TextInput data-testid="input-admin-password" type="password" autoComplete="new-password" required value={f.password} onChange={set("password")} /></Field>}
       </div>
       <p className="text-xs text-muted-foreground">Role is fixed to school administrator.</p>
-      <ConfirmFields value={c} onChange={setC} prefix="admin" />
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-save-admin" type="submit" disabled={pending}>{pending && <Loader2 className="h-4 w-4 animate-spin" />}{admin ? "Save administrator" : "Add administrator"}</Btn>
@@ -183,13 +177,11 @@ export function AdminStatusForm({ schoolId, admin, onDone }: { schoolId: string;
   const refresh = useRefreshPlatform();
   const { toast } = useToast();
   const m = useEditPlatformAdmin();
-  const [c, setC] = useState(EMPTY_CONFIRM);
   const [err, setErr] = useState<string | null>(null);
   const next = !admin.isActive;
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
-    const ce = confirmError(c); if (ce) return setErr(ce);
-    m.mutate({ schoolId, userId: admin.id, data: { isActive: next, ...confirmBody(c) } }, {
+    m.mutate({ schoolId, userId: admin.id, data: { isActive: next, ...platformAction(`Administrator ${next ? "enabled" : "disabled"} from platform console`) } }, {
       onSuccess: (u) => { refresh(schoolId); toast({ title: `${u.name} ${u.isActive ? "enabled" : "disabled"}` }); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
@@ -197,7 +189,6 @@ export function AdminStatusForm({ schoolId, admin, onDone }: { schoolId: string;
   return (
     <form onSubmit={submit} className="space-y-5 p-5">
       <p className="text-sm">{next ? `${admin.name} will be able to sign in again.` : `${admin.name} will be signed out and blocked from signing in. The last active administrator of a school cannot be disabled.`}</p>
-      <ConfirmFields value={c} onChange={setC} prefix="admin-status" />
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-confirm-admin-status" type="submit" variant={next ? "primary" : "danger"} disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{next ? "Enable administrator" : "Disable administrator"}</Btn>
@@ -212,14 +203,12 @@ export function ResetPasswordForm({ schoolId, admin, onDone }: { schoolId: strin
   const { toast } = useToast();
   const m = useResetPlatformAdminPassword();
   const [pw, setPw] = useState({ next: "", again: "" });
-  const [c, setC] = useState(EMPTY_CONFIRM);
   const [err, setErr] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
     if (pw.next.length < 10 || pw.next.length > 128) return setErr("Password must be 10 to 128 characters.");
     if (pw.next !== pw.again) return setErr("Passwords do not match.");
-    const ce = confirmError(c); if (ce) return setErr(ce);
-    m.mutate({ schoolId, userId: admin.id, data: { password: pw.next, ...confirmBody(c) } }, {
+    m.mutate({ schoolId, userId: admin.id, data: { password: pw.next, ...platformAction("Administrator password reset from platform console") } }, {
       onSuccess: (r) => { setPw({ next: "", again: "" }); refresh(schoolId); toast({ title: "Password reset", description: r.message || `Share the new password with ${admin.name} privately.` }); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
@@ -231,7 +220,6 @@ export function ResetPasswordForm({ schoolId, admin, onDone }: { schoolId: strin
         <Field label="Repeat password" required><TextInput data-testid="input-reset-password-again" type="password" autoComplete="new-password" required value={pw.again} onChange={(e) => setPw({ ...pw, again: e.target.value })} /></Field>
       </div>
       <p className="text-xs text-muted-foreground">The password is sent once over the encrypted connection and never shown or logged. {admin.name}'s other sessions may be signed out.</p>
-      <ConfirmFields value={c} onChange={setC} prefix="reset" />
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-confirm-reset" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Reset password</Btn>

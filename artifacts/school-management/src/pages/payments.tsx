@@ -3,9 +3,9 @@ import { useCreateFinanceRecord, type FinanceRecord, type FinanceInputChequeStat
 import { Banknote, Loader2, Plus } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab, Filters } from "@/components/kit";
 import { useFinanceRecords, useStudentNames, StatusPill, Money, MoneyInput, StudentPicker, DocumentButton, Table, td } from "@/components/finance-kit";
-import { usePerms, errMsg, fmtDateTime, TZ } from "@/lib/session";
+import { usePerms, errMsg, fmtDateTime, localDateKey, localInputToUtc } from "@/lib/session";
 
-const dayOf = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+const dayOf = localDateKey;
 import { useFinanceInvalidate, useIdemKey, validMoney, rd } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { StkPanel } from "@/components/stk";
@@ -28,9 +28,12 @@ function RecordPayment({ onDone }: { onDone: () => void }) {
     if (!validMoney(f.amount)) return setErr("Enter the exact amount received, e.g. 15000 or 15000.50.");
     if (!f.providerTxnId.trim()) return setErr("Enter the receipt book or reference number.");
     if (f.channel === "cheque" && (!f.chequeNo.trim() || !f.bank.trim() || !f.drawer.trim())) return setErr("Cheques need cheque number, bank and drawer.");
+    let transactionTime: string | undefined;
+    try { transactionTime = f.transactionTime ? localInputToUtc(f.transactionTime) : undefined; }
+    catch (error) { return setErr(errMsg(error)); }
     create.mutate({ data: {
       kind: "payment", idempotencyKey: idem.key, studentId: f.studentId, amount: f.amount.trim(), channel: f.channel, providerTxnId: f.providerTxnId.trim(),
-      ...(f.transactionTime ? { transactionTime: new Date(`${f.transactionTime}:00+03:00`).toISOString() } : {}),
+      ...(transactionTime ? { transactionTime } : {}),
       ...(f.payerName.trim() ? { payerName: f.payerName.trim() } : {}), ...(f.payerPhone.trim() ? { payerPhone: f.payerPhone.trim() } : {}),
       ...(f.channel === "cheque" ? { chequeNo: f.chequeNo.trim(), bank: f.bank.trim(), drawer: f.drawer.trim() } : {}),
     } }, {
@@ -45,7 +48,7 @@ function RecordPayment({ onDone }: { onDone: () => void }) {
         <Field label="Amount (KES)" required><MoneyInput testid="input-payment-amount" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
         <Field label="Channel" required><NativeSelect data-testid="select-channel" value={f.channel} onChange={set("channel")}><option value="cash">Cash</option><option value="cheque">Cheque</option></NativeSelect></Field>
         <Field label="Receipt book / reference no." required><TextInput data-testid="input-provider-ref" value={f.providerTxnId} onChange={set("providerTxnId")} className="font-mono" /></Field>
-        <Field label="Received at" hint="Nairobi time; blank = now"><TextInput type="datetime-local" value={f.transactionTime} onChange={set("transactionTime")} /></Field>
+        <Field label="Received at" hint="Your local time; blank = now"><TextInput type="datetime-local" value={f.transactionTime} onChange={set("transactionTime")} /></Field>
         <Field label="Payer name"><TextInput value={f.payerName} onChange={set("payerName")} /></Field>
         <Field label="Payer phone"><TextInput type="tel" value={f.payerPhone} onChange={set("payerPhone")} /></Field>
         {f.channel === "cheque" && <>
@@ -111,8 +114,8 @@ export default function Payments() {
         <div className="border-b border-border/70 p-4"><Filters className="md:grid md:w-full md:grid-cols-3 lg:grid-cols-5" active={[fl.channel, fl.from, fl.to, fl.status, fl.cheque].filter(Boolean).length} onClear={() => setFl({ ...fl, channel: "", from: "", to: "", status: "", cheque: "" })}
           lead={<TextInput aria-label="Search payments" data-testid="input-search-payments" placeholder="Student, receipt or reference" value={fl.text} onChange={(e) => setFl({ ...fl, text: e.target.value })} />}>
           <NativeSelect aria-label="Channel" value={fl.channel} onChange={(e) => setFl({ ...fl, channel: e.target.value })}><option value="">All channels</option><option value="cash">Cash</option><option value="cheque">Cheque</option></NativeSelect>
-          <TextInput aria-label="Received from (Nairobi date)" type="date" value={fl.from} onChange={(e) => setFl({ ...fl, from: e.target.value })} />
-          <TextInput aria-label="Received to (Nairobi date)" type="date" value={fl.to} min={fl.from || undefined} onChange={(e) => setFl({ ...fl, to: e.target.value })} />
+          <TextInput aria-label="Received from (your local date)" type="date" value={fl.from} onChange={(e) => setFl({ ...fl, from: e.target.value })} />
+          <TextInput aria-label="Received to (your local date)" type="date" value={fl.to} min={fl.from || undefined} onChange={(e) => setFl({ ...fl, to: e.target.value })} />
           <NativeSelect aria-label="Status" value={fl.status} onChange={(e) => setFl({ ...fl, status: e.target.value })}><option value="">All statuses</option><option value="posted">Posted</option><option value="reversed">Reversed</option></NativeSelect>
           <NativeSelect aria-label="Cheque stage" value={fl.cheque} onChange={(e) => setFl({ ...fl, cheque: e.target.value, channel: e.target.value ? "cheque" : fl.channel })}><option value="">Any cheque stage</option><option value="received">Received</option><option value="banked">Banked</option><option value="cleared">Cleared</option><option value="bounced">Bounced</option></NativeSelect>
         </Filters></div>

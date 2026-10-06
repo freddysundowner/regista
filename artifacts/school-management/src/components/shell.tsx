@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PageTitleProvider, useRegisteredTitle } from "@/lib/page-title";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
-import { Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug } from "lucide-react";
+import { BadgeCheck, ShieldCheck, Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug, RadioTower } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLogout } from "@workspace/api-client-react";
 import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Menu, X, Settings, Users, UserCog } from "lucide-react";
@@ -44,6 +44,8 @@ function ShellInner({ children }: { children: ReactNode }) {
   const platformNav = [
     { href: "/", label: "Platform overview", icon: LayoutDashboard, show: true },
     { href: "/schools", label: "Schools", icon: Building2, show: true },
+    { href: "/platform/licence-plans", label: "Licence plans", icon: BadgeCheck, show: true },
+    { href: "/platform/messaging", label: "Messaging defaults", icon: RadioTower, show: true },
     { href: "/platform/audit", label: "Platform audit", icon: ScrollText, show: true },
     { href: "/account", label: "My account", icon: KeyRound, show: true },
   ];
@@ -66,25 +68,27 @@ function ShellInner({ children }: { children: ReactNode }) {
     { href: "/attendance", label: "Attendance", icon: CalendarCheck, show: p.academicRead },
     { href: "/report-cards", label: "Report cards", icon: FileBadge, show: p.academicRead },
     { href: "/reports", label: "Reports", icon: BarChart3, show: p.reports },
+    { href: "/messaging", label: "Messaging routing", icon: RadioTower, show: p.integrations },
     { href: "/integrations", label: "Integrations", icon: Plug, show: p.integrations },
     { href: "/jobs", label: "Finance jobs", icon: Activity, show: p.financeJobs },
     { href: "/academics", label: "Academics", icon: BookOpen, show: p.manageSchool },
     { href: "/staff", label: "Staff", icon: UserCog, show: p.manageSchool },
     { href: "/audit", label: "Audit history", icon: ClipboardList, show: p.viewAudit },
     { href: "/settings", label: "School profile", icon: Settings, show: p.manageSchool },
+    { href: "/subscription", label: "Subscription", icon: ShieldCheck, show: user.role === "school_admin" && !tenantAccess },
     { href: "/account", label: "My account", icon: KeyRound, show: true },
   ];
   const nav = (platformMode ? platformNav : tenantNav).filter((n) => n.show);
 
   const groups = platformMode ? [
-    { label: "Platform", paths: ["/", "/schools", "/platform/audit"] },
+    { label: "Platform", paths: ["/", "/schools", "/platform/licence-plans", "/platform/messaging", "/platform/audit"] },
     { label: "Account", paths: ["/account"] },
   ].map(group => ({ label: group.label, items: group.paths.flatMap(path => nav.filter(item => item.href === path)) })) : [
     { label: "School", paths: ["/", "/students", "/guardians", "/import"] },
     { label: "Finance", paths: ["/fees", "/invoices", "/payments", "/reconciliation", "/payment-plans", "/sponsors", "/approvals"] },
     { label: "Academics", paths: ["/academics", "/curriculum", "/assessments", "/attendance", "/report-cards"] },
     { label: "Communication & reports", paths: ["/notifications", "/reports"] },
-    { label: "Administration", paths: ["/staff", "/settings", "/integrations", "/jobs", "/audit", "/account"] },
+    { label: "Administration", paths: ["/staff", "/settings", "/subscription", "/messaging", "/integrations", "/jobs", "/audit", "/account"] },
   ].map(group => ({
     label: group.label,
     items: group.paths.flatMap(path => nav.filter(item => item.href === path)),
@@ -99,7 +103,7 @@ function ShellInner({ children }: { children: ReactNode }) {
     if (stack.current.length > 1) window.history.back();
     else { const parent = parentOf(loc); stack.current = [parent]; navigate(parent, { replace: true }); }
   };
-  const fallbackTitle = nav.find((n) => n.href !== "/" && n.href === loc)?.label
+  const fallbackTitle = (loc === "/subscription" ? "Subscription" : loc === "/platform/licence-plans" ? "Licence plans" : loc === "/platform/messaging" ? "Messaging defaults" : loc === "/messaging" ? "Messaging routing" : undefined) ?? nav.find((n) => n.href !== "/" && n.href === loc)?.label
     ?? (loc.startsWith("/students/") ? "Student" : loc.startsWith("/schools/") ? "School" : "Not found");
   const registered = useRegisteredTitle(loc);
   const pageTitle = registered ?? fallbackTitle;

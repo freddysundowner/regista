@@ -3,7 +3,7 @@ import { useListGrades, useListStreams, useListGuardians, getListGradesQueryKey,
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Loader2, Phone, Plus, Search, Star, Trash2, UserPlus, Users, X } from "lucide-react";
 import { Field, TextInput, NativeSelect, FormError, Btn } from "@/components/kit";
 import { fromStudent, toPayload, type StudentFormValues } from "@/components/student-form";
-import { initials, nairobiToday } from "@/lib/session";
+import { initials, localToday } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 const RELATIONSHIPS = ["Mother", "Father", "Guardian", "Grandparent", "Sibling", "Aunt", "Uncle", "Other"];
@@ -64,7 +64,7 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
       if (!v.admissionNo.trim()) e.admissionNo = "Enter the admission number.";
       if (!v.firstName.trim()) e.firstName = "Enter the first name.";
       if (!v.lastName.trim()) e.lastName = "Enter the last name.";
-      if (v.dateOfBirth && v.dateOfBirth > nairobiToday()) e.dateOfBirth = "Date of birth cannot be in the future.";
+      if (v.dateOfBirth && v.dateOfBirth > localToday()) e.dateOfBirth = "Date of birth cannot be in the future.";
     }
     if (i === 2) {
       if (!guardians.length && !skipGuardians) e.guardians = "Connect at least one guardian, or choose to add guardians later.";

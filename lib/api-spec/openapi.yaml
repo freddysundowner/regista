@@ -31,6 +31,32 @@ tags:
   - name: audit
     description: Audit history
 paths:
+  /integrations/messaging-delivery/events/{token}:
+    $ref: './messaging.yaml#/paths/deliveryGateway'
+  /platform/messaging:
+    $ref: './messaging.yaml#/paths/platform'
+  /platform/messaging/{channel}:
+    $ref: './messaging.yaml#/paths/platformChannel'
+  /messaging/settings:
+    $ref: './messaging.yaml#/paths/school'
+  /messaging/settings/{channel}:
+    $ref: './messaging.yaml#/paths/schoolChannel'
+  /platform/licence-plans:
+    $ref: './licensing.yaml#/paths/plans'
+  /platform/licence-plans/{planId}:
+    $ref: './licensing.yaml#/paths/plan'
+  /platform/schools/{schoolId}/licensing:
+    $ref: './licensing.yaml#/paths/school'
+  /platform/schools/{schoolId}/licences:
+    $ref: './licensing.yaml#/paths/issue'
+  /platform/schools/{schoolId}/licences/{licenceId}/revoke:
+    $ref: './licensing.yaml#/paths/revoke'
+  /school/subscription:
+    $ref: './licensing.yaml#/paths/subscription'
+  /school/subscription/orders:
+    $ref: './licensing.yaml#/paths/orders'
+  /school/subscription/orders/{orderId}/cancel:
+    $ref: './licensing.yaml#/paths/cancel'
   /platform/schools/{schoolId}/billing:
     get:
       operationId: getPlatformBilling
@@ -1368,6 +1394,10 @@ components:
         logoUrl: { $ref: "#/components/schemas/AssetReference" }
         settings: { $ref: "#/components/schemas/SchoolSettings" }
         subscriptionPlan: { type: string }
+        licenceManaged: { type: boolean }
+        licenceStatus: { $ref: './licensing.yaml#/components/schemas/LicenceCoverageStatus' }
+        licencePlanName: { type: ["string", "null"] }
+        licenceExpiresAt: { type: ["string", "null"], format: date-time }
         subscriptionStatus: { type: string, enum: [trial, active, expired, cancelled] }
         subscriptionStartDate: { type: ["string", "null"], format: date }
         subscriptionEndDate: { type: ["string", "null"], format: date }
@@ -1518,6 +1548,8 @@ components:
       properties:
         id: { type: string, format: uuid }
         actorId: { type: string, format: uuid }
+        actorName: { type: ["string", "null"] }
+        schoolName: { type: ["string", "null"] }
         schoolId: { type: ["string", "null"], format: uuid }
         grantId: { type: ["string", "null"], format: uuid }
         action: { type: string }

@@ -2,4 +2,7 @@
 - [Form presentation](form-presentation.md) — use dedicated pages or dialogs, never inline create/edit forms.
 - [Platform tenancy](platform-tenancy.md) — independent owner console; tenant access must be explicit, temporary and audited.
 - [KCB onboarding boundaries](kcb-onboarding.md) — use the native signed notification contract; optional validation needs authenticated bank onboarding.
-- [Platform billing](platform-billing.md) — manual school subscription invoices/payments, not online collection; Decimal positive-zero caveat.
+- [Platform billing](platform-billing.md) — timed licences, school self-service renewal and requested payment providers; Decimal positive-zero caveat.
+- [Viewer timezone](viewer-timezone.md) — display timestamps in the viewer’s timezone; preserve date-only calendar values.
+- [API contract naming](api-contracts.md) — use globally distinct named request and enum schemas to avoid silent codegen collisions.
+- [Messaging ownership](messaging-ownership.md) — platform defaults with school overrides; preserve explicit payer selection and verify provider contracts before sending.

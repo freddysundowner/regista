@@ -9,7 +9,7 @@ import { AlertTriangle, CheckCircle2, ClipboardCheck, CloudOff, Loader2, Lock, P
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { GradeSelect, TermSelect } from "@/components/finance-kit";
 import { useCurriculum } from "@/pages/curriculum";
-import { usePerms, useSession, errMsg, fmtDate, nairobiToday } from "@/lib/session";
+import { usePerms, useSession, errMsg, fmtDate, localToday } from "@/lib/session";
 import { MONEY_RE } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { FormDialog } from "@/components/form-dialog";
@@ -20,7 +20,7 @@ const nice = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpper
 
 function NewAssessment({ onDone, onCancel }: { onDone: (a: AssessmentView) => void; onCancel: () => void }) {
   const m = useCreateAssessment(); const qc = useQueryClient(); const cur = useCurriculum();
-  const [f, setF] = useState({ termId: "", gradeId: "", learningAreaId: "", name: "", type: "formative" as AssessmentInputType, maxMarks: "", weight: "1", date: nairobiToday() });
+  const [f, setF] = useState({ termId: "", gradeId: "", learningAreaId: "", name: "", type: "formative" as AssessmentInputType, maxMarks: "", weight: "1", date: localToday() });
   const [err, setErr] = useState<string | null>(null);
   const areas = (cur.data?.learningAreas ?? []).filter((a) => a.gradeId === f.gradeId);
   const submit = (e: FormEvent) => {

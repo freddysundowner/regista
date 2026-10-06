@@ -127,6 +127,13 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     if (error) { next(error); return; }
     try {
       req.actor = await resolveTenant(req);
+      if (req.actor.user.role !== "super_admin" && req.actor.school.licenceManaged) {
+        const now = new Date();
+        const active = await db.schoolLicence.findFirst({ where: {
+          schoolId: req.actor.school.id, revokedAt: null, startsAt: { lte: now }, expiresAt: { gt: now },
+        }, select: { id: true } });
+        if (!active) throw new ApiError(402, "The school licence has expired or has not started. A school administrator can renew from Subscription.");
+      }
       if (req.actor.tenantAccess && !req.actor.tenantAccess.writeEnabled && !safeTenantRequest(req.method, req.path)) throw new ApiError(403, "This tenant access grant is read-only");
       next();
     } catch (e) { next(e); }

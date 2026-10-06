@@ -6,6 +6,7 @@ import { Table, td } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDateTime } from "@/lib/session";
 import { str } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
+import { readable } from "@/lib/audit-format";
 
 const JOB_LABEL: Record<string, string> = { "finance-nightly": "Nightly balances & recurring", "finance-receipts": "Receipt generation" };
 
@@ -42,7 +43,7 @@ export default function Jobs() {
       <Panel title="Integration events">
         {!d?.integrations.length ? <p className="p-5 text-sm text-muted-foreground">No failed provider callbacks.</p> : (
           <Table head={["Provider", "Event", "Status", "Received"]}>{d.integrations.map((x, i) => (
-            <tr key={x.id ?? i}><td className={td}>{x.provider}</td><td className={`${td} text-xs`}>{x.event}</td><td className={td}><Pill tone="error">{x.status}</Pill></td><td className={`${td} text-xs`}>{fmtDateTime(x.createdAt)}</td></tr>))}</Table>
+            <tr key={x.id ?? i}><td className={td}>{readable(x.provider ?? "Integration")}</td><td className={`${td} text-xs`}>{readable(x.event ?? "Event")}</td><td className={td}><Pill tone="error">{readable(x.status ?? "Failed")}</Pill></td><td className={`${td} text-xs`}>{fmtDateTime(x.createdAt)}</td></tr>))}</Table>
         )}
       </Panel>
       <Panel title="Finance jobs">

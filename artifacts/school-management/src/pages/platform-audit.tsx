@@ -5,11 +5,8 @@ import { ChevronLeft, ChevronRight, ScrollText, Search } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, TextInput, NativeSelect, CardTable, Filters } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
 import { errMsg, fmtDateTime } from "@/lib/session";
-
-function Json({ v }: { v: unknown }) {
-  if (v === undefined || v === null) return <span className="text-muted-foreground">None</span>;
-  return <pre className="max-h-64 overflow-auto rounded-md bg-muted/60 p-3 font-mono text-[11px] leading-relaxed">{JSON.stringify(v, null, 2)}</pre>;
-}
+import { ACTION_LABELS, actionLabel, subjectLabel } from "@/lib/audit-format";
+import { AuditChanges, AuditTechnical } from "@/components/audit-details";
 
 export default function PlatformAuditPage() {
   const initialSchool = new URLSearchParams(window.location.search).get("school") ?? "";
@@ -46,22 +43,23 @@ export default function PlatformAuditPage() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Platform console" title="Platform audit log" meta="Every provisioning, edit, password reset and support session, with the reason given." />
-      <FormDialog open={!!open} onOpenChange={(o) => !o && setOpen(null)} size="lg" title={open?.action ?? "Entry"} description={open ? fmtDateTime(open.createdAt) : undefined}>
+      <FormDialog open={!!open} onOpenChange={(o) => !o && setOpen(null)} size="lg" title={open ? actionLabel(open) : "Activity details"} description={open ? fmtDateTime(open.createdAt) : undefined}>
         {open && <div className="space-y-4 p-5 text-sm">
           <dl className="grid gap-3 sm:grid-cols-2">
-            <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">School</dt><dd>{open.schoolId ? names.get(open.schoolId) ?? open.schoolId : "Platform"}</dd></div>
-            <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Actor</dt><dd className="font-mono text-xs">{open.actorId}</dd></div>
-            <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Entity</dt><dd className="font-mono text-xs">{open.entityId ?? "\u2014"}</dd></div>
-            <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Support grant</dt><dd className="font-mono text-xs">{open.grantId ?? "\u2014"}</dd></div>
+            <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">School</dt><dd>{open.schoolName ?? (open.schoolId ? names.get(open.schoolId) ?? "School name unavailable" : "Platform")}</dd></div>
+            <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Performed by</dt><dd>{open.actorName ?? "Name unavailable"}</dd></div>
+            {subjectLabel(open) && <div className="sm:col-span-2"><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Affected record</dt><dd className="break-words">{subjectLabel(open)}</dd></div>}
+            {open.grantId && <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Access</dt><dd>Audited school support session</dd></div>}
             <div className="sm:col-span-2"><dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Reason</dt><dd>{open.reason}</dd></div>
           </dl>
-          <div className="grid gap-3 md:grid-cols-2"><div><div className="mb-1 text-xs font-semibold">Before</div><Json v={open.before} /></div><div><div className="mb-1 text-xs font-semibold">After</div><Json v={open.after} /></div></div>
+          <AuditChanges before={open.before} after={open.after} />
+          <AuditTechnical entry={open} />
         </div>}
       </FormDialog>
       <div className="rise-1"><Filters active={(schoolId ? 1 : 0) + (action ? 1 : 0)} lead={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <TextInput data-testid="input-search-audit" aria-label="Search all audit history" className="pl-9" maxLength={200} placeholder="Search all history: reason, action or entity" value={term} onChange={(e) => { setTerm(e.target.value); reset(); }} /></div>}>
         <NativeSelect data-testid="select-audit-school" aria-label="School" className="lg:w-56" value={schoolId} onChange={(e) => { setSchoolId(e.target.value); reset(); }}><option value="">All schools</option>{(sq.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</NativeSelect>
-        <TextInput data-testid="select-audit-action" aria-label="Exact action filter" className="lg:w-56" maxLength={160} placeholder="Exact action (optional)" value={action} onChange={(e) => { setAction(e.target.value); reset(); }} />
+        <NativeSelect data-testid="select-audit-action" aria-label="Activity type" className="lg:w-64" value={action} onChange={(e) => { setAction(e.target.value); reset(); }}><option value="">All activity types</option>{Array.from(new Set([...Object.keys(ACTION_LABELS), ...rows.map(e => e.action), ...(action ? [action] : [])])).sort().map(code => <option key={code} value={code}>{actionLabel({ action: code })}</option>)}</NativeSelect>
         <NativeSelect data-testid="select-audit-limit" aria-label="Entries per page" className="lg:w-36" value={limit} onChange={(e) => { setLimit(Number(e.target.value)); reset(); }}>{[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n} per page</option>)}</NativeSelect>
       </Filters></div>
       <Panel className="rise-1">
@@ -73,9 +71,9 @@ export default function PlatformAuditPage() {
             <tbody>{rows.map((e) => (
               <tr key={e.id} data-testid={`row-audit-${e.id}`} onClick={() => setOpen(e)} className="cursor-pointer border-b border-border/50 last:border-0 hover:bg-accent/30">
                 <td className="whitespace-nowrap px-5 py-2.5 font-mono text-xs text-muted-foreground">{fmtDateTime(e.createdAt)}</td>
-                <td className="px-3 py-2.5"><button type="button" className="font-mono text-xs font-semibold hover:text-primary" data-testid={`button-audit-${e.id}`}>{e.action}</button>{e.grantId && <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">grant</span>}</td>
-                <td className="px-3 py-2.5 text-xs">{e.schoolId ? names.get(e.schoolId) ?? "Unknown school" : <span className="text-muted-foreground">Platform</span>}</td>
-                <td className="max-w-md truncate px-3 py-2.5 text-xs text-muted-foreground">{e.reason}</td>
+                <td className="px-3 py-2.5"><button type="button" className="text-left text-sm font-semibold hover:text-primary" data-testid={`button-audit-${e.id}`}>{actionLabel(e)}</button><div className="mt-1 text-xs text-muted-foreground">By {e.actorName ?? "name unavailable"}{subjectLabel(e) && ` · ${subjectLabel(e)}`}</div>{e.grantId && <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">Support session</span>}</td>
+                <td className="px-3 py-2.5 text-xs">{e.schoolName ?? (e.schoolId ? names.get(e.schoolId) ?? "School name unavailable" : <span className="text-muted-foreground">Platform</span>)}</td>
+                <td className="max-w-md whitespace-normal break-words px-3 py-2.5 text-xs text-muted-foreground">{e.reason}</td>
               </tr>
             ))}</tbody>
           </table></CardTable>

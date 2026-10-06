@@ -4,6 +4,7 @@ import * as schemas from "@workspace/api-zod";
 import { z } from "zod";
 import { ApiError, body, lock, parse, send, type Tx } from "../lib/core";
 import { platformAudit } from "../lib/platform";
+import { syncLicencePayment } from "../lib/licensing";
 
 // Mounted after platform identity + role + support read-only checks.
 const router = Router({ mergeParams: true });
@@ -99,6 +100,7 @@ router.post("/invoices/:invoiceId/payments", async (req, res) => {
     if (duplicate) throw new ApiError(409, "This payment reference is already recorded for this school.");
     const payment = await tx.platformBillingPayment.create({ data: { id: input.requestId, invoiceId: current.id, amount, paidOn: input.paidOn, method: input.method, reference } });
     await platformAudit(tx, req.identity, "billing.payment_recorded", "Subscription payment received", schoolId, payment.id, undefined, { ...payment, amount: amount.toFixed(2) });
+    await syncLicencePayment(tx, current.id, req.identity);
     return getInvoice(tx, schoolId, current.id);
   });
   send(res, "RecordPlatformPayment", platformInvoiceView(invoice), 201);
@@ -114,6 +116,7 @@ router.post("/invoices/:invoiceId/void", async (req, res) => {
     if (paid(current).greaterThan(0)) throw new ApiError(409, "Reverse recorded payments before voiding this invoice.");
     const updated = await tx.platformBillingInvoice.update({ where: { id: current.id }, data: { voidedAt: new Date() }, include: withPayments });
     await platformAudit(tx, req.identity, "billing.invoice_voided", reason, schoolId, current.id, platformInvoiceView(current), platformInvoiceView(updated));
+    await syncLicencePayment(tx, current.id, req.identity);
     return updated;
   });
   send(res, "VoidPlatformInvoice", platformInvoiceView(invoice));
@@ -131,6 +134,7 @@ router.post("/invoices/:invoiceId/payments/:paymentId/reverse", async (req, res)
     const reversed = await tx.platformBillingPayment.update({ where: { id: payment.id }, data: { reversedAt: new Date() } });
     await platformAudit(tx, req.identity, "billing.payment_reversed", reason, schoolId, payment.id,
       { ...payment, amount: payment.amount.toFixed(2) }, { ...reversed, amount: reversed.amount.toFixed(2) });
+    await syncLicencePayment(tx, current.id, req.identity);
     return getInvoice(tx, schoolId, current.id);
   });
   send(res, "ReversePlatformPayment", platformInvoiceView(invoice));

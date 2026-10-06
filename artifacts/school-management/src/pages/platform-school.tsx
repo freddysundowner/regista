@@ -1,9 +1,11 @@
+import { actionLabel } from "@/lib/audit-format";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useGetPlatformSchool, useListPlatformAdmins, useListPlatformAudit, getGetPlatformSchoolQueryKey, getListPlatformAdminsQueryKey, getListPlatformAuditQueryKey, type User } from "@workspace/api-client-react";
 import { RegistrationReviewDialog } from "@/components/registration-review";
 import { ArrowLeft, CalendarClock, ClipboardCheck, DoorOpen, KeyRound, Pencil, Plus, Power, ScrollText, UserCog } from "lucide-react";
 import { BillingPanel } from "@/components/platform-billing";
+import { LicensingPanel } from "@/components/platform-licensing";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Pill } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
 import { SchoolEditForm, AdminForm, AdminStatusForm, ResetPasswordForm } from "@/components/platform-forms";
@@ -49,7 +51,7 @@ export default function PlatformSchool() {
       {inReview && <div data-testid="banner-registration" className={s.status === "pending" ? "rounded-md border border-amber-600/35 bg-amber-500/10 px-4 py-3 text-sm" : "rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"}>
         <span className="font-semibold">{s.status === "pending" ? "Self-registered school awaiting review." : "Registration rejected."}</span> {s.status === "pending" ? "Editing and support access open after approval." : `Reason: ${s.registrationNote || "none recorded"}. You can still approve it.`}
       </div>}
-      <FormDialog open={!!editing && !inReview} onOpenChange={(o) => !o && setEditing(null)} size="lg" title={editing === "subscription" ? "Edit subscription" : `Edit ${s.name}`} description={editing === "subscription" ? "Plan, status and renewal dates." : "Profile, contact and access status."}>
+      <FormDialog open={!!editing && !inReview} onOpenChange={(o) => !o && setEditing(null)} size="lg" title={editing === "subscription" ? "Edit legacy subscription metadata" : `Edit ${s.name}`} description={editing === "subscription" ? "Informational only. Licence-managed schools get access from timed licences, not these fields." : "Profile, contact and access status."}>
         {editing && <SchoolEditForm key={editing + s.id} section={editing} school={s} onDone={() => setEditing(null)} />}
       </FormDialog>
       <EnterSchoolDialog school={s} open={entering && s.status === "active"} onOpenChange={setEntering} />
@@ -68,6 +70,7 @@ export default function PlatformSchool() {
 
       <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
+          <LicensingPanel school={s} />
           <BillingPanel school={s} />
           <Panel title="School administrators" note={aq.data ? `${activeAdmins} active of ${aq.data.length}. The last active administrator is protected.` : undefined}
             action={<Btn className="h-8" data-testid="button-add-admin" onClick={() => setDlg({ kind: "add" })}><Plus className="h-4 w-4" />Add</Btn>}>
@@ -95,7 +98,7 @@ export default function PlatformSchool() {
               <Empty icon={<ScrollText className="h-5 w-5" />} title="No platform actions yet" body="Provisioning, edits and support sessions appear here." />
             ) : (
               <ul className="divide-y divide-border/60">{lq.data.map((e) => (
-                <li key={e.id} className="px-5 py-2.5 text-sm"><div className="flex justify-between gap-3"><span className="font-mono text-xs font-semibold">{e.action}</span><span className="font-mono text-[11px] text-muted-foreground">{fmtDateTime(e.createdAt)}</span></div><p className="truncate text-xs text-muted-foreground">{e.reason}</p></li>
+                <li key={e.id} className="px-5 py-2.5 text-sm"><div className="flex flex-wrap justify-between gap-3"><span className="text-sm font-semibold">{actionLabel(e)}</span><span className="font-mono text-[11px] text-muted-foreground">{fmtDateTime(e.createdAt)}</span></div><p className="text-xs text-muted-foreground">By {e.actorName ?? "name unavailable"}</p><p className="break-words text-xs text-muted-foreground">{e.reason}</p></li>
               ))}</ul>
             )}
           </Panel>
@@ -113,7 +116,7 @@ export default function PlatformSchool() {
               <div className="col-span-2"><Fact k="Address" v={<span className="normal-case">{s.address || "\u2014"}</span>} /></div>
             </dl>
           </Panel>
-          <Panel title="Subscription" action={!inReview ? <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid="button-edit-subscription" onClick={() => setEditing("subscription")}><CalendarClock className="h-3.5 w-3.5" />Change</Btn> : undefined}>
+          <Panel title="Legacy subscription metadata" note="Reference only. Once a timed licence is granted, the licence alone decides access; these fields never override it." action={!inReview ? <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid="button-edit-subscription" onClick={() => setEditing("subscription")}><CalendarClock className="h-3.5 w-3.5" />Change</Btn> : undefined}>
             <dl className="grid grid-cols-2 gap-4 p-5">
               <Fact k="Plan" v={s.subscriptionPlan || "\u2014"} />
               <Fact k="Status" v={s.subscriptionStatus ? <Pill tone={s.subscriptionStatus === "active" ? "active" : s.subscriptionStatus === "trial" ? "duplicate" : "error"}>{s.subscriptionStatus}</Pill> : "\u2014"} />

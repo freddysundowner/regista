@@ -37,6 +37,9 @@ model School {
   tenantGrants PlatformTenantGrant[]
   platformAudits PlatformAudit[]
   platformInvoices PlatformBillingInvoice[]
+  licenceManaged Boolean @default(false)
+  licences SchoolLicence[]
+  licenceOrders LicenceOrder[]
   @@map("schools")
 }
 model PlatformBillingInvoice {
@@ -53,8 +56,60 @@ model PlatformBillingInvoice {
   voidedAt DateTime?
   createdAt DateTime @default(now())
   payments PlatformBillingPayment[]
+  licenceOrder LicenceOrder?
   @@index([schoolId,createdAt])
   @@map("platform_billing_invoices")
+}
+model LicencePlan {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  description String @default("")
+  durationDays Int
+  price Decimal @db.Decimal(12,2)
+  subscriptionPrice Decimal @db.Decimal(12,2)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  licences SchoolLicence[]
+  orders LicenceOrder[]
+  @@map("licence_plans")
+}
+model SchoolLicence {
+  id String @id @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  planId String @db.Uuid
+  plan LicencePlan @relation(fields:[planId], references:[id])
+  planName String
+  durationDays Int
+  price Decimal @db.Decimal(12,2)
+  startsAt DateTime
+  expiresAt DateTime
+  requestedStartsAt DateTime?
+  source String
+  revokedAt DateTime?
+  revocationType String?
+  createdAt DateTime @default(now())
+  order LicenceOrder?
+  @@index([schoolId,startsAt,expiresAt])
+  @@map("school_licences")
+}
+model LicenceOrder {
+  id String @id @db.Uuid
+  schoolId String @db.Uuid
+  school School @relation(fields:[schoolId], references:[id])
+  planId String @db.Uuid
+  plan LicencePlan @relation(fields:[planId], references:[id])
+  planName String
+  durationDays Int
+  price Decimal @db.Decimal(12,2)
+  invoiceId String @unique @db.Uuid
+  invoice PlatformBillingInvoice @relation(fields:[invoiceId], references:[id])
+  licenceId String? @unique @db.Uuid
+  licence SchoolLicence? @relation(fields:[licenceId], references:[id])
+  createdAt DateTime @default(now())
+  @@index([schoolId,createdAt])
+  @@map("licence_orders")
 }
 model PlatformBillingPayment {
   id String @id @db.Uuid
@@ -548,14 +603,33 @@ model MessageDelivery {
   idempotencyKey String
   status String @default("queued")
   providerMessageId String?
+  transportAccountId String? @db.Uuid
+  transportProvider String?
   attempts Int @default(0)
   error String?
   scheduledAt DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([schoolId,idempotencyKey])
+  @@index([transportAccountId,providerMessageId])
   @@index([schoolId,status,scheduledAt])
   @@map("message_deliveries")
+}
+model MessagingAccount {
+  id String @id @default(uuid()) @db.Uuid
+  scope String
+  channel String
+  mode String @default("override")
+  provider String?
+  enabled Boolean @default(false)
+  environment String @default("live")
+  publicConfig Json @default("{}")
+  encryptedCredentials String?
+  callbackTokenHash String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([scope,channel])
+  @@map("messaging_accounts")
 }
 model BotReplay {
   id String @id @default(uuid()) @db.Uuid

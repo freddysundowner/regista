@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { isConnectionFailure, retryRead } from '@/lib/connection-recovery';
 import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { useGetSetupStatus, useGetCurrentUser, getGetCurrentUserQueryKey } from '@workspace/api-client-react';
@@ -39,13 +40,27 @@ import Assessments from '@/pages/assessments';
 import ReportCards from '@/pages/report-cards';
 import Attendance from '@/pages/attendance';
 import Reports from '@/pages/reports';
+import MessagingSettingsPage, { PlatformMessagingPage } from '@/pages/messaging-settings';
 import { Shell } from '@/components/shell';
 import { SessionProvider, usePerms, useAuthSession, errMsg } from '@/lib/session';
 import { ErrorState } from '@/components/kit';
+import { LicenceAccessGate } from '@/components/licence-gate';
+import LicencePlans from '@/pages/licence-plans';
+import SubscriptionPage from '@/pages/subscription';
 
 let readOnlySession = false;
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: (query) => isConnectionFailure(query.state.error),
+      refetchOnReconnect: true,
+      retry: retryRead,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+      refetchInterval: (query) => isConnectionFailure(query.state.error) ? 10000 : false,
+      refetchIntervalInBackground: false,
+    },
+    mutations: { retry: false },
+  },
   mutationCache: new MutationCache({
     onError: (e) => {
       // Global feedback when a read-only support grant blocks a mutation server-side.
@@ -78,6 +93,8 @@ function PlatformRoutes() {
       <Route path="/schools" component={Schools} />
       <Route path="/schools/:id" component={PlatformSchool} />
       <Route path="/platform/audit" component={PlatformAuditPage} />
+      <Route path="/platform/licence-plans" component={LicencePlans} />
+      <Route path="/platform/messaging" component={PlatformMessagingPage} />
       <Route path="/account" component={Account} />
       <Route><ErrorState msg="That page belongs to a school workspace. Open a school from the Schools list to enter it with a recorded reason." /></Route>
     </Switch>
@@ -118,6 +135,10 @@ function AppRoutes() {
       <Route path="/schools">{s.user.role === 'super_admin' ? <div><ErrorState msg="Platform pages are unavailable inside a school workspace. Exit to the platform console first." /><PlatformRecovery /></div> : <Guard allow={false}><Schools /></Guard>}</Route>
       <Route path="/schools/:id"><Guard allow={false}><span /></Guard></Route>
       <Route path="/platform/audit"><Guard allow={false}><span /></Guard></Route>
+      <Route path="/platform/licence-plans"><Guard allow={false}><span /></Guard></Route>
+      <Route path="/platform/messaging"><Guard allow={false}><span /></Guard></Route>
+      <Route path="/messaging"><Guard allow={p.integrations}><MessagingSettingsPage /></Guard></Route>
+      <Route path="/subscription"><Guard allow={s.user.role !== 'super_admin'}><SubscriptionPage /></Guard></Route>
       <Route path="/fees"><Guard allow={p.financeRead}><Fees /></Guard></Route>
       <Route path="/invoices"><Guard allow={p.financeRead}><Invoices /></Guard></Route>
       <Route path="/payments"><Guard allow={p.financeRead}><Payments /></Guard></Route>
@@ -159,7 +180,7 @@ function Gate() {
   return (
     <SessionProvider session={me.data}>
       <Shell>
-        <RoutedErrorBoundary><ModeRoutes /></RoutedErrorBoundary>
+        <RoutedErrorBoundary><LicenceAccessGate><ModeRoutes /></LicenceAccessGate></RoutedErrorBoundary>
       </Shell>
     </SessionProvider>
   );

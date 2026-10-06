@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGetAttendanceRegister, useSaveAttendanceRegister, useListStreams, useListStudents, getGetAttendanceRegisterQueryKey, getListStreamsQueryKey, getListStudentsQueryKey, type AttendanceInputEntriesItemStatus } from "@workspace/api-client-react";
 import { CalendarCheck, Loader2 } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError } from "@/components/kit";
-import { errMsg, fmtDate, nairobiToday } from "@/lib/session";
+import { errMsg, fmtDate, localToday } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 
 const OPTS: { v: AttendanceInputEntriesItemStatus; label: string; cls: string }[] = [
@@ -14,7 +14,7 @@ const OPTS: { v: AttendanceInputEntriesItemStatus; label: string; cls: string }[
 export default function Attendance() {
   const qc = useQueryClient(); const { toast } = useToast();
   const streams = useListStreams(undefined, { query: { queryKey: getListStreamsQueryKey() } });
-  const [streamId, setStreamId] = useState(""); const [date, setDate] = useState(nairobiToday());
+  const [streamId, setStreamId] = useState(""); const [date, setDate] = useState(localToday());
   const stream = streams.data?.find((s) => s.id === streamId);
   const sp = stream ? { gradeId: stream.gradeId } : undefined;
   const students = useListStudents(sp, { query: { queryKey: getListStudentsQueryKey(sp), enabled: !!stream } });
@@ -43,7 +43,7 @@ export default function Attendance() {
       <Panel>
         <div className="grid gap-3 border-b border-border/70 p-4 sm:grid-cols-2">
           <Field label="Stream" required><NativeSelect data-testid="select-stream" value={streamId} onChange={(e) => setStreamId(e.target.value)}><option value="">{streams.isLoading ? "Loading" : streams.isError ? "Streams unavailable" : "Select stream"}</option>{streams.data?.map((s) => <option key={s.id} value={s.id}>{s.gradeName} {s.name}</option>)}</NativeSelect></Field>
-          <Field label="Date" required><TextInput type="date" data-testid="input-attendance-date" max={nairobiToday()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Date" required><TextInput type="date" data-testid="input-attendance-date" max={localToday()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         </div>
         {streams.isError ? <ErrorState msg={errMsg(streams.error)} onRetry={() => streams.refetch()} /> : !streamId ? <Empty icon={<CalendarCheck className="h-5 w-5" />} title="Choose a stream" body="Pick your class and the day to take the register." />
           : reg.isLoading || students.isLoading ? <SkeletonRows cols={2} /> : reg.isError ? <ErrorState msg={errMsg(reg.error)} onRetry={() => reg.refetch()} />

@@ -8,6 +8,416 @@
 import * as zod from 'zod';
 
 
+/**
+ * Operator-run normalized gateway, not a native provider callback. Requires verified native delivery evidence, a configured callback token and HMAC-SHA256 signature over timestamp + "." + raw JSON body using the separate deliveryGatewaySecret. School, account and provider must match the submitted message.
+ */
+export const RecordMessagingAccountDeliveryEventParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const RecordMessagingAccountDeliveryEventHeader = zod.object({
+  "X-Delivery-Timestamp": zod.string(),
+  "X-Delivery-Signature": zod.string()
+})
+
+export const recordMessagingAccountDeliveryEventBodyProviderMessageIdMax = 200;
+
+
+
+export const RecordMessagingAccountDeliveryEventBody = zod.object({
+  "schoolId": zod.string().uuid(),
+  "providerMessageId": zod.string().min(1).max(recordMessagingAccountDeliveryEventBodyProviderMessageIdMax),
+  "status": zod.enum(['delivered', 'read', 'rejected'])
+})
+
+export const RecordMessagingAccountDeliveryEventResponse = zod.void()
+
+
+export const GetPlatformMessagingResponse = zod.object({
+  "channels": zod.array(zod.object({
+  "channel": zod.enum(['sms', 'whatsapp']),
+  "mode": zod.enum(['inherit', 'override']),
+  "source": zod.enum(['platform', 'school', 'legacy', 'none']),
+  "provider": zod.string().nullable(),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "canRetainCredentials": zod.boolean(),
+  "environment": zod.string(),
+  "senderId": zod.string(),
+  "connectionId": zod.string(),
+  "status": zod.enum(['not_configured', 'disabled', 'contract_required', 'unverified']),
+  "reason": zod.string()
+}))
+})
+
+
+export const SavePlatformMessagingParams = zod.object({
+  "channel": zod.enum(['sms', 'whatsapp'])
+})
+
+export const savePlatformMessagingBodySenderIdMax = 100;
+
+export const savePlatformMessagingBodyConnectionIdMax = 200;
+
+export const savePlatformMessagingBodyCredentialsMaxOne = 8000;
+
+
+
+export const SavePlatformMessagingBody = zod.object({
+  "mode": zod.enum(['inherit', 'override']),
+  "provider": zod.enum(['blessedtexts', 'onfon', 'africastalking', 'leadsintel']).optional(),
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['live', 'sandbox']).optional(),
+  "senderId": zod.string().max(savePlatformMessagingBodySenderIdMax).optional(),
+  "connectionId": zod.string().max(savePlatformMessagingBodyConnectionIdMax).optional(),
+  "credentials": zod.record(zod.string(), zod.string().max(savePlatformMessagingBodyCredentialsMaxOne)).optional().describe('Write-only. Omit to retain credentials only for an unchanged provider. An object replaces all credentials.')
+})
+
+export const SavePlatformMessagingResponse = zod.object({
+  "channels": zod.array(zod.object({
+  "channel": zod.enum(['sms', 'whatsapp']),
+  "mode": zod.enum(['inherit', 'override']),
+  "source": zod.enum(['platform', 'school', 'legacy', 'none']),
+  "provider": zod.string().nullable(),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "canRetainCredentials": zod.boolean(),
+  "environment": zod.string(),
+  "senderId": zod.string(),
+  "connectionId": zod.string(),
+  "status": zod.enum(['not_configured', 'disabled', 'contract_required', 'unverified']),
+  "reason": zod.string()
+}))
+})
+
+
+export const GetSchoolMessagingResponse = zod.object({
+  "channels": zod.array(zod.object({
+  "channel": zod.enum(['sms', 'whatsapp']),
+  "mode": zod.enum(['inherit', 'override']),
+  "source": zod.enum(['platform', 'school', 'legacy', 'none']),
+  "provider": zod.string().nullable(),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "canRetainCredentials": zod.boolean(),
+  "environment": zod.string(),
+  "senderId": zod.string(),
+  "connectionId": zod.string(),
+  "status": zod.enum(['not_configured', 'disabled', 'contract_required', 'unverified']),
+  "reason": zod.string()
+}))
+})
+
+
+export const SaveSchoolMessagingParams = zod.object({
+  "channel": zod.enum(['sms', 'whatsapp'])
+})
+
+export const saveSchoolMessagingBodySenderIdMax = 100;
+
+export const saveSchoolMessagingBodyConnectionIdMax = 200;
+
+export const saveSchoolMessagingBodyCredentialsMaxOne = 8000;
+
+
+
+export const SaveSchoolMessagingBody = zod.object({
+  "mode": zod.enum(['inherit', 'override']),
+  "provider": zod.enum(['blessedtexts', 'onfon', 'africastalking', 'leadsintel']).optional(),
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['live', 'sandbox']).optional(),
+  "senderId": zod.string().max(saveSchoolMessagingBodySenderIdMax).optional(),
+  "connectionId": zod.string().max(saveSchoolMessagingBodyConnectionIdMax).optional(),
+  "credentials": zod.record(zod.string(), zod.string().max(saveSchoolMessagingBodyCredentialsMaxOne)).optional().describe('Write-only. Omit to retain credentials only for an unchanged provider. An object replaces all credentials.')
+})
+
+export const SaveSchoolMessagingResponse = zod.object({
+  "channels": zod.array(zod.object({
+  "channel": zod.enum(['sms', 'whatsapp']),
+  "mode": zod.enum(['inherit', 'override']),
+  "source": zod.enum(['platform', 'school', 'legacy', 'none']),
+  "provider": zod.string().nullable(),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "canRetainCredentials": zod.boolean(),
+  "environment": zod.string(),
+  "senderId": zod.string(),
+  "connectionId": zod.string(),
+  "status": zod.enum(['not_configured', 'disabled', 'contract_required', 'unverified']),
+  "reason": zod.string()
+}))
+})
+
+
+export const ListLicencePlansResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "subscriptionPrice": zod.string(),
+  "currency": zod.enum(['KES']),
+  "isActive": zod.boolean()
+})
+export const ListLicencePlansResponse = zod.array(ListLicencePlansResponseItem)
+
+
+export const createLicencePlanBodyNameMin = 2;
+export const createLicencePlanBodyNameMax = 100;
+
+export const createLicencePlanBodyDescriptionMax = 500;
+
+export const createLicencePlanBodyDurationDaysMax = 3650;
+
+export const createLicencePlanBodyPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+export const createLicencePlanBodySubscriptionPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+
+
+export const CreateLicencePlanBody = zod.object({
+  "name": zod.string().min(createLicencePlanBodyNameMin).max(createLicencePlanBodyNameMax),
+  "description": zod.string().max(createLicencePlanBodyDescriptionMax).optional(),
+  "durationDays": zod.number().int().min(1).max(createLicencePlanBodyDurationDaysMax),
+  "price": zod.string().regex(createLicencePlanBodyPriceRegExp),
+  "subscriptionPrice": zod.string().regex(createLicencePlanBodySubscriptionPriceRegExp),
+  "isActive": zod.boolean()
+})
+
+export const CreateLicencePlanResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "subscriptionPrice": zod.string(),
+  "currency": zod.enum(['KES']),
+  "isActive": zod.boolean()
+})
+
+
+export const EditLicencePlanParams = zod.object({
+  "planId": zod.coerce.string().uuid()
+})
+
+export const editLicencePlanBodyNameMin = 2;
+export const editLicencePlanBodyNameMax = 100;
+
+export const editLicencePlanBodyDescriptionMax = 500;
+
+export const editLicencePlanBodyDurationDaysMax = 3650;
+
+export const editLicencePlanBodyPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+export const editLicencePlanBodySubscriptionPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+
+
+export const EditLicencePlanBody = zod.object({
+  "name": zod.string().min(editLicencePlanBodyNameMin).max(editLicencePlanBodyNameMax),
+  "description": zod.string().max(editLicencePlanBodyDescriptionMax).optional(),
+  "durationDays": zod.number().int().min(1).max(editLicencePlanBodyDurationDaysMax),
+  "price": zod.string().regex(editLicencePlanBodyPriceRegExp),
+  "subscriptionPrice": zod.string().regex(editLicencePlanBodySubscriptionPriceRegExp),
+  "isActive": zod.boolean()
+})
+
+export const EditLicencePlanResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "subscriptionPrice": zod.string(),
+  "currency": zod.enum(['KES']),
+  "isActive": zod.boolean()
+})
+
+
+export const GetPlatformLicensingParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const GetPlatformLicensingResponse = zod.object({
+  "managed": zod.boolean(),
+  "accessAllowed": zod.boolean(),
+  "status": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']),
+  "currentEndsAt": zod.coerce.date().nullable(),
+  "plans": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "subscriptionPrice": zod.string(),
+  "currency": zod.enum(['KES']),
+  "isActive": zod.boolean()
+})),
+  "licences": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "planId": zod.string().uuid(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "source": zod.enum(['admin', 'payment']),
+  "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "orders": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "invoiceId": zod.string().uuid(),
+  "invoiceNumber": zod.string(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "status": zod.enum(['pending', 'partial', 'paid', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})),
+  "paymentMethods": zod.array(zod.object({
+  "id": zod.enum(['manual', 'mpesa', 'stripe', 'paystack']),
+  "name": zod.string(),
+  "available": zod.boolean(),
+  "reason": zod.string()
+}))
+})
+
+
+export const IssueSchoolLicenceParams = zod.object({
+  "schoolId": zod.coerce.string().uuid()
+})
+
+export const IssueSchoolLicenceBody = zod.object({
+  "requestId": zod.string().uuid(),
+  "planId": zod.string().uuid(),
+  "startsAt": zod.coerce.date().optional()
+})
+
+export const IssueSchoolLicenceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "planId": zod.string().uuid(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "source": zod.enum(['admin', 'payment']),
+  "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const RevokeSchoolLicenceParams = zod.object({
+  "schoolId": zod.coerce.string().uuid(),
+  "licenceId": zod.coerce.string().uuid()
+})
+
+export const RevokeSchoolLicenceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "planId": zod.string().uuid(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "source": zod.enum(['admin', 'payment']),
+  "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const GetSchoolSubscriptionResponse = zod.object({
+  "managed": zod.boolean(),
+  "accessAllowed": zod.boolean(),
+  "status": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']),
+  "currentEndsAt": zod.coerce.date().nullable(),
+  "plans": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "subscriptionPrice": zod.string(),
+  "currency": zod.enum(['KES']),
+  "isActive": zod.boolean()
+})),
+  "licences": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "planId": zod.string().uuid(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "source": zod.enum(['admin', 'payment']),
+  "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "orders": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "invoiceId": zod.string().uuid(),
+  "invoiceNumber": zod.string(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "status": zod.enum(['pending', 'partial', 'paid', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})),
+  "paymentMethods": zod.array(zod.object({
+  "id": zod.enum(['manual', 'mpesa', 'stripe', 'paystack']),
+  "name": zod.string(),
+  "available": zod.boolean(),
+  "reason": zod.string()
+}))
+})
+
+
+export const RequestLicenceRenewalBody = zod.object({
+  "requestId": zod.string().uuid(),
+  "planId": zod.string().uuid()
+})
+
+export const RequestLicenceRenewalResponse = zod.object({
+  "id": zod.string().uuid(),
+  "invoiceId": zod.string().uuid(),
+  "invoiceNumber": zod.string(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "status": zod.enum(['pending', 'partial', 'paid', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const CancelLicenceRenewalParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const CancelLicenceRenewalResponse = zod.object({
+  "id": zod.string().uuid(),
+  "invoiceId": zod.string().uuid(),
+  "invoiceNumber": zod.string(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "status": zod.enum(['pending', 'partial', 'paid', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})
+
+
 export const GetPlatformBillingParams = zod.object({
   "schoolId": zod.coerce.string().uuid()
 })
@@ -344,6 +754,10 @@ export const RegisterSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(registerSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -468,6 +882,10 @@ export const ReviewSchoolRegistrationResponse = zod.object({
   "absenceAlertTime": zod.string().regex(reviewSchoolRegistrationResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -578,6 +996,10 @@ export const ListPlatformSchoolsResponseItem = zod.object({
   "absenceAlertTime": zod.string().regex(listPlatformSchoolsResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -719,6 +1141,10 @@ export const ProvisionPlatformSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(provisionPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -824,6 +1250,10 @@ export const GetPlatformSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(getPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -961,6 +1391,10 @@ export const EditPlatformSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(editPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -1114,6 +1548,8 @@ export const ListPlatformAuditQueryParams = zod.object({
 export const ListPlatformAuditResponseItem = zod.object({
   "id": zod.string().uuid(),
   "actorId": zod.string().uuid(),
+  "actorName": zod.string().nullish(),
+  "schoolName": zod.string().nullish(),
   "schoolId": zod.string().uuid().nullable(),
   "grantId": zod.string().uuid().nullable(),
   "action": zod.string(),
@@ -1251,6 +1687,10 @@ export const EnterTenantAccessResponse = zod.object({
   "absenceAlertTime": zod.string().regex(enterTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -1373,6 +1813,10 @@ export const ExitTenantAccessResponse = zod.object({
   "absenceAlertTime": zod.string().regex(exitTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -3691,6 +4135,10 @@ export const UpdatePlatformSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(updatePlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -3927,6 +4375,10 @@ export const ListSchoolsResponseItem = zod.object({
   "absenceAlertTime": zod.string().regex(listSchoolsResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -4068,6 +4520,10 @@ export const CreateSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(createSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -4391,6 +4847,10 @@ export const CreateInitialSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(createInitialSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -4528,6 +4988,10 @@ export const LoginResponse = zod.object({
   "absenceAlertTime": zod.string().regex(loginResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -4661,6 +5125,10 @@ export const GetCurrentUserResponse = zod.object({
   "absenceAlertTime": zod.string().regex(getCurrentUserResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -4802,6 +5270,10 @@ export const GetSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(getSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),
@@ -5006,6 +5478,10 @@ export const UpdateSchoolResponse = zod.object({
   "absenceAlertTime": zod.string().regex(updateSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
+  "licenceManaged": zod.boolean().optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licencePlanName": zod.string().nullish(),
+  "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
   "subscriptionStartDate": zod.coerce.date().nullish(),
   "subscriptionEndDate": zod.coerce.date().nullish(),

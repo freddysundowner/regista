@@ -8,8 +8,9 @@ import {
 import { Ban, Banknote, FileText, Loader2, Plus, ReceiptText, Undo2 } from "lucide-react";
 import { Panel, SkeletonRows, ErrorState, Empty, Btn, Pill, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
-import { errMsg, fmtDate, fmtDateTime } from "@/lib/session";
+import { errMsg, fmtDate, fmtDateTime, localToday } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
+import { invalidateLicensing } from "@/lib/licensing";
 
 const AMOUNT_RE = /^[0-9]{1,10}(\.[0-9]{1,2})?$/;
 /** Exact cents from a decimal string; safe up to 10 integer digits. */
@@ -27,7 +28,7 @@ export function kes(s: string | null | undefined) {
   return `${c < 0 ? "-" : ""}KES ${int}.${String(abs % 100).padStart(2, "0")}`;
 }
 function today() {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Nairobi" }).format(new Date());
+  return localToday();
 }
 const TONE: Record<string, string> = { paid: "active", partial: "duplicate", unpaid: "inactive", overdue: "error", void: "inactive" };
 const METHOD: Record<string, string> = { bank: "Bank transfer", mpesa: "M-Pesa", cash: "Cash", other: "Other" };
@@ -39,6 +40,8 @@ function useRefreshBilling(schoolId: string) {
   return () => {
     qc.invalidateQueries({ queryKey: getGetPlatformBillingQueryKey(schoolId) });
     qc.invalidateQueries({ queryKey: getListPlatformAuditQueryKey().slice(0, 1) });
+    // Settling or reversing a renewal invoice activates or suspends its linked licence.
+    invalidateLicensing(qc, schoolId);
   };
 }
 
@@ -134,7 +137,7 @@ function PaymentForm({ schoolId, invoice, onDone }: { schoolId: string; invoice:
         <Field label="Method"><NativeSelect data-testid="select-payment-method" value={f.method} onChange={set("method")}>{Object.values(PlatformPaymentInputMethod).map((v) => <option key={v} value={v}>{METHOD[v]}</option>)}</NativeSelect></Field>
         <Field label="Reference" required hint="Bank or M-Pesa transaction code"><TextInput data-testid="input-payment-reference" required minLength={2} maxLength={120} className="font-mono" value={f.reference} onChange={set("reference")} /></Field>
       </div>
-      <p className="text-xs text-muted-foreground">Records money already received. Nothing is charged, and the school's access is not changed.</p>
+      <p className="text-xs text-muted-foreground">Records money already received outside the app. Nothing is charged. If this fully settles a licence-renewal invoice, its licence activates automatically.</p>
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-save-payment" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Record payment</Btn>
@@ -163,7 +166,7 @@ function CorrectionForm({ schoolId, invoice, payment, onDone }: { schoolId: stri
   return (
     <form onSubmit={submit} className="space-y-5 p-5">
       <p className="text-sm">{payment
-        ? `Reverses ${kes(payment.amount)} (${payment.reference}). The payment stays in the history marked reversed, and the balance is restored.`
+        ? `Reverses ${kes(payment.amount)} (${payment.reference}). The payment stays in the history marked reversed, and the balance is restored. If this invoice backs a paid licence, that licence is suspended until the invoice is fully paid again.`
         : `Voids ${invoice.number} for ${kes(invoice.amount)}. It stays on record and no longer counts as owed. Issue a new invoice if a corrected amount is due.`}</p>
       <Field label="Reason" required hint="3 to 500 characters; recorded in the platform audit log">
         <textarea data-testid="input-correction-reason" required minLength={3} maxLength={500} rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
@@ -185,7 +188,7 @@ function Stat({ k, v, tone }: { k: string; v: string; tone?: string }) {
 type Dlg = { kind: "create" } | { kind: "view" | "pay" | "void"; id: string } | { kind: "reverse"; id: string; paymentId: string } | null;
 
 export function BillingPanel({ school }: { school: School }) {
-  const q = useGetPlatformBilling(school.id, { query: { queryKey: getGetPlatformBillingQueryKey(school.id), enabled: !!school.id } });
+  const q = useGetPlatformBilling(school.id, { query: { queryKey: getGetPlatformBillingQueryKey(school.id), enabled: !!school.id, refetchInterval: 30_000, refetchOnWindowFocus: true } });
   const [dlg, setDlg] = useState<Dlg>(null);
   const [draft, setDraft] = useState(0);
   const inReview = school.status === "pending" || school.status === "rejected";
@@ -197,7 +200,7 @@ export function BillingPanel({ school }: { school: School }) {
   const openCreate = () => { setDraft((n) => n + 1); setDlg({ kind: "create" }); };
 
   return (
-    <Panel title="Subscription billing" note="Manual KES invoice and payment ledger. Does not change access or subscription status."
+    <Panel title="Subscription billing" note="Manual KES ledger. Fully paying a licence-renewal invoice activates its licence; reversing a payment suspends it until repaid (original dates kept). Other invoices do not change access."
       action={<Btn className="h-8" data-testid="button-new-invoice" disabled={inReview || !b} title={inReview ? "Available after the registration is approved" : undefined} onClick={openCreate}><Plus className="h-4 w-4" />Invoice</Btn>}>
       {q.isLoading ? <SkeletonRows rows={3} cols={4} /> : q.isError || !b ? <ErrorState msg={errMsg(q.error, "Could not load billing.")} onRetry={() => q.refetch()} /> : <>
         <div className="grid grid-cols-2 divide-border/60 border-b border-border/60 sm:grid-cols-4 sm:divide-x">

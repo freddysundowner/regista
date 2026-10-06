@@ -61,7 +61,7 @@ function ExportPanel({ guardian, onClose }: { guardian: Guardian; onClose: () =>
     <div>
       {q.isLoading ? <SkeletonRows rows={3} cols={2} /> : q.isError || !q.data ? <ErrorState msg={errMsg(q.error, "Export failed")} onRetry={() => q.refetch()} /> : (
         <div className="space-y-3 p-5">
-          <p className="text-xs text-muted-foreground">Exported {fmtDateTime(q.data.exportedAt)} (Nairobi) · {q.data.links.length} learner link{q.data.links.length === 1 ? "" : "s"}</p>
+          <p className="text-xs text-muted-foreground">Exported {fmtDateTime(q.data.exportedAt)} (your local time) · {q.data.links.length} learner link{q.data.links.length === 1 ? "" : "s"}</p>
           <pre data-testid="text-guardian-export" className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-muted/30 p-3 font-mono text-[11px]">{JSON.stringify(q.data, null, 2)}</pre>
           <FormActions><Btn data-testid="button-download-export" onClick={download}><Download className="h-4 w-4" /> Download JSON</Btn><Btn variant="ghost" onClick={onClose} data-testid="button-close-export">Close</Btn></FormActions>
         </div>

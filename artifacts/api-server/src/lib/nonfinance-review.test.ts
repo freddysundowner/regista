@@ -46,7 +46,8 @@ test("concurrent SMS claims send once; ambiguous transport never retries; accept
     };
     replace(t, db, "$transaction", async (fn: any) => fn({ $executeRaw: async () => 0, messageDelivery: delegate }));
     replace(t, db.messageDelivery, "updateMany", delegate.updateMany);
-    replace(t, db.integrationConfig, "findUnique", async () => ({ enabled: true, environment: "sandbox", publicConfig: {}, encryptedCredentials: encryptCredentials({ apiKey: "synthetic", username: "sandbox" }) }));
+    replace(t, db.messagingAccount, "findUnique", async () => null);
+    replace(t, db.integrationConfig, "findUnique", async () => ({ provider: "africastalking", enabled: true, environment: "sandbox", publicConfig: {}, encryptedCredentials: encryptCredentials({ apiKey: "synthetic", username: "sandbox" }) }));
     let calls = 0;
     let accepted = false;
     t.mock.method(globalThis, "fetch", async () => {

@@ -10,6 +10,10 @@ export interface PlatformAudit {
   id: string;
   actorId: string;
   /** @nullable */
+  actorName?: string | null;
+  /** @nullable */
+  schoolName?: string | null;
+  /** @nullable */
   schoolId: string | null;
   /** @nullable */
   grantId: string | null;

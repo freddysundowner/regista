@@ -241,6 +241,16 @@ export interface SchoolSettings {
   absenceAlertTime?: string;
 }
 
+export type LicenceCoverageStatus = typeof LicenceCoverageStatus[keyof typeof LicenceCoverageStatus];
+
+
+export const LicenceCoverageStatus = {
+  unmanaged: 'unmanaged',
+  active: 'active',
+  scheduled: 'scheduled',
+  expired: 'expired',
+} as const;
+
 export interface School {
   id: string;
   name: string;
@@ -260,6 +270,12 @@ export interface School {
   logoUrl?: AssetReference | null;
   settings?: SchoolSettings;
   subscriptionPlan?: string;
+  licenceManaged?: boolean;
+  licenceStatus?: LicenceCoverageStatus;
+  /** @nullable */
+  licencePlanName?: string | null;
+  /** @nullable */
+  licenceExpiresAt?: string | null;
   subscriptionStatus?: SchoolSubscriptionStatus;
   /** @nullable */
   subscriptionStartDate?: string | null;
@@ -498,6 +514,10 @@ export interface PlatformOverview {
 export interface PlatformAudit {
   id: string;
   actorId: string;
+  /** @nullable */
+  actorName?: string | null;
+  /** @nullable */
+  schoolName?: string | null;
   /** @nullable */
   schoolId: string | null;
   /** @nullable */
@@ -1379,6 +1399,252 @@ export interface FileUpload {
 export interface StoredFileReference {
   id: string;
   objectPath: string;
+}
+
+export type MessagingAccountDeliveryInputStatus = typeof MessagingAccountDeliveryInputStatus[keyof typeof MessagingAccountDeliveryInputStatus];
+
+
+export const MessagingAccountDeliveryInputStatus = {
+  delivered: 'delivered',
+  read: 'read',
+  rejected: 'rejected',
+} as const;
+
+export interface MessagingAccountDeliveryInput {
+  schoolId: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  providerMessageId: string;
+  status: MessagingAccountDeliveryInputStatus;
+}
+
+export type MessagingChannel = typeof MessagingChannel[keyof typeof MessagingChannel];
+
+
+export const MessagingChannel = {
+  sms: 'sms',
+  whatsapp: 'whatsapp',
+} as const;
+
+export type MessagingProvider = typeof MessagingProvider[keyof typeof MessagingProvider];
+
+
+export const MessagingProvider = {
+  blessedtexts: 'blessedtexts',
+  onfon: 'onfon',
+  africastalking: 'africastalking',
+  leadsintel: 'leadsintel',
+} as const;
+
+export type MessagingRouteMode = typeof MessagingRouteMode[keyof typeof MessagingRouteMode];
+
+
+export const MessagingRouteMode = {
+  inherit: 'inherit',
+  override: 'override',
+} as const;
+
+export type MessagingAccountInputEnvironment = typeof MessagingAccountInputEnvironment[keyof typeof MessagingAccountInputEnvironment];
+
+
+export const MessagingAccountInputEnvironment = {
+  live: 'live',
+  sandbox: 'sandbox',
+} as const;
+
+/**
+ * Write-only. Omit to retain credentials only for an unchanged provider. An object replaces all credentials.
+ */
+export type MessagingAccountInputCredentials = {[key: string]: string};
+
+export interface MessagingAccountInput {
+  mode: MessagingRouteMode;
+  provider?: MessagingProvider;
+  enabled: boolean;
+  environment?: MessagingAccountInputEnvironment;
+  /** @maxLength 100 */
+  senderId?: string;
+  /** @maxLength 200 */
+  connectionId?: string;
+  /** Write-only. Omit to retain credentials only for an unchanged provider. An object replaces all credentials. */
+  credentials?: MessagingAccountInputCredentials;
+}
+
+export type MessagingChannelStateSource = typeof MessagingChannelStateSource[keyof typeof MessagingChannelStateSource];
+
+
+export const MessagingChannelStateSource = {
+  platform: 'platform',
+  school: 'school',
+  legacy: 'legacy',
+  none: 'none',
+} as const;
+
+export type MessagingChannelStateStatus = typeof MessagingChannelStateStatus[keyof typeof MessagingChannelStateStatus];
+
+
+export const MessagingChannelStateStatus = {
+  not_configured: 'not_configured',
+  disabled: 'disabled',
+  contract_required: 'contract_required',
+  unverified: 'unverified',
+} as const;
+
+export interface MessagingChannelState {
+  channel: MessagingChannel;
+  mode: MessagingRouteMode;
+  source: MessagingChannelStateSource;
+  /** @nullable */
+  provider: string | null;
+  enabled: boolean;
+  configured: boolean;
+  canRetainCredentials: boolean;
+  environment: string;
+  senderId: string;
+  connectionId: string;
+  status: MessagingChannelStateStatus;
+  reason: string;
+}
+
+export interface MessagingSettings {
+  channels: MessagingChannelState[];
+}
+
+export interface LicenceIssueInput {
+  requestId: string;
+  planId: string;
+  startsAt?: string;
+}
+
+export interface LicenceRenewalInput {
+  requestId: string;
+  planId: string;
+}
+
+export interface LicencePlanInput {
+  /**
+     * @minLength 2
+     * @maxLength 100
+     */
+  name: string;
+  /** @maxLength 500 */
+  description?: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  durationDays: number;
+  /** @pattern ^[0-9]{1,10}(\.[0-9]{1,2})?$ */
+  price: string;
+  /** @pattern ^[0-9]{1,10}(\.[0-9]{1,2})?$ */
+  subscriptionPrice: string;
+  isActive: boolean;
+}
+
+export type LicencePlanCurrency = typeof LicencePlanCurrency[keyof typeof LicencePlanCurrency];
+
+
+export const LicencePlanCurrency = {
+  KES: 'KES',
+} as const;
+
+export interface LicencePlan {
+  id: string;
+  name: string;
+  description: string;
+  durationDays: number;
+  price: string;
+  subscriptionPrice: string;
+  currency: LicencePlanCurrency;
+  isActive: boolean;
+}
+
+export type SchoolLicenceSource = typeof SchoolLicenceSource[keyof typeof SchoolLicenceSource];
+
+
+export const SchoolLicenceSource = {
+  admin: 'admin',
+  payment: 'payment',
+} as const;
+
+export type SchoolLicenceStatus = typeof SchoolLicenceStatus[keyof typeof SchoolLicenceStatus];
+
+
+export const SchoolLicenceStatus = {
+  active: 'active',
+  scheduled: 'scheduled',
+  expired: 'expired',
+  revoked: 'revoked',
+} as const;
+
+export interface SchoolLicence {
+  id: string;
+  schoolId: string;
+  planId: string;
+  planName: string;
+  durationDays: number;
+  price: string;
+  startsAt: string;
+  expiresAt: string;
+  source: SchoolLicenceSource;
+  status: SchoolLicenceStatus;
+  /** @nullable */
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export type LicenceOrderStatus = typeof LicenceOrderStatus[keyof typeof LicenceOrderStatus];
+
+
+export const LicenceOrderStatus = {
+  pending: 'pending',
+  partial: 'partial',
+  paid: 'paid',
+  cancelled: 'cancelled',
+} as const;
+
+export interface LicenceOrder {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  planName: string;
+  durationDays: number;
+  price: string;
+  paid: string;
+  balance: string;
+  status: LicenceOrderStatus;
+  createdAt: string;
+}
+
+export type SchoolSubscriptionPaymentMethodsItemId = typeof SchoolSubscriptionPaymentMethodsItemId[keyof typeof SchoolSubscriptionPaymentMethodsItemId];
+
+
+export const SchoolSubscriptionPaymentMethodsItemId = {
+  manual: 'manual',
+  mpesa: 'mpesa',
+  stripe: 'stripe',
+  paystack: 'paystack',
+} as const;
+
+export type SchoolSubscriptionPaymentMethodsItem = {
+  id: SchoolSubscriptionPaymentMethodsItemId;
+  name: string;
+  available: boolean;
+  reason: string;
+};
+
+export interface SchoolSubscription {
+  managed: boolean;
+  accessAllowed: boolean;
+  status: LicenceCoverageStatus;
+  /** @nullable */
+  currentEndsAt: string | null;
+  plans: LicencePlan[];
+  licences: SchoolLicence[];
+  orders: LicenceOrder[];
+  paymentMethods: SchoolSubscriptionPaymentMethodsItem[];
 }
 
 export type MessageDeliveryGatewayInputStatus = typeof MessageDeliveryGatewayInputStatus[keyof typeof MessageDeliveryGatewayInputStatus];

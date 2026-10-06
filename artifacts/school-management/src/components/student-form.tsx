@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useListGrades, useListStreams, getListGradesQueryKey, getListStreamsQueryKey, StudentStatus, BoardingStatus, type Student, type StudentInputGender } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 import { Field, TextInput, NativeSelect, FormError, Btn, FormActions } from "@/components/kit";
-import { blank, nairobiToday } from "@/lib/session";
+import { blank, localToday } from "@/lib/session";
 
 export type StudentFormValues = {
   admissionNo: string; firstName: string; middleName: string; lastName: string; gender: string; dateOfBirth: string;
@@ -23,7 +23,7 @@ export function fromStudent(s?: Student): StudentFormValues {
   return {
     admissionNo: s?.admissionNo ?? "", firstName: s?.firstName ?? "", middleName: s?.middleName ?? "", lastName: s?.lastName ?? "",
     gender: s?.gender ?? "", dateOfBirth: s?.dateOfBirth?.slice(0, 10) ?? "", gradeId: s?.gradeId ?? "", streamId: s?.streamId ?? "",
-    status: s?.status ?? "active", boardingStatus: s?.boardingStatus ?? "day", admissionDate: s?.admissionDate?.slice(0, 10) ?? nairobiToday(),
+    status: s?.status ?? "active", boardingStatus: s?.boardingStatus ?? "day", admissionDate: s?.admissionDate?.slice(0, 10) ?? localToday(),
     upi: s?.upi ?? "", pathway: s?.pathway ?? "", transportRouteId: s?.transportRouteId ?? "", gName: "", gPhone: "", gRelationship: "Mother",
   };
 }

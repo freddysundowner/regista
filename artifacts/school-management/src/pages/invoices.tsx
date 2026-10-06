@@ -3,7 +3,7 @@ import { usePreviewFinanceInvoices, useCommitFinanceInvoices, useCreateFinanceRe
 import { FileText, Loader2, Plus } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, StatusPill, Money, StudentPicker, TermSelect, GradeSelect, LinesEditor, Table, td } from "@/components/finance-kit";
-import { usePerms, errMsg, fmtDate, fmtDateTime, nairobiToday } from "@/lib/session";
+import { usePerms, errMsg, fmtDate, fmtDateTime, localToday } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, sumMoney, rd, type Line } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { FormDialog } from "@/components/form-dialog";
@@ -38,7 +38,7 @@ function Batch({ onClose }: { onClose: () => void }) {
         <div className="grid gap-3 sm:grid-cols-3">
           <TermSelect required value={f.termId} onChange={(v) => change({ termId: v })} />
           <GradeSelect value={f.gradeId} allowNone="All grades" onChange={(v) => change({ gradeId: v })} />
-          <Field label="Due date" required><TextInput data-testid="input-due-date" type="date" value={f.dueDate} min={nairobiToday()} onChange={(e) => change({ dueDate: e.target.value })} /></Field>
+          <Field label="Due date" required><TextInput data-testid="input-due-date" type="date" value={f.dueDate} min={localToday()} onChange={(e) => change({ dueDate: e.target.value })} /></Field>
         </div>
         <FormError msg={err} />
         <FormActions><Btn type="button" variant="ghost" onClick={onClose}>{done ? "Close" : "Cancel"}</Btn><Btn type="submit" variant="outline" data-testid="button-preview-invoices" disabled={preview.isPending}>{preview.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Preview invoices</Btn></FormActions>
@@ -65,7 +65,7 @@ function OneOff({ onDone }: { onDone: () => void }) {
   const create = useCreateFinanceRecord();
   const inv = useFinanceInvalidate();
   const { toast } = useToast();
-  const [f, setF] = useState<{ studentId: string; termId: string; dueDate: string; lines: Line[] }>({ studentId: "", termId: "", dueDate: nairobiToday(), lines: [{ feeItemId: "", amount: "" }] });
+  const [f, setF] = useState<{ studentId: string; termId: string; dueDate: string; lines: Line[] }>({ studentId: "", termId: "", dueDate: localToday(), lines: [{ feeItemId: "", amount: "" }] });
   const [err, setErr] = useState<string | null>(null);
   const idem = useIdemKey(JSON.stringify(f));
   const submit = (e: FormEvent) => {

@@ -6,6 +6,7 @@ import { ApiError, parse, phone } from "../lib/core";
 import { digest, encryptCredentials, equalSecret, integration, systemActor, verifySignature } from "../lib/integrations/security";
 import { financeTransaction, view } from "../lib/finance/posting";
 import { queueMessage } from "../lib/integrations/messages";
+import { resolveMessaging } from "../lib/integrations/messaging-routing";
 import { createDocument } from "../lib/finance/documents";
 import { createPlan } from "../lib/payments/plans";
 import { resolveException, postedStkStatus } from "../lib/payments/pipeline";
@@ -56,7 +57,7 @@ router.post("/bot/v1/identify", async (req, res) => {
   res.json({ guardianId: req.botGuardianId, children: links.map(l => ({ id: l.studentId, name: `${l.student.firstName} ${l.student.lastName}`, admissionNo: l.student.admissionNo, grade: l.student.grade?.name ?? "" })) });
 });
 router.post("/bot/v1/otp/request", async (req, res) => {
-  await integration(req.actor.school.id, "africastalking");
+  await resolveMessaging(req.actor.school.id, "sms");
   await financeTransaction(req.actor, async tx => {
     await currentGuardian(tx, req);
     const prior = await tx.guardianVerification.findUnique({ where: { schoolId_guardianId: { schoolId: req.actor.school.id, guardianId: req.botGuardianId! } } });

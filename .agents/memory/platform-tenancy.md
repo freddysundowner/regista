@@ -3,7 +3,7 @@ name: Platform tenancy
 description: Central administration scope and safeguards when extending school tenancy.
 ---
 
-The user requested full multi-tenancy and an administrator who can manage everything. Keep the platform owner independent of any school, with a separate console. Entering a school's operational workspace must be explicit, temporary, reasoned and audited; default to read-only. Never silently impersonate a school's administrator.
+The user requested full multi-tenancy and an administrator who can manage everything. Keep the platform owner independent of any school, with a separate console. Entering a school's operational workspace must be explicit, temporary and audited; default to read-only. Never silently impersonate a school's administrator.
 
 **Why:** A school-bound platform owner could lose central access when that school is suspended. User-global selection also risks cross-tab context confusion.
 
@@ -26,3 +26,9 @@ Platform admins must manage a school from its comprehensive management page with
 **Why:** The user said the school-list icon should open a page, not the enter-school dialog, and that settings, subscriptions and billing should not require switching schools.
 
 **How to apply:** Keep management navigation separate from optional audited support access. Offer platform-owned controls directly on the school's management page.
+
+Do not require the generic “Audited platform action” reason and typed CONFIRM box in platform forms. Keep automatic activity logging.
+
+**Why:** The user explicitly said there was no need for this box.
+
+**How to apply:** The action button is sufficient confirmation; record an accurate automatic action description without asking users to justify routine platform actions.

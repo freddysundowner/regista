@@ -1,3 +1,4 @@
+import { actionLabel, subjectLabel } from "@/lib/audit-format";
 import { Link } from "wouter";
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { ArrowUpRight, FileSpreadsheet, GraduationCap, Plus } from "lucide-react";
@@ -58,8 +59,8 @@ export default function Dashboard() {
                     <span className="relative z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-card bg-amber-500 ring-1 ring-amber-600/30" />
                     <div className="min-w-0 flex-1 text-sm">
                       <span className="font-semibold">{a.userName ?? "System"}</span>{" "}
-                      <span className="text-muted-foreground">{a.action.replace(/[._]/g, " ")}</span>{" "}
-                      <span className="font-mono text-xs text-foreground/70">{a.entityType}</span>
+                      <span className="text-muted-foreground">— {actionLabel(a)}</span>
+                      {subjectLabel(a) && <span className="block text-xs text-foreground/70">{subjectLabel(a)}</span>}
                     </div>
                     <time className="shrink-0 font-mono text-[11px] text-muted-foreground">{fmtDateTime(a.createdAt)}</time>
                   </li>

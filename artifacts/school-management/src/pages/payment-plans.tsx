@@ -4,7 +4,7 @@ import { useListPaymentPlans, useCreatePaymentPlan, useDecidePaymentPlan, getLis
 import { CalendarClock, Loader2, Plus, X } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
 import { useStudentNames, useTermNames, Money, MoneyInput, StudentPicker, TermSelect, Table, td } from "@/components/finance-kit";
-import { usePerms, errMsg, fmtDate, nairobiToday } from "@/lib/session";
+import { usePerms, errMsg, fmtDate, localToday } from "@/lib/session";
 import { useFinanceInvalidate, validMoney, sumMoney } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { FormDialog } from "@/components/form-dialog";
@@ -16,7 +16,7 @@ function useInv() { const qc = useQueryClient(); const fin = useFinanceInvalidat
 function NewPlan({ onDone }: { onDone: () => void }) {
   const m = useCreatePaymentPlan(); const inv = useInv(); const { toast } = useToast();
   const [f, setF] = useState({ studentId: "", termId: "" });
-  const [rows, setRows] = useState([{ dueDate: nairobiToday(), amount: "" }]);
+  const [rows, setRows] = useState([{ dueDate: localToday(), amount: "" }]);
   const [err, setErr] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);

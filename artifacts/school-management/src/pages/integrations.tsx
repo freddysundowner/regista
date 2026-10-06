@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListIntegrationStatus, useConfigureIntegration, useRegisterDarajaCallbacks, getListIntegrationStatusQueryKey,
   type IntegrationInputProvider, type IntegrationInputEnvironment, type IntegrationStatus,
 } from "@workspace/api-client-react";
-import { KeyRound, Loader2, PlugZap, ShieldAlert } from "lucide-react";
+import { KeyRound, Loader2, PlugZap, RadioTower, ShieldAlert } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
 import { errMsg } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
@@ -14,9 +15,9 @@ type Spec = { label: string; purpose: string; secrets: { key: string; label: str
 const SPECS: Record<IntegrationInputProvider, Spec> = {
   daraja: { label: "M-Pesa Daraja", purpose: "Paybill C2B confirmations and STK prompts.", pub: { key: "shortcode", label: "Paybill / till shortcode" },
     secrets: [{ key: "consumerKey", label: "Consumer key" }, { key: "consumerSecret", label: "Consumer secret" }, { key: "passkey", label: "Lipa na M-Pesa passkey" }, { key: "callbackToken", label: "Callback token", hint: "At least 32 characters; part of the callback URL", min: 32 }] },
-  leadsintel: { label: "LeadsIntel WhatsApp", purpose: "WhatsApp receipts, reminders and the parent bot channel.", pub: { key: "connectionId", label: "WhatsApp connection ID" },
+  leadsintel: { label: "LeadsIntel WhatsApp (legacy)", purpose: "WhatsApp receipts, reminders and the parent bot channel.", pub: { key: "connectionId", label: "WhatsApp connection ID" },
     secrets: [{ key: "platformKey", label: "Platform key" }, { key: "tenantId", label: "Tenant ID" }, { key: "phoneNumberId", label: "Phone number ID", hint: "Optional; needed for inbound WhatsApp events" }, { key: "webhookSecret", label: "Webhook secret", hint: "Optional; needed for inbound events (HMAC)" }, { key: "callbackToken", label: "Callback token", hint: "Optional; at least 32 characters, used for inbound events and the delivery gateway URL", min: 32 }, { key: "deliveryGatewaySecret", label: "Delivery gateway HMAC secret", hint: "Optional; at least 32 characters. Separate from the native provider webhook secret.", min: 32 }] },
-  africastalking: { label: "Africa's Talking SMS", purpose: "SMS fallback when WhatsApp is unavailable.",
+  africastalking: { label: "Africa's Talking SMS (legacy)", purpose: "SMS fallback when WhatsApp is unavailable.",
     secrets: [{ key: "username", label: "Username" }, { key: "apiKey", label: "API key" }, { key: "senderId", label: "Sender ID", hint: "Optional, if approved" }, { key: "callbackToken", label: "Delivery callback token", hint: "Optional; at least 32 characters, used in the delivery gateway URL", min: 32 }, { key: "deliveryGatewaySecret", label: "Delivery gateway HMAC secret", hint: "Optional; at least 32 characters. Shared only with your approved delivery gateway.", min: 32 }] },
   bot: { label: "Parent bot", purpose: "Server-to-server key the bot uses to query balances.",
     secrets: [{ key: "apiKey", label: "Bot API key", hint: "At least 32 characters", min: 32 }, { key: "hmacSecret", label: "HMAC secret", hint: "At least 32 characters", min: 32 }] },
@@ -90,6 +91,11 @@ export default function Integrations() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Connections" title="Integrations" meta="Credentials are write-only: they are encrypted on the server and never displayed, cached or returned." />
+      <div data-testid="banner-messaging-routing" className="flex flex-wrap items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+        <RadioTower className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <p className="min-w-0 flex-1"><b>SMS and WhatsApp now use Messaging routing.</b> Choose the platform default or your own Blessed Text, Onfon, Africa's Talking or LeadsIntel account there. The LeadsIntel and Africa's Talking forms below are legacy accounts kept for existing setups; new messaging accounts belong on the Messaging routing page.</p>
+        <Link href="/messaging" data-testid="link-messaging-routing" className="inline-flex h-9 items-center rounded-md border border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-primary/10">Open Messaging routing</Link>
+      </div>
       <div className="flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
         <p>No live provider has been verified. Daraja, WhatsApp, SMS and KCB still require provider acceptance testing. "Unverified" means saved, not proven to work.</p>
@@ -105,6 +111,7 @@ export default function Integrations() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{spec?.label ?? s.provider}</span><Pill tone={STATUS_TONE[s.status] ?? "left"}>{s.status.replace(/_/g, " ")}</Pill>{s.configured && <Pill tone="current">{s.environment}</Pill>}{s.configured && !s.enabled && <Pill tone="inactive">disabled</Pill>}</div>
                     <p className="text-sm text-muted-foreground">{spec?.purpose}</p>
+                    {(s.provider === "leadsintel" || s.provider === "africastalking") && <p className="mt-1 text-xs text-muted-foreground">Legacy account. Still honoured where Messaging routing reports a legacy source; configure new accounts in <Link href="/messaging" className="font-semibold text-primary hover:underline">Messaging routing</Link>.</p>}
                     {s.reason && <p className="mt-1 text-xs text-amber-800">{s.reason}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2">

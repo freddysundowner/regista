@@ -1,10 +1,11 @@
 import { db } from "@workspace/db";
 import { ApiError, lock, type Tx } from "../core";
-import { integration, decryptCredentials } from "./security";
+import { decryptCredentials } from "./security";
+import { resolveMessaging } from "./messaging-routing";
+import { SmsRejected, submitSms } from "./sms-transports";
 export async function messageReadiness(schoolId: string, channel: string, templateName: string, guardianId: string) {
-  const { credentials, publicConfig } = await integration(schoolId, channel === "sms" ? "africastalking" : "leadsintel");
+  const { credentials, publicConfig } = await resolveMessaging(schoolId, channel === "sms" ? "sms" : "whatsapp");
   if (channel === "sms") {
-    if (!credentials.apiKey || !credentials.username) throw new ApiError(503, "Africa's Talking API key/username missing");
     return;
   }
   if (!credentials.platformKey || !credentials.tenantId || !publicConfig.connectionId) throw new ApiError(503, "LeadsIntel platform key/tenant/connection missing");
@@ -57,22 +58,13 @@ export async function sendDelivery(id: string, schoolId: string) {
   try {
     let providerMessageId: string | undefined;
     if (message.channel === "sms") {
-      const { config, credentials } = await integration(schoolId, "africastalking");
-      if (!credentials.apiKey || !credentials.username) throw new ApiError(503, "Africa's Talking API key/username missing");
-      const form = new URLSearchParams({ username: credentials.username, to: `+${message.phone}`, message: message.template === "otp" ? decryptCredentials(message.content).content : message.content });
-      if (credentials.senderId) form.set("from", credentials.senderId);
+      const { config, credentials, publicConfig, provider, accountId } = await resolveMessaging(schoolId, "sms");
+      await db.messageDelivery.updateMany({ where: { id, schoolId, status: "sending" }, data: { transportProvider: provider, transportAccountId: accountId } });
+      const content = message.template === "otp" ? decryptCredentials(message.content).content : message.content;
       transportStarted = true;
-      const response = await fetch(`https://${config.environment === "sandbox" ? "api.sandbox.africastalking.com" : "api.africastalking.com"}/version1/messaging`, { method: "POST", headers: { apiKey: credentials.apiKey, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }, body: form, signal: AbortSignal.timeout(20000) });
-      if (!response.ok) throw new ApiError(503, `SMS submission failed (${response.status})`);
-      const body = await response.json() as { SMSMessageData?: { Recipients?: { statusCode: number; messageId: string }[] } };
-      const recipient = body.SMSMessageData?.Recipients?.[0];
-      if (!recipient || ![100, 101, 102].includes(recipient.statusCode)) {
-        definitivelyRejected = !!recipient;
-        throw new ApiError(503, `SMS recipient rejected (${recipient?.statusCode ?? "missing"})`);
-      }
-      providerMessageId = recipient.messageId;
+      providerMessageId = await submitSms({ provider, environment: config.environment, credentials, publicConfig }, message.phone, content);
     } else {
-      const { credentials, publicConfig } = await integration(schoolId, "leadsintel");
+      const { credentials, publicConfig, provider, accountId } = await resolveMessaging(schoolId, "whatsapp");
       if (!credentials.platformKey || !credentials.tenantId || !publicConfig.connectionId) throw new ApiError(503, "LeadsIntel platform key/tenant/connection missing");
       const school = await db.school.findUniqueOrThrow({ where: { id: schoolId } });
       const templates = (school.settings as Record<string, any>).messageTemplates ?? {};
@@ -88,6 +80,7 @@ export async function sendDelivery(id: string, schoolId: string) {
         const components = JSON.parse(JSON.stringify(template.components ?? []).replace(/\{\{content\}\}/g, () => JSON.stringify(message.content).slice(1, -1)));
         payload = { to: message.phone, type: "template", name: template.name, language: template.language ?? "en", components };
       }
+      await db.messageDelivery.updateMany({ where: { id, schoolId, status: "sending" }, data: { transportProvider: provider, transportAccountId: accountId } });
       transportStarted = true;
       const response = await fetch(`https://app.leadsintel.net/api/external-platform/whatsapp/connections/${encodeURIComponent(credentials.tenantId)}/${encodeURIComponent(publicConfig.connectionId)}/send`, {
         method: "POST", headers: { Authorization: `Bearer ${credentials.platformKey}`, "Idempotency-Key": message.id, "Content-Type": "application/json" },
@@ -99,6 +92,7 @@ export async function sendDelivery(id: string, schoolId: string) {
     if (!providerMessageId) throw new ApiError(503, "Provider accepted without a message identity; reconcile before retry");
     await db.messageDelivery.updateMany({ where: { id, schoolId, status: "sending" }, data: { status: "submitted", providerMessageId, error: null } });
   } catch (error) {
+    definitivelyRejected = error instanceof SmsRejected;
     const errorText = error instanceof ApiError ? error.message : "Provider transport error; submission outcome may be unknown";
     const fallbackSafe = message.channel === "whatsapp" && !transportStarted;
     const status = definitivelyRejected || fallbackSafe ? "rejected" : transportStarted ? "uncertain" : "failed";
@@ -112,10 +106,12 @@ export async function sendDelivery(id: string, schoolId: string) {
 }
 
 /** Called only by an authenticated, contract-validated delivery gateway. */
-export async function recordDeliveryEvent(tx: Tx, schoolId: string, provider: string, providerMessageId: string, status: "delivered" | "read" | "rejected") {
+export async function recordDeliveryEvent(tx: Tx, schoolId: string, provider: string, providerMessageId: string, status: "delivered" | "read" | "rejected", accountId: string | null = null) {
   await lock(tx, schoolId);
-  const channel = provider === "africastalking" ? "sms" : "whatsapp";
-  const rows = await tx.messageDelivery.findMany({ where: { schoolId, channel, providerMessageId }, take: 2 });
+  const channel = provider === "leadsintel" ? "whatsapp" : "sms";
+  if (channel === "sms" && status === "read") throw new ApiError(400, "SMS read receipts are not supported.");
+  const rows = await tx.messageDelivery.findMany({ where: { schoolId, channel, providerMessageId, transportAccountId: accountId,
+    OR: accountId ? [{ transportProvider: provider }] : [{ transportProvider: provider }, { transportProvider: null }] }, take: 2 });
   if (rows.length !== 1) throw new ApiError(409, "Provider message identity missing or ambiguous; retry after submission is recorded");
   const message = rows[0];
   // Terminal positive evidence wins; late/duplicate failures must never trigger a fallback.

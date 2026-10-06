@@ -1,0 +1,123 @@
+paths:
+  deliveryGateway:
+    post:
+      operationId: recordMessagingAccountDeliveryEvent
+      description: Operator-run normalized gateway, not a native provider callback. Requires verified native delivery evidence, a configured callback token and HMAC-SHA256 signature over timestamp + "." + raw JSON body using the separate deliveryGatewaySecret. School, account and provider must match the submitted message.
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - { name: X-Delivery-Timestamp, in: header, required: true, schema: { type: string } }
+        - { name: X-Delivery-Signature, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessagingAccountDeliveryInput' }
+      responses:
+        "204":
+          description: Recorded authenticated delivery evidence
+  platform:
+    get:
+      operationId: getPlatformMessaging
+      responses:
+        "200":
+          description: Platform defaults without credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagingSettings' }
+  platformChannel:
+    parameters:
+      - { name: channel, in: path, required: true, schema: { $ref: '#/components/schemas/MessagingChannel' } }
+    put:
+      operationId: savePlatformMessaging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessagingAccountInput' }
+      responses:
+        "200":
+          description: Saved default; connectivity remains unverified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagingSettings' }
+  school:
+    get:
+      operationId: getSchoolMessaging
+      responses:
+        "200":
+          description: School routing and effective provider without credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagingSettings' }
+  schoolChannel:
+    parameters:
+      - { name: channel, in: path, required: true, schema: { $ref: '#/components/schemas/MessagingChannel' } }
+    put:
+      operationId: saveSchoolMessaging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessagingAccountInput' }
+      responses:
+        "200":
+          description: Saved school override or explicit inheritance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagingSettings' }
+components:
+  schemas:
+    MessagingAccountDeliveryInput:
+      type: object
+      additionalProperties: false
+      required: [schoolId, providerMessageId, status]
+      properties:
+        schoolId: { type: string, format: uuid }
+        providerMessageId: { type: string, minLength: 1, maxLength: 200 }
+        status: { type: string, enum: [delivered, read, rejected] }
+    MessagingChannel:
+      type: string
+      enum: [sms, whatsapp]
+    MessagingProvider:
+      type: string
+      enum: [blessedtexts, onfon, africastalking, leadsintel]
+    MessagingRouteMode:
+      type: string
+      enum: [inherit, override]
+    MessagingAccountInput:
+      type: object
+      required: [mode, enabled]
+      properties:
+        mode: { $ref: '#/components/schemas/MessagingRouteMode' }
+        provider: { $ref: '#/components/schemas/MessagingProvider' }
+        enabled: { type: boolean }
+        environment: { type: string, enum: [live, sandbox] }
+        senderId: { type: string, maxLength: 100 }
+        connectionId: { type: string, maxLength: 200 }
+        credentials:
+          type: object
+          additionalProperties: { type: string, maxLength: 8000 }
+          description: Write-only. Omit to retain credentials only for an unchanged provider. An object replaces all credentials.
+    MessagingChannelState:
+      type: object
+      required: [channel, mode, source, provider, enabled, configured, canRetainCredentials, environment, senderId, connectionId, status, reason]
+      properties:
+        channel: { $ref: '#/components/schemas/MessagingChannel' }
+        mode: { $ref: '#/components/schemas/MessagingRouteMode' }
+        source: { type: string, enum: [platform, school, legacy, none] }
+        provider: { type: ["string", "null"] }
+        enabled: { type: boolean }
+        configured: { type: boolean }
+        canRetainCredentials: { type: boolean }
+        environment: { type: string }
+        senderId: { type: string }
+        connectionId: { type: string }
+        status: { type: string, enum: [not_configured, disabled, contract_required, unverified] }
+        reason: { type: string }
+    MessagingSettings:
+      type: object
+      required: [channels]
+      properties:
+        channels:
+          type: array
+          items: { $ref: '#/components/schemas/MessagingChannelState' }
