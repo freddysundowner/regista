@@ -1,0 +1,98 @@
+/* Use available content width, including the sidebar, rather than device width. */
+.subscriptions-page {
+  container: subscriptions / inline-size;
+  min-width: 0;
+}
+.subscriptions-page .rt-cards td {
+  overflow-wrap: anywhere;
+}
+.subscriptions-page .rt-cards td:last-child,
+.subscriptions-page .rt-cards td.text-right,
+.subscriptions-page .rt-cards td.text-right > div {
+  white-space: nowrap;
+}
+.subscriptions-toolbar [role="tablist"] {
+  flex: 0 1 auto;
+}
+.subscriptions-toolbar label input {
+  min-height: 2.875rem;
+}
+@container subscriptions (max-width: 1100px) {
+  .subscriptions-page .rt-cards {
+    overflow: visible;
+    padding: 1rem;
+  }
+  .subscriptions-page .rt-cards table,
+  .subscriptions-page .rt-cards tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .subscriptions-page .rt-cards thead {
+    display: none;
+  }
+  .subscriptions-page .rt-cards tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+    margin: 0 0 1rem;
+    padding: 1rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: .75rem;
+    background: hsl(var(--card));
+  }
+  .subscriptions-page .rt-cards tbody tr:last-child {
+    margin-bottom: 0;
+  }
+  .subscriptions-page .rt-cards tbody td {
+    display: block !important;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    padding: 0 !important;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .subscriptions-page .rt-cards tbody td::before {
+    content: attr(data-label);
+    display: block;
+    max-width: none;
+    margin: 0 0 .35rem;
+    padding: 0;
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+  .subscriptions-page .rt-cards tbody td:last-child {
+    grid-column: 1 / -1;
+  }
+  .subscriptions-page .rt-cards tbody td .flex {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .subscriptions-page .rt-cards .truncate {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .subscriptions-page .rt-cards button {
+    min-height: 2.75rem;
+  }
+}
+@container subscriptions (max-width: 480px) {
+  .subscriptions-page .rt-cards tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .subscriptions-toolbar [role="tablist"] {
+    width: 100%;
+  }
+  .subscriptions-toolbar [role="tab"] {
+    flex: 1 1 auto;
+    padding-inline: .5rem;
+    font-size: .75rem;
+  }
+}

@@ -65,6 +65,7 @@ import type {
   GenerateBatchReportCards200Item,
   GetAttendanceRegisterParams,
   GetBotAttendance200Item,
+  GetPlatformSubscriptionsParams,
   Grade,
   GradeInput,
   Guardian,
@@ -120,6 +121,9 @@ import type {
   PlatformAudit,
   PlatformBilling,
   PlatformBillingCorrection,
+  PlatformEmailSettings,
+  PlatformEmailSettingsInput,
+  PlatformEmailTestInput,
   PlatformInvoice,
   PlatformInvoiceInput,
   PlatformMessage,
@@ -128,6 +132,7 @@ import type {
   PlatformPaymentInput,
   PlatformProvisionInput,
   PlatformSchoolUpdate,
+  PlatformSubscriptions,
   PrivacyConfirmation,
   PromotionConfirmation,
   PromotionInput,
@@ -151,6 +156,7 @@ import type {
   SchoolRegistrationReview,
   SchoolSubscription,
   SchoolUpdate,
+  SendPlatformTestEmail200,
   SetupStatus,
   SponsorBatchView,
   SponsorInput,
@@ -177,7 +183,8 @@ import type {
   TermUpdate,
   User,
   UserInput,
-  UserUpdate
+  UserUpdate,
+  WhatsappConnectionCheck
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -206,6 +213,461 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetPlatformEmailSettingsUrl = () => {
+
+
+
+
+  return `/api/platform/settings/email`
+}
+
+export const getPlatformEmailSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformEmailSettings> => {
+
+  return customFetch<PlatformEmailSettings>(getGetPlatformEmailSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformEmailSettingsQueryKey = () => {
+    return [
+    `/api/platform/settings/email`
+    ] as const;
+    }
+
+
+export const getGetPlatformEmailSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformEmailSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformEmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformEmailSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformEmailSettings>>> = ({ signal }) => getPlatformEmailSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformEmailSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformEmailSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformEmailSettings>>>
+export type GetPlatformEmailSettingsQueryError = ErrorType<unknown>
+
+
+
+export function useGetPlatformEmailSettings<TData = Awaited<ReturnType<typeof getPlatformEmailSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformEmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformEmailSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSavePlatformEmailSettingsUrl = () => {
+
+
+
+
+  return `/api/platform/settings/email`
+}
+
+export const savePlatformEmailSettings = async (platformEmailSettingsInput: PlatformEmailSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<PlatformEmailSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformEmailSettings>(getSavePlatformEmailSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformEmailSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getSavePlatformEmailSettingsMutationKey = () => ['savePlatformEmailSettings'] as const;
+
+export const getSavePlatformEmailSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePlatformEmailSettings>>, TError,SavePlatformEmailSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof savePlatformEmailSettings>>, TError,SavePlatformEmailSettingsMutationVariables, TContext> => {
+
+const mutationKey = getSavePlatformEmailSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof savePlatformEmailSettings>>, SavePlatformEmailSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  savePlatformEmailSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SavePlatformEmailSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof savePlatformEmailSettings>>>
+    export type SavePlatformEmailSettingsMutationBody = BodyType<PlatformEmailSettingsInput>
+    export type SavePlatformEmailSettingsMutationError = ErrorType<unknown>
+    export type SavePlatformEmailSettingsMutationVariables = {data: BodyType<PlatformEmailSettingsInput>}
+
+    export const useSavePlatformEmailSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePlatformEmailSettings>>, TError,SavePlatformEmailSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof savePlatformEmailSettings>>,
+        TError,
+        SavePlatformEmailSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSavePlatformEmailSettingsMutationOptions(options));
+    }
+
+export const getSendPlatformTestEmailUrl = () => {
+
+
+
+
+  return `/api/platform/settings/email/test`
+}
+
+export const sendPlatformTestEmail = async (platformEmailTestInput: PlatformEmailTestInput, options?: Parameters<typeof customFetch>[1]): Promise<SendPlatformTestEmail200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SendPlatformTestEmail200>(getSendPlatformTestEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformEmailTestInput)
+  }
+);}
+
+
+
+
+
+export const getSendPlatformTestEmailMutationKey = () => ['sendPlatformTestEmail'] as const;
+
+export const getSendPlatformTestEmailMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPlatformTestEmail>>, TError,SendPlatformTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendPlatformTestEmail>>, TError,SendPlatformTestEmailMutationVariables, TContext> => {
+
+const mutationKey = getSendPlatformTestEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendPlatformTestEmail>>, SendPlatformTestEmailMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendPlatformTestEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendPlatformTestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendPlatformTestEmail>>>
+    export type SendPlatformTestEmailMutationBody = BodyType<PlatformEmailTestInput>
+    export type SendPlatformTestEmailMutationError = ErrorType<unknown>
+    export type SendPlatformTestEmailMutationVariables = {data: BodyType<PlatformEmailTestInput>}
+
+    export const useSendPlatformTestEmail = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPlatformTestEmail>>, TError,SendPlatformTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendPlatformTestEmail>>,
+        TError,
+        SendPlatformTestEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendPlatformTestEmailMutationOptions(options));
+    }
+
+export const getCheckPlatformWhatsappConnectionUrl = () => {
+
+
+
+
+  return `/api/platform/messaging/whatsapp/connection`
+}
+
+export const checkPlatformWhatsappConnection = async ( options?: Parameters<typeof customFetch>[1]): Promise<WhatsappConnectionCheck> => {
+
+  return customFetch<WhatsappConnectionCheck>(getCheckPlatformWhatsappConnectionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckPlatformWhatsappConnectionQueryKey = () => {
+    return [
+    `/api/platform/messaging/whatsapp/connection`
+    ] as const;
+    }
+
+
+export const getCheckPlatformWhatsappConnectionQueryOptions = <TData = Awaited<ReturnType<typeof checkPlatformWhatsappConnection>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkPlatformWhatsappConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckPlatformWhatsappConnectionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkPlatformWhatsappConnection>>> = ({ signal }) => checkPlatformWhatsappConnection({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkPlatformWhatsappConnection>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CheckPlatformWhatsappConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof checkPlatformWhatsappConnection>>>
+export type CheckPlatformWhatsappConnectionQueryError = ErrorType<unknown>
+
+
+
+export function useCheckPlatformWhatsappConnection<TData = Awaited<ReturnType<typeof checkPlatformWhatsappConnection>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkPlatformWhatsappConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCheckPlatformWhatsappConnectionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCheckSchoolWhatsappConnectionUrl = () => {
+
+
+
+
+  return `/api/messaging/settings/whatsapp/connection`
+}
+
+export const checkSchoolWhatsappConnection = async ( options?: Parameters<typeof customFetch>[1]): Promise<WhatsappConnectionCheck> => {
+
+  return customFetch<WhatsappConnectionCheck>(getCheckSchoolWhatsappConnectionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckSchoolWhatsappConnectionQueryKey = () => {
+    return [
+    `/api/messaging/settings/whatsapp/connection`
+    ] as const;
+    }
+
+
+export const getCheckSchoolWhatsappConnectionQueryOptions = <TData = Awaited<ReturnType<typeof checkSchoolWhatsappConnection>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkSchoolWhatsappConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckSchoolWhatsappConnectionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkSchoolWhatsappConnection>>> = ({ signal }) => checkSchoolWhatsappConnection({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkSchoolWhatsappConnection>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CheckSchoolWhatsappConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof checkSchoolWhatsappConnection>>>
+export type CheckSchoolWhatsappConnectionQueryError = ErrorType<unknown>
+
+
+
+export function useCheckSchoolWhatsappConnection<TData = Awaited<ReturnType<typeof checkSchoolWhatsappConnection>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkSchoolWhatsappConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCheckSchoolWhatsappConnectionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPlatformSubscriptionsUrl = (params?: GetPlatformSubscriptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/subscriptions?${stringifiedParams}` : `/api/platform/subscriptions`
+}
+
+export const getPlatformSubscriptions = async (params?: GetPlatformSubscriptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<PlatformSubscriptions> => {
+
+  return customFetch<PlatformSubscriptions>(getGetPlatformSubscriptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformSubscriptionsQueryKey = (params?: GetPlatformSubscriptionsParams,) => {
+    return [
+    `/api/platform/subscriptions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPlatformSubscriptionsQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformSubscriptions>>, TError = ErrorType<unknown>>(params?: GetPlatformSubscriptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformSubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformSubscriptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformSubscriptions>>> = ({ signal }) => getPlatformSubscriptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformSubscriptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformSubscriptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformSubscriptions>>>
+export type GetPlatformSubscriptionsQueryError = ErrorType<unknown>
+
+
+
+export function useGetPlatformSubscriptions<TData = Awaited<ReturnType<typeof getPlatformSubscriptions>>, TError = ErrorType<unknown>>(
+ params?: GetPlatformSubscriptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformSubscriptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformSubscriptionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRecordMessagingAccountDeliveryEventUrl = (token: string,) => {
 

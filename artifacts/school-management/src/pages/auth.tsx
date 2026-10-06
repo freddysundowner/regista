@@ -1,7 +1,7 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateInitialSchool, useLogin, useGetSetupStatus, getGetCurrentUserQueryKey, getGetSetupStatusQueryKey, SchoolType, type AuthSession } from "@workspace/api-client-react";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { Field, TextInput, NativeSelect, FormError, Btn } from "@/components/kit";
 import { errMsg } from "@/lib/session";
@@ -98,38 +98,81 @@ export function SetupPage() {
   );
 }
 
+function LoginShell({ children }: { children: ReactNode }) {
+  const areas = ["Learners", "Families", "Fees", "Academics"];
+  return (
+    <div className="relative min-h-[100dvh] overflow-hidden bg-[hsl(42_38%_95%)]">
+      <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-[radial-gradient(circle,hsl(38_88%_62%/.32),transparent_65%)]" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-56 -left-40 h-[38rem] w-[38rem] rounded-full bg-[radial-gradient(circle,hsl(188_52%_30%/.20),transparent_65%)]" />
+      <div className="relative mx-auto grid min-h-[100dvh] max-w-6xl grid-cols-1 gap-10 px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-16 lg:py-12">
+        <header className="flex flex-col lg:h-full lg:justify-between lg:py-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-display text-xl font-bold text-primary-foreground shadow-[0_6px_16px_-6px_hsl(188_52%_20%/.6)]">R</div>
+            <span className="font-display text-xl font-semibold tracking-tight">Rejista</span>
+          </div>
+          <div className="mt-10 hidden lg:block">
+            <h2 className="text-[clamp(2.75rem,4.6vw,4.25rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-foreground">
+              Your school's<br />day, <span className="text-primary">in one place.</span>
+            </h2>
+            <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">The shared workspace where staff keep learners, families, fees and academics up to date together.</p>
+            <ul className="mt-8 flex flex-wrap gap-2">
+              {areas.map((a) => <li key={a} className="rounded-full border border-primary/15 bg-card/70 px-3.5 py-1.5 text-sm font-medium text-primary backdrop-blur">{a}</li>)}
+            </ul>
+          </div>
+          <p className="mt-10 hidden text-xs text-muted-foreground lg:block">Karibu tena — welcome back.</p>
+        </header>
+        <main className="flex items-start justify-center lg:items-center">
+          <div className="rise w-full max-w-md rounded-[1.75rem] border border-card-border bg-card/90 p-6 shadow-[0_30px_60px_-30px_hsl(192_40%_15%/.35)] backdrop-blur sm:p-10">{children}</div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 export function LoginPage() {
   const done = useAuthDone();
   const m = useLogin({ mutation: { onSuccess: done } });
   const [identifier, setId] = useState("");
   const [password, setPw] = useState("");
+  const [show, setShow] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { document.title = "Sign in · Rejista"; }, []);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setErr(null);
     m.mutate({ data: { identifier: identifier.trim(), password } }, { onError: (x) => setErr(errMsg(x, "Sign-in failed")) });
   };
+  const ctl = "h-12 w-full rounded-xl border border-input bg-background/60 px-4 text-[15px] outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/10";
   return (
-    <Frame side={<>
-      <p className="font-display text-4xl font-semibold leading-[1.1] text-sidebar-accent-foreground">Karibu tena.</p>
-      <p className="mt-4 max-w-sm text-sm leading-relaxed text-sidebar-foreground/70">Sign in with the email or phone number your school administrator registered for you.</p>
-    </>}>
-      <div className="mx-auto max-w-sm">
-        <div className="mb-8">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700/80">Staff sign-in</div>
-          <h1 className="mt-1 font-display text-4xl font-semibold">Welcome back</h1>
-        </div>
-        <form onSubmit={submit} className="space-y-4">
-          <Field label="Email or phone"><TextInput data-testid="input-identifier" required minLength={3} autoFocus value={identifier} onChange={(e) => setId(e.target.value)} placeholder="you@school.ac.ke or 07..." /></Field>
-          <Field label="Password"><TextInput data-testid="input-password" type="password" required value={password} onChange={(e) => setPw(e.target.value)} /></Field>
-          <FormError msg={err} />
-          <Btn data-testid="button-login" type="submit" disabled={m.isPending} className="h-11 w-full">
-            {m.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Sign in <ArrowRight className="h-4 w-4" /></>}
-          </Btn>
-          <p className="pt-2 text-sm text-muted-foreground">New school? <Link href="/register" data-testid="link-register" className="font-semibold text-primary hover:underline">Register for review</Link></p>
-          <p className="text-xs text-muted-foreground">Forgot your password? Ask your school administrator to reset your account.</p>
-        </form>
+    <LoginShell>
+      <div className="mb-8">
+        <p className="text-sm font-medium text-primary">Staff sign-in</p>
+        <h1 className="mt-1.5 text-3xl font-semibold tracking-[-0.03em] sm:text-[2.1rem]">Welcome back</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Use the email or phone number your school administrator registered for you.</p>
       </div>
-    </Frame>
+      <form onSubmit={submit} className="space-y-5">
+        <div className="space-y-1.5">
+          <label htmlFor="login-identifier" className="text-sm font-medium">Email or phone</label>
+          <input id="login-identifier" name="username" data-testid="input-identifier" className={ctl} required minLength={3} autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} value={identifier} onChange={(e) => setId(e.target.value)} placeholder="you@school.ac.ke or 07..." />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="login-password" className="text-sm font-medium">Password</label>
+          <div className="relative">
+            <input id="login-password" name="password" data-testid="input-password" className={`${ctl} pr-12`} type={show ? "text" : "password"} required autoComplete="current-password" value={password} onChange={(e) => setPw(e.target.value)} />
+            <button type="button" data-testid="button-toggle-password" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"} aria-pressed={show} aria-controls="login-password" className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">Forgot your password? Ask your school administrator to reset your account.</p>
+        </div>
+        <FormError msg={err} />
+        <Btn data-testid="button-login" type="submit" disabled={m.isPending} aria-busy={m.isPending} className="h-12 w-full rounded-xl text-[15px] sm:h-12">
+          {m.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing in</> : <>Sign in <ArrowRight className="h-4 w-4" /></>}
+        </Btn>
+      </form>
+      <div className="mt-8 border-t border-border/70 pt-6 text-sm text-muted-foreground">
+        New school? <Link href="/register" data-testid="link-register" className="font-semibold text-primary hover:underline">Register for review</Link>
+      </div>
+    </LoginShell>
   );
 }

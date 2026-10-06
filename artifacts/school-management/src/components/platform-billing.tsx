@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetPlatformBilling, useCreatePlatformInvoice, useRecordPlatformPayment, useVoidPlatformInvoice, useReversePlatformPayment,
-  getGetPlatformBillingQueryKey, getListPlatformAuditQueryKey, PlatformPaymentInputMethod,
+  getGetPlatformBillingQueryKey, getListPlatformAuditQueryKey, getGetPlatformSubscriptionsQueryKey, PlatformPaymentInputMethod,
   type PlatformInvoice, type PlatformBillingPayment, type School,
 } from "@workspace/api-client-react";
 import { Ban, Banknote, FileText, Loader2, Plus, ReceiptText, Undo2 } from "lucide-react";
@@ -30,16 +30,18 @@ export function kes(s: string | null | undefined) {
 function today() {
   return localToday();
 }
-const TONE: Record<string, string> = { paid: "active", partial: "duplicate", unpaid: "inactive", overdue: "error", void: "inactive" };
-const METHOD: Record<string, string> = { bank: "Bank transfer", mpesa: "M-Pesa", cash: "Cash", other: "Other" };
-const canPay = (i: PlatformInvoice) => i.status !== "void" && i.status !== "paid" && cents(i.balance) > 0;
-const canVoid = (i: PlatformInvoice) => i.status !== "void" && cents(i.paid) === 0;
+export const TONE: Record<string, string> = { paid: "active", partial: "duplicate", unpaid: "inactive", overdue: "error", void: "inactive" };
+export const METHOD: Record<string, string> = { bank: "Bank transfer", mpesa: "M-Pesa", cash: "Cash", other: "Other" };
+export const canPay = (i: PlatformInvoice) => i.status !== "void" && i.status !== "paid" && cents(i.balance) > 0;
+export const canVoid = (i: PlatformInvoice) => i.status !== "void" && cents(i.paid) === 0;
 
 function useRefreshBilling(schoolId: string) {
   const qc = useQueryClient();
   return () => {
     qc.invalidateQueries({ queryKey: getGetPlatformBillingQueryKey(schoolId) });
     qc.invalidateQueries({ queryKey: getListPlatformAuditQueryKey().slice(0, 1) });
+    // Central Subscriptions page (all schools, every page/search variant).
+    qc.invalidateQueries({ queryKey: getGetPlatformSubscriptionsQueryKey().slice(0, 1) });
     // Settling or reversing a renewal invoice activates or suspends its linked licence.
     invalidateLicensing(qc, schoolId);
   };
@@ -102,7 +104,7 @@ function InvoiceForm({ schoolId, onDone }: { schoolId: string; onDone: () => voi
   );
 }
 
-function PaymentForm({ schoolId, invoice, onDone }: { schoolId: string; invoice: PlatformInvoice; onDone: () => void }) {
+export function PaymentForm({ schoolId, invoice, onDone }: { schoolId: string; invoice: Pick<PlatformInvoice, "id" | "number" | "amount" | "balance">; onDone: () => void }) {
   const refresh = useRefreshBilling(schoolId);
   const { toast } = useToast();
   const m = useRecordPlatformPayment();
@@ -147,7 +149,7 @@ function PaymentForm({ schoolId, invoice, onDone }: { schoolId: string; invoice:
   );
 }
 
-function CorrectionForm({ schoolId, invoice, payment, onDone }: { schoolId: string; invoice: PlatformInvoice; payment?: PlatformBillingPayment; onDone: () => void }) {
+export function CorrectionForm({ schoolId, invoice, payment, onDone }: { schoolId: string; invoice: Pick<PlatformInvoice, "id" | "number"> & { amount?: string }; payment?: Pick<PlatformBillingPayment, "id" | "amount" | "reference">; onDone: () => void }) {
   const refresh = useRefreshBilling(schoolId);
   const { toast } = useToast();
   const voider = useVoidPlatformInvoice();

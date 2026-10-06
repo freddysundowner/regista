@@ -31,6 +31,79 @@ tags:
   - name: audit
     description: Audit history
 paths:
+  /platform/settings/email:
+    get:
+      operationId: getPlatformEmailSettings
+      responses:
+        "200":
+          description: Platform email settings without credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformEmailSettings" }
+    put:
+      operationId: savePlatformEmailSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformEmailSettingsInput" }
+      responses:
+        "200":
+          description: Email settings saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformEmailSettings" }
+  /platform/settings/email/test:
+    post:
+      operationId: sendPlatformTestEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEmailTestInput"
+      responses:
+        "200":
+          description: Accepted by Brevo, not a delivery confirmation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, messageId]
+                properties:
+                  message: { type: string }
+                  messageId: { type: string }
+  /platform/messaging/whatsapp/connection:
+    get:
+      operationId: checkPlatformWhatsappConnection
+      responses:
+        "200":
+          description: Live connection status; does not send a message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhatsappConnectionCheck" }
+  /messaging/settings/whatsapp/connection:
+    get:
+      operationId: checkSchoolWhatsappConnection
+      responses:
+        "200":
+          description: Live effective connection status; does not send a message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhatsappConnectionCheck" }
+  /platform/subscriptions:
+    get:
+      operationId: getPlatformSubscriptions
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 150 } }
+        - { name: invoicePage, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: paymentPage, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        "200":
+          description: Platform subscription invoices and received payments across schools
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSubscriptions" }
   /integrations/messaging-delivery/events/{token}:
     $ref: './messaging.yaml#/paths/deliveryGateway'
   /platform/messaging:
@@ -1346,6 +1419,36 @@ paths:
                   $ref: "#/components/schemas/AuditLog"
 components:
   schemas:
+    PlatformEmailTestInput:
+      type: object
+      required: [recipient]
+      properties:
+        recipient: { type: string, format: email, maxLength: 254 }
+    PlatformEmailSettings:
+      type: object
+      required: [provider, enabled, configured, senderName, senderEmail, replyTo]
+      properties:
+        provider: { type: string, enum: [brevo] }
+        enabled: { type: boolean }
+        configured: { type: boolean }
+        senderName: { type: string }
+        senderEmail: { type: string }
+        replyTo: { type: string }
+        updatedAt: { type: string, format: date-time }
+    PlatformEmailSettingsInput:
+      type: object
+      required: [enabled, senderName, senderEmail]
+      properties:
+        enabled: { type: boolean }
+        senderName: { type: string, minLength: 1, maxLength: 100 }
+        senderEmail: { type: string, format: email, maxLength: 254 }
+        replyTo: { type: string, format: email, maxLength: 254 }
+        apiKey:
+          type: string
+          minLength: 10
+          maxLength: 4096
+          writeOnly: true
+          description: Omit to retain the saved encrypted key. Never returned in responses.
     HealthStatus:
       type: object
       properties:
@@ -2033,6 +2136,42 @@ components:
         outstanding: { type: string }
         overdue: { type: string }
         invoices: { type: array, items: { $ref: "#/components/schemas/PlatformInvoice" } }
+    SubscriptionInvoiceRow:
+      allOf:
+        - { $ref: "#/components/schemas/PlatformInvoice" }
+        - type: object
+          required: [schoolName, schoolCode]
+          properties:
+            schoolName: { type: string }
+            schoolCode: { type: string }
+    SubscriptionPaymentRow:
+      allOf:
+        - { $ref: "#/components/schemas/PlatformBillingPayment" }
+        - type: object
+          required: [schoolId, schoolName, schoolCode, invoiceId, invoiceNumber, description]
+          properties:
+            schoolId: { type: string, format: uuid }
+            schoolName: { type: string }
+            schoolCode: { type: string }
+            invoiceId: { type: string, format: uuid }
+            invoiceNumber: { type: string }
+            description: { type: string }
+    PlatformSubscriptions:
+      type: object
+      required: [invoices, payments, invoiceTotal, paymentTotal, pageSize]
+      properties:
+        invoices: { type: array, items: { $ref: "#/components/schemas/SubscriptionInvoiceRow" } }
+        payments: { type: array, items: { $ref: "#/components/schemas/SubscriptionPaymentRow" } }
+        invoiceTotal: { type: integer }
+        paymentTotal: { type: integer }
+        pageSize: { type: integer }
+    WhatsappConnectionCheck:
+      type: object
+      required: [status, checkedAt]
+      properties:
+        status: { type: string }
+        displayPhoneNumber: { type: string }
+        checkedAt: { type: string, format: date-time }
     PasswordChangeInput:
       type: object
       required: [currentPassword, newPassword]

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { usePageTitle } from "@/lib/page-title";
 
-export function PageHeader({ eyebrow, title, children, meta }: { eyebrow: string; title: string; children?: ReactNode; meta?: ReactNode }) {
+export function PageHeader({ title, children, meta }: { eyebrow?: string; title: string; children?: ReactNode; meta?: ReactNode }) {
   // On phones inner pages show their title in the app header (shell); the in-page block is desktop-only.
   usePageTitle(title);
   const [loc] = useLocation();
@@ -13,7 +13,6 @@ export function PageHeader({ eyebrow, title, children, meta }: { eyebrow: string
   return (
     <header className={cn("page-header rise flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between", inner && "page-header-inner max-md:border-0 max-md:pb-0")}>
       <div className={cn("min-w-0", inner && "max-md:hidden")}>
-        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700/80">{eyebrow}</div>
         <h1 className="font-display text-[1.75rem] font-semibold leading-tight text-foreground [overflow-wrap:anywhere] md:text-[2.4rem] md:leading-none">{title}</h1>
         {meta && <div className="mt-2 text-sm text-muted-foreground">{meta}</div>}
       </div>

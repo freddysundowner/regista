@@ -6,3 +6,5 @@
 - [Viewer timezone](viewer-timezone.md) — display timestamps in the viewer’s timezone; preserve date-only calendar values.
 - [API contract naming](api-contracts.md) — use globally distinct named request and enum schemas to avoid silent codegen collisions.
 - [Messaging ownership](messaging-ownership.md) — platform defaults with school overrides; preserve explicit payer selection and verify provider contracts before sending.
+- [Navigation naming](navigation-naming.md) — one consistent name per page; central Subscriptions; sidebar collapse must survive restarts.
+- [Request completion](request-completion.md) — user has objected to explanations replacing requested changes; verify implementation before calling work complete.

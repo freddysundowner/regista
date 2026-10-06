@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PageTitleProvider, useRegisteredTitle } from "@/lib/page-title";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
-import { BadgeCheck, ShieldCheck, Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug, RadioTower } from "lucide-react";
+import { ShieldCheck, Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug, RadioTower } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLogout } from "@workspace/api-client-react";
 import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Menu, X, Settings, Users, UserCog } from "lucide-react";
@@ -10,7 +10,12 @@ import { useAuthSession, useReadOnly, usePerms, ROLE_LABEL, initials } from "@/l
 import { TenantAccessBanner, hardReset } from "@/components/platform-kit";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronsUpDown, ChevronLeft } from "lucide-react";
+import { ChevronsUpDown, ChevronLeft, PanelLeftClose, PanelLeftOpen, Wallet } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { pageName } from "@/lib/route-names";
+
+const COLLAPSE_KEY = "rejista.sidebar.collapsed";
+function readCollapsed() { try { return localStorage.getItem(COLLAPSE_KEY) === "1"; } catch { return false; } }
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -41,47 +46,48 @@ function ShellInner({ children }: { children: ReactNode }) {
   // also discards in-memory learner drafts when changing staff accounts.
   const logout = useLogout({ mutation: { onSuccess: () => hardReset(qc) } });
 
+  const N = (h: string) => pageName(h, platformMode) ?? h;
   const platformNav = [
-    { href: "/", label: "Platform overview", icon: LayoutDashboard, show: true },
-    { href: "/schools", label: "Schools", icon: Building2, show: true },
-    { href: "/platform/licence-plans", label: "Licence plans", icon: BadgeCheck, show: true },
-    { href: "/platform/messaging", label: "Messaging defaults", icon: RadioTower, show: true },
-    { href: "/platform/audit", label: "Platform audit", icon: ScrollText, show: true },
-    { href: "/account", label: "My account", icon: KeyRound, show: true },
+    { href: "/", label: N("/"), icon: LayoutDashboard, show: true },
+    { href: "/schools", label: N("/schools"), icon: Building2, show: true },
+    { href: "/platform/subscriptions", label: N("/platform/subscriptions"), icon: Wallet, show: true },
+    { href: "/platform/settings", label: N("/platform/settings"), icon: Settings, show: true },
+    { href: "/platform/audit", label: N("/platform/audit"), icon: ScrollText, show: true },
+    { href: "/account", label: N("/account"), icon: KeyRound, show: true },
   ];
 
   const tenantNav = [
-    { href: "/", label: "Overview", icon: LayoutGrid, show: true },
-    { href: "/students", label: "Students", icon: GraduationCap, show: true },
-    { href: "/guardians", label: "Guardians & families", icon: Users, show: p.viewGuardians },
-    { href: "/import", label: "Import register", icon: FileSpreadsheet, show: p.importStudents },
-    { href: "/fees", label: "Fees", icon: Receipt, show: p.financeRead },
-    { href: "/invoices", label: "Invoices", icon: FileText, show: p.financeRead },
-    { href: "/payments", label: "Payments", icon: Banknote, show: p.financeRead },
-    { href: "/approvals", label: "Approvals", icon: CheckSquare, show: p.financeRead },
-    { href: "/sponsors", label: "Sponsors", icon: HandHeart, show: p.financeRead },
-    { href: "/payment-plans", label: "Payment plans", icon: CalendarClock, show: p.financeRead },
-    { href: "/reconciliation", label: "Reconciliation", icon: GitMerge, show: p.financeRead },
-    { href: "/notifications", label: "Messages", icon: MessageSquare, show: p.financeRead },
-    { href: "/curriculum", label: "Curriculum", icon: Library, show: p.academicRead },
-    { href: "/assessments", label: "Assessments", icon: ClipboardCheck, show: p.academicRead },
-    { href: "/attendance", label: "Attendance", icon: CalendarCheck, show: p.academicRead },
-    { href: "/report-cards", label: "Report cards", icon: FileBadge, show: p.academicRead },
-    { href: "/reports", label: "Reports", icon: BarChart3, show: p.reports },
-    { href: "/messaging", label: "Messaging routing", icon: RadioTower, show: p.integrations },
-    { href: "/integrations", label: "Integrations", icon: Plug, show: p.integrations },
-    { href: "/jobs", label: "Finance jobs", icon: Activity, show: p.financeJobs },
-    { href: "/academics", label: "Academics", icon: BookOpen, show: p.manageSchool },
-    { href: "/staff", label: "Staff", icon: UserCog, show: p.manageSchool },
-    { href: "/audit", label: "Audit history", icon: ClipboardList, show: p.viewAudit },
-    { href: "/settings", label: "School profile", icon: Settings, show: p.manageSchool },
-    { href: "/subscription", label: "Subscription", icon: ShieldCheck, show: user.role === "school_admin" && !tenantAccess },
-    { href: "/account", label: "My account", icon: KeyRound, show: true },
+    { href: "/", label: N("/"), icon: LayoutGrid, show: true },
+    { href: "/students", label: N("/students"), icon: GraduationCap, show: true },
+    { href: "/guardians", label: N("/guardians"), icon: Users, show: p.viewGuardians },
+    { href: "/import", label: N("/import"), icon: FileSpreadsheet, show: p.importStudents },
+    { href: "/fees", label: N("/fees"), icon: Receipt, show: p.financeRead },
+    { href: "/invoices", label: N("/invoices"), icon: FileText, show: p.financeRead },
+    { href: "/payments", label: N("/payments"), icon: Banknote, show: p.financeRead },
+    { href: "/approvals", label: N("/approvals"), icon: CheckSquare, show: p.financeRead },
+    { href: "/sponsors", label: N("/sponsors"), icon: HandHeart, show: p.financeRead },
+    { href: "/payment-plans", label: N("/payment-plans"), icon: CalendarClock, show: p.financeRead },
+    { href: "/reconciliation", label: N("/reconciliation"), icon: GitMerge, show: p.financeRead },
+    { href: "/notifications", label: N("/notifications"), icon: MessageSquare, show: p.financeRead },
+    { href: "/curriculum", label: N("/curriculum"), icon: Library, show: p.academicRead },
+    { href: "/assessments", label: N("/assessments"), icon: ClipboardCheck, show: p.academicRead },
+    { href: "/attendance", label: N("/attendance"), icon: CalendarCheck, show: p.academicRead },
+    { href: "/report-cards", label: N("/report-cards"), icon: FileBadge, show: p.academicRead },
+    { href: "/reports", label: N("/reports"), icon: BarChart3, show: p.reports },
+    { href: "/messaging", label: N("/messaging"), icon: RadioTower, show: p.integrations },
+    { href: "/integrations", label: N("/integrations"), icon: Plug, show: p.integrations },
+    { href: "/jobs", label: N("/jobs"), icon: Activity, show: p.financeJobs },
+    { href: "/academics", label: N("/academics"), icon: BookOpen, show: p.manageSchool },
+    { href: "/staff", label: N("/staff"), icon: UserCog, show: p.manageSchool },
+    { href: "/audit", label: N("/audit"), icon: ClipboardList, show: p.viewAudit },
+    { href: "/settings", label: N("/settings"), icon: Settings, show: p.manageSchool },
+    { href: "/subscription", label: N("/subscription"), icon: ShieldCheck, show: user.role === "school_admin" && !tenantAccess },
+    { href: "/account", label: N("/account"), icon: KeyRound, show: true },
   ];
   const nav = (platformMode ? platformNav : tenantNav).filter((n) => n.show);
 
   const groups = platformMode ? [
-    { label: "Platform", paths: ["/", "/schools", "/platform/licence-plans", "/platform/messaging", "/platform/audit"] },
+    { label: "Platform", paths: ["/", "/schools", "/platform/subscriptions", "/platform/audit", "/platform/settings"] },
     { label: "Account", paths: ["/account"] },
   ].map(group => ({ label: group.label, items: group.paths.flatMap(path => nav.filter(item => item.href === path)) })) : [
     { label: "School", paths: ["/", "/students", "/guardians", "/import"] },
@@ -94,31 +100,41 @@ function ShellInner({ children }: { children: ReactNode }) {
     items: group.paths.flatMap(path => nav.filter(item => item.href === path)),
   })).filter(group => group.items.length > 0);
 
-  const dockPriority = platformMode ? ["/", "/schools", "/platform/audit", "/account"] : ["/", "/students", "/payments", "/attendance", "/fees", "/assessments", "/reports", "/account"];
+  const dockPriority = platformMode ? ["/", "/schools", "/platform/subscriptions", "/account"] : ["/", "/students", "/payments", "/attendance", "/fees", "/assessments", "/reports", "/account"];
   const dock = dockPriority.flatMap(path => nav.filter(item => item.href === path)).slice(0, 4);
-  const dockLabel: Record<string, string> = { "/": "Home", "/platform/audit": "Audit", "/account": "Account" };
 
   const parentOf = (path: string) => (/^\/students\/[^/]+/.test(path) ? "/students" : /^\/schools\/[^/]+/.test(path) ? "/schools" : "/");
   const goBack = () => {
     if (stack.current.length > 1) window.history.back();
     else { const parent = parentOf(loc); stack.current = [parent]; navigate(parent, { replace: true }); }
   };
-  const fallbackTitle = (loc === "/subscription" ? "Subscription" : loc === "/platform/licence-plans" ? "Licence plans" : loc === "/platform/messaging" ? "Messaging defaults" : loc === "/messaging" ? "Messaging routing" : undefined) ?? nav.find((n) => n.href !== "/" && n.href === loc)?.label
+  const fallbackTitle = (loc !== "/" ? pageName(loc, platformMode) : undefined)
     ?? (loc.startsWith("/students/") ? "Student" : loc.startsWith("/schools/") ? "School" : "Not found");
   const registered = useRegisteredTitle(loc);
   const pageTitle = registered ?? fallbackTitle;
   const isHome = loc === "/";
+  useEffect(() => { document.title = `${isHome ? N("/") : pageTitle} · Rejista`; });
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem(COLLAPSE_KEY, n ? "1" : "0"); } catch { /* storage unavailable */ } return n; });
 
   const active = (h: string) => (h === "/" ? loc === "/" : loc.startsWith(h));
 
-  const side = (
+  const side = (compact: boolean) => (
     <div className="flex h-full flex-col bg-sidebar pt-[env(safe-area-inset-top)] text-sidebar-foreground">
-      <div className="border-b border-sidebar-border px-5 pb-5 pt-6">
-        <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</div>
-          <span className="font-display text-lg font-semibold tracking-tight text-sidebar-accent-foreground">Rejista</span>
-        </Link>
-        <div className="mt-4 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5">
+      <div className={cn("border-b border-sidebar-border pb-5 pt-6", compact ? "px-3" : "px-5")}>
+        <div className={cn("flex items-center gap-2", compact ? "flex-col" : "justify-between")}>
+          <Link href="/" onClick={() => setOpen(false)} aria-label="Rejista home" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</div>
+            {!compact && <span className="font-display text-lg font-semibold tracking-tight text-sidebar-accent-foreground">Rejista</span>}
+          </Link>
+          <Tooltip><TooltipTrigger asChild>
+            <button type="button" onClick={toggleCollapsed} aria-expanded={!compact} aria-controls="desktop-sidebar" aria-label={compact ? "Expand sidebar" : "Collapse sidebar"} data-testid="button-toggle-sidebar"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-sidebar-foreground/70 outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-primary">
+              {compact ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+          </TooltipTrigger><TooltipContent side="right">{compact ? "Expand sidebar" : "Collapse sidebar"}</TooltipContent></Tooltip>
+        </div>
+        <div className={cn(compact && "hidden", "mt-4 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2.5")}>
           {platformMode || !school ? (<>
             <div data-testid="text-school-name" className="truncate text-sm font-semibold text-sidebar-accent-foreground">Platform console</div>
             <div className="font-mono text-[11px] text-sidebar-foreground/60">All schools · no tenant</div>
@@ -129,20 +145,24 @@ function ShellInner({ children }: { children: ReactNode }) {
           </>)}
         </div>
       </div>
-      <nav aria-label="Main navigation" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav aria-label="Main navigation" className={cn("min-h-0 flex-1 overflow-y-auto py-4", compact ? "space-y-3 px-2" : "space-y-5 px-3", " [scrollbar-width:none] [&::-webkit-scrollbar]:hidden")}>
         {groups.map(group => (
           <section key={group.label} aria-label={group.label}>
-            <h2 className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">{group.label}</h2>
+            <h2 className={compact ? "sr-only" : "mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60"}>{group.label}</h2>
+            {compact && <div aria-hidden className="mx-2 mb-2 border-t border-sidebar-border" />}
             <div className="space-y-0.5">
-              {group.items.map(n => (
-                <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} onClick={() => setOpen(false)} data-testid={`link-nav-${n.href.slice(1) || "home"}`}
-                  className={cn("group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition md:py-2",
+              {group.items.map(n => {
+                const link = (
+                <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} aria-label={compact ? n.label : undefined} onClick={() => setOpen(false)} data-testid={`link-nav-${n.href.slice(1).replace(/\//g, "-") || "home"}`}
+                  className={cn("group relative flex items-center gap-3 rounded-md py-2.5 text-sm transition md:py-2 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary", compact ? "justify-center px-0" : "px-3",
                     active(n.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground")}>
                   <span className={cn("absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-sidebar-primary transition-transform", active(n.href) ? "scale-y-100" : "scale-y-0")} />
                   <n.icon className={cn("h-4 w-4 shrink-0", active(n.href) && "text-sidebar-primary")} />
-                  {n.label}
+                  {!compact && n.label}
                 </Link>
-              ))}
+                );
+                return compact ? <Tooltip key={n.href}><TooltipTrigger asChild>{link}</TooltipTrigger><TooltipContent side="right">{n.label}</TooltipContent></Tooltip> : link;
+              })}
             </div>
           </section>
         ))}
@@ -150,16 +170,16 @@ function ShellInner({ children }: { children: ReactNode }) {
       <div className="shrink-0 border-t border-sidebar-border px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" data-testid="button-account-menu" aria-label={`Account menu for ${user.name}`} className="flex w-full items-center gap-3 rounded-md p-2 text-left outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-primary">
+            <button type="button" data-testid="button-account-menu" aria-label={`Account menu for ${user.name}`} className={cn("flex w-full items-center gap-3 rounded-md p-2 text-left", compact && "justify-center", "outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-primary")}>
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-xs font-bold text-sidebar-primary">{initials(user.name)}</span>
-              <span className="min-w-0 flex-1">
+              <span className={cn("min-w-0 flex-1", compact && "hidden")}>
                 <span data-testid="text-user-name" className="block truncate text-sm font-semibold text-sidebar-accent-foreground">{user.name}</span>
                 <span className="block text-[11px] text-sidebar-foreground/60">{ROLE_LABEL[user.role]}</span>
               </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground/60" />
+              {!compact && <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground/60" />}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" sideOffset={8} className="z-[60] w-[var(--radix-dropdown-menu-trigger-width)]">
+          <DropdownMenuContent side="top" align="start" sideOffset={8} className={cn("z-[60]", compact ? "w-56" : "w-[var(--radix-dropdown-menu-trigger-width)]")}>
             <DropdownMenuItem asChild>
               <Link href="/account" data-testid="link-account-menu" onClick={() => setOpen(false)}><KeyRound className="h-4 w-4" />My account</Link>
             </DropdownMenuItem>
@@ -175,8 +195,8 @@ function ShellInner({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="app-shell min-h-[100dvh] bg-background md:pl-64">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 md:block">{side}</aside>
+    <div className={cn("app-shell min-h-[100dvh] bg-background transition-[padding] duration-200", collapsed ? "md:pl-16" : "md:pl-64")}>
+      <aside id="desktop-sidebar" aria-label="Sidebar" className={cn("fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-200 md:block", collapsed ? "w-16" : "w-64")}>{side(collapsed)}</aside>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-sidebar-foreground md:hidden">
 {isHome ? (
@@ -202,7 +222,7 @@ function ShellInner({ children }: { children: ReactNode }) {
                 className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium", active(n.href) ? "text-sidebar-primary" : "text-sidebar-foreground/70")}>
                 <span className={cn("absolute top-0 h-[3px] w-8 rounded-b bg-sidebar-primary transition-transform", active(n.href) ? "scale-x-100" : "scale-x-0")} />
                 <n.icon className="h-5 w-5" />
-                <span className="max-w-full truncate px-1">{dockLabel[n.href] ?? n.label.split(" ")[0]}</span>
+                <span className="max-w-full px-1 text-center leading-tight [overflow-wrap:anywhere]">{n.label}</span>
               </Link>
             ))}
             <Dialog.Trigger asChild>

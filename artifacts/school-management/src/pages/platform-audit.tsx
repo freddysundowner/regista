@@ -42,7 +42,7 @@ export default function PlatformAuditPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Platform console" title="Platform audit log" meta="Every provisioning, edit, password reset and support session, with the reason given." />
+      <PageHeader eyebrow="Platform console" title="Platform audit" meta="Every provisioning, edit, password reset and support session, with the reason given." />
       <FormDialog open={!!open} onOpenChange={(o) => !o && setOpen(null)} size="lg" title={open ? actionLabel(open) : "Activity details"} description={open ? fmtDateTime(open.createdAt) : undefined}>
         {open && <div className="space-y-4 p-5 text-sm">
           <dl className="grid gap-3 sm:grid-cols-2">

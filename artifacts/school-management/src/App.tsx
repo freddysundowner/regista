@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { isConnectionFailure, retryRead } from '@/lib/connection-recovery';
 import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
-import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { Route, Switch, useLocation, Redirect, Router as WouterRouter } from 'wouter';
 import { useGetSetupStatus, useGetCurrentUser, getGetCurrentUserQueryKey } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -22,6 +22,7 @@ import Schools from '@/pages/schools';
 import PlatformOverview from '@/pages/platform-overview';
 import PlatformSchool from '@/pages/platform-school';
 import PlatformAuditPage from '@/pages/platform-audit';
+import PlatformSubscriptions from '@/pages/platform-subscriptions';
 import { PlatformRecovery } from '@/components/platform-kit';
 import { toast } from '@/hooks/use-toast';
 import Account from '@/pages/account';
@@ -40,12 +41,12 @@ import Assessments from '@/pages/assessments';
 import ReportCards from '@/pages/report-cards';
 import Attendance from '@/pages/attendance';
 import Reports from '@/pages/reports';
-import MessagingSettingsPage, { PlatformMessagingPage } from '@/pages/messaging-settings';
+import MessagingSettingsPage from '@/pages/messaging-settings';
+import PlatformSettings from '@/pages/platform-settings';
 import { Shell } from '@/components/shell';
 import { SessionProvider, usePerms, useAuthSession, errMsg } from '@/lib/session';
 import { ErrorState } from '@/components/kit';
 import { LicenceAccessGate } from '@/components/licence-gate';
-import LicencePlans from '@/pages/licence-plans';
 import SubscriptionPage from '@/pages/subscription';
 
 let readOnlySession = false;
@@ -93,8 +94,10 @@ function PlatformRoutes() {
       <Route path="/schools" component={Schools} />
       <Route path="/schools/:id" component={PlatformSchool} />
       <Route path="/platform/audit" component={PlatformAuditPage} />
-      <Route path="/platform/licence-plans" component={LicencePlans} />
-      <Route path="/platform/messaging" component={PlatformMessagingPage} />
+      <Route path="/platform/subscriptions" component={PlatformSubscriptions} />
+      <Route path="/platform/settings" component={PlatformSettings} />
+      <Route path="/platform/licence-plans"><Redirect to="/platform/settings?tab=licences" replace /></Route>
+      <Route path="/platform/messaging"><Redirect to="/platform/settings?tab=messaging" replace /></Route>
       <Route path="/account" component={Account} />
       <Route><ErrorState msg="That page belongs to a school workspace. Open a school from the Schools list to enter it with a recorded reason." /></Route>
     </Switch>
@@ -137,6 +140,8 @@ function AppRoutes() {
       <Route path="/platform/audit"><Guard allow={false}><span /></Guard></Route>
       <Route path="/platform/licence-plans"><Guard allow={false}><span /></Guard></Route>
       <Route path="/platform/messaging"><Guard allow={false}><span /></Guard></Route>
+      <Route path="/platform/subscriptions"><Guard allow={false}><span /></Guard></Route>
+      <Route path="/platform/settings"><Guard allow={false}><span /></Guard></Route>
       <Route path="/messaging"><Guard allow={p.integrations}><MessagingSettingsPage /></Guard></Route>
       <Route path="/subscription"><Guard allow={s.user.role !== 'super_admin'}><SubscriptionPage /></Guard></Route>
       <Route path="/fees"><Guard allow={p.financeRead}><Fees /></Guard></Route>

@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { ApiError, lock, type Tx } from "../core";
 import { decryptCredentials } from "./security";
 import { resolveMessaging } from "./messaging-routing";
+import { checkLeadsIntelConnection } from "./leadsintel";
 import { SmsRejected, submitSms } from "./sms-transports";
 export async function messageReadiness(schoolId: string, channel: string, templateName: string, guardianId: string) {
   const { credentials, publicConfig } = await resolveMessaging(schoolId, channel === "sms" ? "sms" : "whatsapp");
@@ -66,6 +67,8 @@ export async function sendDelivery(id: string, schoolId: string) {
     } else {
       const { credentials, publicConfig, provider, accountId } = await resolveMessaging(schoolId, "whatsapp");
       if (!credentials.platformKey || !credentials.tenantId || !publicConfig.connectionId) throw new ApiError(503, "LeadsIntel platform key/tenant/connection missing");
+      const connection = await checkLeadsIntelConnection(credentials, publicConfig.connectionId);
+      if (connection.status !== "active") throw new ApiError(503, "LeadsIntel connection is not active. No WhatsApp message was submitted.");
       const school = await db.school.findUniqueOrThrow({ where: { id: schoolId } });
       const templates = (school.settings as Record<string, any>).messageTemplates ?? {};
       const template = templates[message.template];

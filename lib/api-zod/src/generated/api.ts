@@ -8,6 +8,139 @@
 import * as zod from 'zod';
 
 
+export const GetPlatformEmailSettingsResponse = zod.object({
+  "provider": zod.enum(['brevo']),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "senderName": zod.string(),
+  "senderEmail": zod.string(),
+  "replyTo": zod.string(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+export const savePlatformEmailSettingsBodySenderNameMax = 100;
+
+export const savePlatformEmailSettingsBodySenderEmailMax = 254;
+
+export const savePlatformEmailSettingsBodyReplyToMax = 254;
+
+export const savePlatformEmailSettingsBodyApiKeyMin = 10;
+export const savePlatformEmailSettingsBodyApiKeyMax = 4096;
+
+
+
+export const SavePlatformEmailSettingsBody = zod.object({
+  "enabled": zod.boolean(),
+  "senderName": zod.string().min(1).max(savePlatformEmailSettingsBodySenderNameMax),
+  "senderEmail": zod.string().email().max(savePlatformEmailSettingsBodySenderEmailMax),
+  "replyTo": zod.string().email().max(savePlatformEmailSettingsBodyReplyToMax).optional(),
+  "apiKey": zod.string().min(savePlatformEmailSettingsBodyApiKeyMin).max(savePlatformEmailSettingsBodyApiKeyMax).optional().describe('Omit to retain the saved encrypted key. Never returned in responses.')
+})
+
+export const SavePlatformEmailSettingsResponse = zod.object({
+  "provider": zod.enum(['brevo']),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "senderName": zod.string(),
+  "senderEmail": zod.string(),
+  "replyTo": zod.string(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+export const sendPlatformTestEmailBodyRecipientMax = 254;
+
+
+
+export const SendPlatformTestEmailBody = zod.object({
+  "recipient": zod.string().email().max(sendPlatformTestEmailBodyRecipientMax)
+})
+
+export const SendPlatformTestEmailResponse = zod.object({
+  "message": zod.string(),
+  "messageId": zod.string()
+})
+
+
+export const CheckPlatformWhatsappConnectionResponse = zod.object({
+  "status": zod.string(),
+  "displayPhoneNumber": zod.string().optional(),
+  "checkedAt": zod.coerce.date()
+})
+
+
+export const CheckSchoolWhatsappConnectionResponse = zod.object({
+  "status": zod.string(),
+  "displayPhoneNumber": zod.string().optional(),
+  "checkedAt": zod.coerce.date()
+})
+
+
+export const getPlatformSubscriptionsQuerySearchMax = 150;
+
+export const getPlatformSubscriptionsQueryInvoicePageDefault = 1;
+
+export const getPlatformSubscriptionsQueryPaymentPageDefault = 1;
+
+
+
+export const GetPlatformSubscriptionsQueryParams = zod.object({
+  "search": zod.coerce.string().max(getPlatformSubscriptionsQuerySearchMax).optional(),
+  "invoicePage": zod.coerce.number().int().min(1).default(getPlatformSubscriptionsQueryInvoicePageDefault),
+  "paymentPage": zod.coerce.number().int().min(1).default(getPlatformSubscriptionsQueryPaymentPageDefault)
+})
+
+export const GetPlatformSubscriptionsResponse = zod.object({
+  "invoices": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.string(),
+  "schoolId": zod.string().uuid(),
+  "description": zod.string(),
+  "amount": zod.string(),
+  "issuedOn": zod.coerce.date(),
+  "dueOn": zod.coerce.date(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'overdue', 'void']),
+  "paid": zod.string(),
+  "balance": zod.string(),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "amount": zod.string(),
+  "paidOn": zod.coerce.date(),
+  "method": zod.string(),
+  "reference": zod.string(),
+  "reversedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "schoolName": zod.string(),
+  "schoolCode": zod.string()
+}))),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "amount": zod.string(),
+  "paidOn": zod.coerce.date(),
+  "method": zod.string(),
+  "reference": zod.string(),
+  "reversedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "schoolId": zod.string().uuid(),
+  "schoolName": zod.string(),
+  "schoolCode": zod.string(),
+  "invoiceId": zod.string().uuid(),
+  "invoiceNumber": zod.string(),
+  "description": zod.string()
+}))),
+  "invoiceTotal": zod.number().int(),
+  "paymentTotal": zod.number().int(),
+  "pageSize": zod.number().int()
+})
+
+
 /**
  * Operator-run normalized gateway, not a native provider callback. Requires verified native delivery evidence, a configured callback token and HMAC-SHA256 signature over timestamp + "." + raw JSON body using the separate deliveryGatewaySecret. School, account and provider must match the submitted message.
  */

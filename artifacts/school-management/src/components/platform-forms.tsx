@@ -198,28 +198,35 @@ export function AdminStatusForm({ schoolId, admin, onDone }: { schoolId: string;
   );
 }
 
-export function ResetPasswordForm({ schoolId, admin, onDone }: { schoolId: string; admin: User; onDone: () => void }) {
+export function ResetPasswordForm({ schoolId, admin, admins, onDone }: { schoolId: string; admin: User; admins?: User[]; onDone: () => void }) {
   const refresh = useRefreshPlatform();
   const { toast } = useToast();
   const m = useResetPlatformAdminPassword();
   const [pw, setPw] = useState({ next: "", again: "" });
   const [err, setErr] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState(admin.id);
+  const target = admins?.find((a) => a.id === selectedId) ?? admin;
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
     if (pw.next.length < 10 || pw.next.length > 128) return setErr("Password must be 10 to 128 characters.");
     if (pw.next !== pw.again) return setErr("Passwords do not match.");
-    m.mutate({ schoolId, userId: admin.id, data: { password: pw.next, ...platformAction("Administrator password reset from platform console") } }, {
-      onSuccess: (r) => { setPw({ next: "", again: "" }); refresh(schoolId); toast({ title: "Password reset", description: r.message || `Share the new password with ${admin.name} privately.` }); onDone(); },
+    m.mutate({ schoolId, userId: target.id, data: { password: pw.next, ...platformAction("Administrator password reset from platform console") } }, {
+      onSuccess: () => { setPw({ next: "", again: "" }); refresh(schoolId); toast({ title: `Password reset for ${target.name}`, description: "All their existing sessions have been signed out. Share the new password privately." }); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
   };
   return (
     <form onSubmit={submit} className="space-y-5 p-5" autoComplete="off">
+      {admins && <Field label="School administrator" required>
+        <NativeSelect data-testid="select-reset-administrator" value={selectedId} disabled={m.isPending} onChange={(e) => { setSelectedId(e.target.value); setPw({ next: "", again: "" }); setErr(null); }}>
+          {admins.map((a) => <option key={a.id} value={a.id}>{a.name} — {a.email || a.phone || "No contact"}{!a.isActive ? " (disabled)" : ""}</option>)}
+        </NativeSelect>
+      </Field>}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="New password" required hint="10 to 128 characters"><TextInput data-testid="input-reset-password" type="password" autoComplete="new-password" required value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
         <Field label="Repeat password" required><TextInput data-testid="input-reset-password-again" type="password" autoComplete="new-password" required value={pw.again} onChange={(e) => setPw({ ...pw, again: e.target.value })} /></Field>
       </div>
-      <p className="text-xs text-muted-foreground">The password is sent once over the encrypted connection and never shown or logged. {admin.name}'s other sessions may be signed out.</p>
+      <p className="text-xs text-muted-foreground">This resets {target.name}'s password and signs out all their existing sessions. Share the new password privately.{!target.isActive && " This account remains disabled; resetting its password does not enable it."}</p>
       <FormError msg={err} />
       <FormActions>
         <Btn data-testid="button-confirm-reset" type="submit" disabled={m.isPending}>{m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Reset password</Btn>

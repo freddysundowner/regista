@@ -5,6 +5,47 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+export interface PlatformEmailTestInput {
+  /** @maxLength 254 */
+  recipient: string;
+}
+
+export type PlatformEmailSettingsProvider = typeof PlatformEmailSettingsProvider[keyof typeof PlatformEmailSettingsProvider];
+
+
+export const PlatformEmailSettingsProvider = {
+  brevo: 'brevo',
+} as const;
+
+export interface PlatformEmailSettings {
+  provider: PlatformEmailSettingsProvider;
+  enabled: boolean;
+  configured: boolean;
+  senderName: string;
+  senderEmail: string;
+  replyTo: string;
+  updatedAt?: string;
+}
+
+export interface PlatformEmailSettingsInput {
+  enabled: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  senderName: string;
+  /** @maxLength 254 */
+  senderEmail: string;
+  /** @maxLength 254 */
+  replyTo?: string;
+  /**
+     * Omit to retain the saved encrypted key. Never returned in responses.
+     * @minLength 10
+     * @maxLength 4096
+     */
+  apiKey?: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -1264,6 +1305,34 @@ export interface PlatformBilling {
   outstanding: string;
   overdue: string;
   invoices: PlatformInvoice[];
+}
+
+export type SubscriptionInvoiceRow = PlatformInvoice & {
+  schoolName: string;
+  schoolCode: string;
+};
+
+export type SubscriptionPaymentRow = PlatformBillingPayment & {
+  schoolId: string;
+  schoolName: string;
+  schoolCode: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  description: string;
+};
+
+export interface PlatformSubscriptions {
+  invoices: SubscriptionInvoiceRow[];
+  payments: SubscriptionPaymentRow[];
+  invoiceTotal: number;
+  paymentTotal: number;
+  pageSize: number;
+}
+
+export interface WhatsappConnectionCheck {
+  status: string;
+  displayPhoneNumber?: string;
+  checkedAt: string;
 }
 
 export interface PasswordChangeInput {
@@ -2861,6 +2930,26 @@ export interface FinanceDocument {
   downloadUrl: string;
   expiresAt: string;
 }
+
+export type SendPlatformTestEmail200 = {
+  message: string;
+  messageId: string;
+};
+
+export type GetPlatformSubscriptionsParams = {
+/**
+ * @maxLength 150
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+invoicePage?: number;
+/**
+ * @minimum 1
+ */
+paymentPage?: number;
+};
 
 export type ListPlatformAuditParams = {
 schoolId?: string;

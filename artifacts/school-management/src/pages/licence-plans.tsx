@@ -57,8 +57,8 @@ function PlanForm({ plan, onDone }: { plan?: LicencePlan; onDone: () => void }) 
   );
 }
 
-export default function LicencePlans() {
-  usePageTitle("Licence plans");
+export default function LicencePlans({ embedded = false }: { embedded?: boolean }) {
+  usePageTitle(embedded ? undefined : "Licence plans");
   const q = useListLicencePlans();
   const [dlg, setDlg] = useState<{ plan?: LicencePlan; n: number } | null>(null);
   const [n, setN] = useState(0);
@@ -67,9 +67,16 @@ export default function LicencePlans() {
   const sorted = [...plans].sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.durationDays - b.durationDays);
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Platform" title="Licence plans" meta="Timed school licences sold through manual invoices or granted directly.">
-        <Btn data-testid="button-new-plan" onClick={() => open()}><Plus className="h-4 w-4" />New plan</Btn>
-      </PageHeader>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">Timed school licences sold through manual invoices or granted directly.</p>
+          <Btn data-testid="button-new-plan" onClick={() => open()}><Plus className="h-4 w-4" />Add licence plan</Btn>
+        </div>
+      ) : (
+        <PageHeader eyebrow="Platform" title="Licence plans" meta="Timed school licences sold through manual invoices or granted directly.">
+          <Btn data-testid="button-new-plan" onClick={() => open()}><Plus className="h-4 w-4" />New plan</Btn>
+        </PageHeader>
+      )}
       <Panel title="Plans" note="Archive a plan by unticking 'Offered'. Plans are never deleted, and existing purchases keep their snapshot terms.">
         {q.isLoading ? <SkeletonRows rows={3} cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error, "Could not load plans.")} onRetry={() => q.refetch()} /> : !plans.length ? (
           <Empty icon={<BadgeCheck className="h-5 w-5" />} title="No licence plans yet" body="Create the first plan, e.g. a 120-day termly licence. Schools can then request renewals and you can grant licences.">
@@ -78,11 +85,11 @@ export default function LicencePlans() {
         ) : (
           <ul className="divide-y divide-border/60" data-testid="list-plans">{sorted.map((p) => (
             <li key={p.id} data-testid={`row-plan-${p.id}`} className={`flex flex-wrap items-center gap-3 px-5 py-3 ${p.isActive ? "" : "opacity-70"}`}>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">{p.name}<Pill tone={p.isActive ? "active" : "inactive"}>{p.isActive ? "offered" : "archived"}</Pill></div>
+              <div className="min-w-0 basis-full sm:flex-1 sm:basis-48">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold"><span className="min-w-0 [overflow-wrap:anywhere]">{p.name}</span><Pill tone={p.isActive ? "active" : "inactive"}>{p.isActive ? "offered" : "archived"}</Pill></div>
                 <div className="break-words text-xs text-muted-foreground">{days(p.durationDays)}{p.description ? ` · ${p.description}` : ""}</div>
               </div>
-              <div className="text-right text-xs"><div>Licence <span className="font-mono font-semibold">{kes(p.price)}</span></div><div className="mt-1">Subscription <span className="font-mono font-semibold">{kes(p.subscriptionPrice)}</span> / {days(p.durationDays)}</div></div>
+              <div className="min-w-0 flex-1 text-left text-xs sm:flex-none sm:text-right"><div>Licence <span className="whitespace-nowrap font-mono font-semibold">{kes(p.price)}</span></div><div className="mt-1">Subscription <span className="whitespace-nowrap font-mono font-semibold">{kes(p.subscriptionPrice)}</span> / {days(p.durationDays)}</div></div>
               <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid={`button-edit-plan-${p.id}`} onClick={() => open(p)}><Pencil className="h-3.5 w-3.5" />Edit</Btn>
             </li>
           ))}</ul>

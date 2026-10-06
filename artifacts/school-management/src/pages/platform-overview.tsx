@@ -23,7 +23,7 @@ export default function PlatformOverview() {
   ] : [];
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Platform console" title="Overview" meta={`Signed in as ${user.name}. You are outside every school; enter one only with a recorded reason.`} />
+      <PageHeader eyebrow="Platform console" title="Platform overview" meta={`Signed in as ${user.name}. You are outside every school; enter one only with a recorded reason.`} />
       {pending > 0 && <Link href="/schools?status=pending" data-testid="link-pending-registrations" className="rise flex items-center gap-2 rounded-md border border-amber-600/35 bg-amber-500/10 px-4 py-3 text-sm hover:bg-amber-500/15"><ClipboardCheck className="h-4 w-4 text-amber-700" /><span><span className="font-semibold">{pending} school registration{pending === 1 ? "" : "s"} pending review.</span> Review now</span><ArrowRight className="ml-auto h-4 w-4" /></Link>}
       {o.isLoading ? <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}</div>
         : o.isError ? <Panel><ErrorState msg={errMsg(o.error)} onRetry={() => o.refetch()} /></Panel> : (

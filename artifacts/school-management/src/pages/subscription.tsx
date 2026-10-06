@@ -12,7 +12,7 @@ import { LIC_TONE, ORDER_TONE, days, invalidateLicensing } from "@/lib/licensing
 import { useToast } from "@/hooks/use-toast";
 
 export default function SubscriptionPage() {
-  usePageTitle("Subscription");
+  usePageTitle("Subscriptions");
   const s = useAuthSession();
   const isAdmin = s.user.role === "school_admin";
   const qc = useQueryClient();
@@ -48,7 +48,7 @@ export default function SubscriptionPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="School" title="Subscription" meta={<span className="flex items-center gap-2"><Pill tone={LIC_TONE[sub.status] ?? "inactive"}>{sub.status}</Pill>{sub.accessAllowed ? "Access allowed" : "Access blocked"}</span>} />
+      <PageHeader eyebrow="School" title="Subscriptions" meta={<span className="flex items-center gap-2"><Pill tone={LIC_TONE[sub.status] ?? "inactive"}>{sub.status}</Pill>{sub.accessAllowed ? "Access allowed" : "Access blocked"}</span>} />
       <div className={`flex items-start gap-3 rounded-md border px-4 py-3 text-sm ${sub.accessAllowed ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"}`} data-testid="subscription-coverage">
         <ShieldCheck className={`mt-0.5 h-5 w-5 shrink-0 ${sub.accessAllowed ? "text-primary" : "text-destructive"}`} />
         <div>{coverageText(sub)}{!isAdmin && !sub.accessAllowed && " Contact your school administrator to renew."}</div>

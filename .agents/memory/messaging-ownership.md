@@ -13,3 +13,9 @@ Only implement provider contracts supported by documentation. Blessed Text's off
 **Why:** An uncertain acceptance result may already have cost money; automatically retrying it can cause duplicate paid messages.
 
 **How to apply:** Keep accepted submissions distinct from delivery confirmations. Live provider acceptance testing is still required even when configuration saves successfully. Never expand SMS providers into WhatsApp/email without verified support.
+
+The user requested Brevo for system email and a tabbed platform Settings page covering system settings.
+
+**Why:** The user explicitly selected Brevo; do not substitute another email provider.
+
+**How to apply:** Keep system email platform-owned and credentials write-only. Adding configuration does not authorize automatic emails for unrelated events; new notification triggers need their own explicit scope.

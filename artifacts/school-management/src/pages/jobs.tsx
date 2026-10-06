@@ -25,7 +25,7 @@ export default function Jobs() {
   const d = q.data;
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Monitoring" title="Failed jobs" meta="Background work that did not finish. Postings are never undone by a failure; retrying re-runs only the job.">
+      <PageHeader eyebrow="Monitoring" title="Finance jobs" meta="Background work that did not finish. Postings are never undone by a failure; retrying re-runs only the job.">
         <Btn variant="outline" data-testid="button-refresh-jobs" onClick={() => { q.refetch(); fin.refetch(); }} disabled={q.isFetching}>Refresh</Btn>
       </PageHeader>
       <Panel title="Messages" note="Retrying re-sends through the same outbox; it cannot send twice. Expired one-time codes need a fresh code, not a retry.">

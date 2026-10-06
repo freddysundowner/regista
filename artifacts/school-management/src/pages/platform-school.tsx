@@ -12,7 +12,7 @@ import { SchoolEditForm, AdminForm, AdminStatusForm, ResetPasswordForm } from "@
 import { EnterSchoolDialog } from "@/components/platform-kit";
 import { errMsg, fmtDate, fmtDateTime, initials } from "@/lib/session";
 
-type Dlg = { kind: "add" } | { kind: "edit" | "status" | "reset"; admin: User } | null;
+type Dlg = { kind: "add" | "school-reset" } | { kind: "edit" | "status" | "reset"; admin: User } | null;
 
 function Fact({ k, v }: { k: string; v: React.ReactNode }) {
   return <div className="min-w-0"><dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{k}</dt><dd className="mt-0.5 break-words text-sm capitalize">{v}</dd></div>;
@@ -39,6 +39,7 @@ export default function PlatformSchool() {
     <div className="space-y-6">
       <Link href="/schools" data-testid="link-back-schools" className="max-md:hidden inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />All schools</Link>
       <PageHeader eyebrow={`School · ${s.code}`} title={s.name} meta={<span className="flex items-center gap-2"><Pill tone={s.status === "active" ? "active" : s.status === "pending" ? "duplicate" : "error"}>{s.status === "pending" ? "pending review" : s.status}</Pill>Registered {fmtDate(s.createdAt)}</span>}>
+        <Btn variant="outline" data-testid="button-school-reset-password" disabled={aq.isLoading || aq.isError || !aq.data?.length} onClick={() => setDlg({ kind: "school-reset" })}><KeyRound className="h-4 w-4" />Reset password</Btn>
         {inReview ? (s.status === "pending" ? <>
           <Btn variant="danger" data-testid="button-reject-registration" onClick={() => setReviewing("reject")}>Reject</Btn>
           <Btn data-testid="button-approve-registration" onClick={() => setReviewing("approve")}><ClipboardCheck className="h-4 w-4" />Approve</Btn>
@@ -58,7 +59,7 @@ export default function PlatformSchool() {
       <FormDialog open={dlg?.kind === "add"} onOpenChange={(o) => !o && setDlg(null)} title="Add school administrator" description={`New administrator for ${s.name}.`}>
         <AdminForm schoolId={s.id} onDone={() => setDlg(null)} />
       </FormDialog>
-      <FormDialog open={dlg?.kind === "edit"} onOpenChange={(o) => !o && setDlg(null)} title={`Edit ${dlg && dlg.kind !== "add" ? dlg.admin.name : "administrator"}`}>
+      <FormDialog open={dlg?.kind === "edit"} onOpenChange={(o) => !o && setDlg(null)} title={`Edit ${dlg?.kind === "edit" ? dlg.admin.name : "administrator"}`}>
         {dlg?.kind === "edit" && <AdminForm schoolId={s.id} admin={dlg.admin} onDone={() => setDlg(null)} />}
       </FormDialog>
       <FormDialog open={dlg?.kind === "status"} onOpenChange={(o) => !o && setDlg(null)} size="sm" title={dlg?.kind === "status" ? `${dlg.admin.isActive ? "Disable" : "Enable"} ${dlg.admin.name}` : "Change status"}>
@@ -66,6 +67,9 @@ export default function PlatformSchool() {
       </FormDialog>
       <FormDialog open={dlg?.kind === "reset"} onOpenChange={(o) => !o && setDlg(null)} title={dlg?.kind === "reset" ? `Reset password for ${dlg.admin.name}` : "Reset password"}>
         {dlg?.kind === "reset" && <ResetPasswordForm schoolId={s.id} admin={dlg.admin} onDone={() => setDlg(null)} />}
+      </FormDialog>
+      <FormDialog open={dlg?.kind === "school-reset"} onOpenChange={(o) => !o && setDlg(null)} title="Reset password" description={`Choose the administrator for ${s.name}.`}>
+        {dlg?.kind === "school-reset" && !!aq.data?.length && <ResetPasswordForm schoolId={s.id} admin={aq.data.find((a) => a.isActive) ?? aq.data[0]} admins={aq.data} onDone={() => setDlg(null)} />}
       </FormDialog>
 
       <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -86,7 +90,7 @@ export default function PlatformSchool() {
                   </div>
                   <div className="flex w-full flex-wrap gap-1 sm:w-auto">
                     <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid={`button-edit-admin-${a.id}`} onClick={() => setDlg({ kind: "edit", admin: a })}><Pencil className="h-3.5 w-3.5" />Edit</Btn>
-                    <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid={`button-reset-admin-${a.id}`} onClick={() => setDlg({ kind: "reset", admin: a })}><KeyRound className="h-3.5 w-3.5" />Reset</Btn>
+                    <Btn variant="outline" className="h-8 px-2.5 text-xs" data-testid={`button-reset-admin-${a.id}`} onClick={() => setDlg({ kind: "reset", admin: a })}><KeyRound className="h-3.5 w-3.5" />Reset password</Btn>
                     <Btn variant={a.isActive ? "danger" : "outline"} className="h-8 px-2.5 text-xs" data-testid={`button-status-admin-${a.id}`} onClick={() => setDlg({ kind: "status", admin: a })}><Power className="h-3.5 w-3.5" />{a.isActive ? "Disable" : "Enable"}</Btn>
                   </div>
                 </li>

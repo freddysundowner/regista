@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { ApiError, parse } from "../lib/core";
+import { ApiError, parse, lock } from "../lib/core";
 import { decryptCredentials, digest, systemActor, verifySignature } from "../lib/integrations/security";
 import { candidates, ingest } from "../lib/payments/pipeline";
 import { money } from "../lib/finance/money";
@@ -20,8 +20,9 @@ router.post("/integrations/leadsintel/events/:token", async (req, res) => {
   const input = parse(z.object({ metadata: z.object({ phone_number_id: z.string() }), messages: z.array(z.object({ from: z.string(), timestamp: z.string() })).optional() }), req.body);
   if (input.metadata.phone_number_id !== credentials.phoneNumberId) throw new ApiError(403, "Connection phone number identity mismatch");
   const key = { schoolId: config.schoolId, signatureHash: digest(`leadsintel:${eventId}`) };
-  if (await db.botReplay.findUnique({ where: { schoolId_signatureHash: key } })) { res.sendStatus(200); return; }
   await db.$transaction(async tx => {
+    await lock(tx, `leadsintel:${config.schoolId}:${eventId}`);
+    if (await tx.botReplay.findUnique({ where: { schoolId_signatureHash: key } })) return;
     await tx.botReplay.create({ data: { ...key, expiresAt: new Date(Date.now() + 86400000) } });
     for (const message of input.messages ?? []) {
       const phone = fullPhone(message.from), at = new Date(Number(message.timestamp) * 1000);
@@ -29,7 +30,7 @@ router.post("/integrations/leadsintel/events/:token", async (req, res) => {
       await tx.guardian.updateMany({ where: { schoolId: config.schoolId, phone, OR: [{ whatsappLastInboundAt: null }, { whatsappLastInboundAt: { lt: at } }] }, data: { whatsappLastInboundAt: at } });
     }
   });
-  res.sendStatus(200);
+  res.sendStatus(204);
 });
 async function callbackContext(token: string, ip?: string) {
   const config = await db.integrationConfig.findUnique({ where: { callbackTokenHash: digest(token) } });
