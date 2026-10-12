@@ -1,0 +1,271 @@
+root@vmi1445488:/var/www/rejista# git pull && bash deploy/install.sh
+remote: Enumerating objects: 15, done.
+remote: Counting objects: 100% (15/15), done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 8 (delta 6), reused 8 (delta 6), pack-reused 0 (from 0)
+Unpacking objects: 100% (8/8), 1.41 KiB | 480.00 KiB/s, done.
+From https://github.com/freddysundowner/regista
+   36863ea..f0f0700  main       -> origin/main
+Updating 36863ea..f0f0700
+Fast-forward
+ .agents/memory/vps-database-safety.md |  2 +-
+ deploy/runtime.sh                     | 14 ++++++++++++--
+ deploy/test-runtime.py                | 20 ++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 3 deletions(-)
+    Using the selected database. PostgreSQL packages, services, roles and passwords will not be managed.
+    Rejista migrations will run on this database; it must be dedicated to Rejista.
+
+==> Set up Rejista on this server
+    Press Enter to keep the answer in [brackets].
+    Domain the system will live at [skultab.com]: 
+    Set up HTTPS with a free Let's Encrypt certificate? (y/n) [y]: y
+    Your email, for certificate expiry notices: githumbi3fred@gmail.com
+    Product name shown on screens, emails and PDFs [Rejista]: SkulTab
+    Many schools on this server (hosted) or just one (standalone)? (h/s) [h]: h
+
+    Domain:        skultab.com
+    HTTPS:         yes (githumbi3fred@gmail.com)
+    Product name:  SkulTab
+    Mode:          hosted
+    Install with these settings? (y/n) [y]: y
+    Installing private pnpm 10.32.1 (global pnpm is unchanged).
+
+added 1 package in 9s
+npm notice
+npm notice New major version of npm available! 11.19.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+nginx: [warn] conflicting server name "doc.tokshoplive.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "tokshoplive.com" on 0.0.0.0:80, ignored
+nginx: [warn] could not build optimal server_names_hash, you should increase either server_names_hash_max_size: 512 or server_names_hash_bucket_size: 64; ignoring server_names_hash_bucket_size
+id: ‘rejista’: no such user
+id: ‘rejista’: no such user
+id: ‘rejista’: no such user
+    Selected API port: 8083
+
+==> Installing Rejista for https://skultab.com
+    Source: /var/www/rejista
+    First install
+
+==> Using existing system tools
+    node v24.21.0, pnpm 10.32.1, psql (PostgreSQL) 12.22 (Ubuntu 12.22-0ubuntu0.20.04.4)
+
+==> User and folders
+Failed to get unit file state for rejista-api.service: No such file or directory
+
+==> Database
+    Using the database given with --db-url
+
+==> Settings: /etc/rejista/rejista.env
+    Secrets generated. Back this file up somewhere safe: without ENCRYPTION_KEY saved bank credentials cannot be read.
+
+==> Building release 20261012-123214-9CXmLQeK
+    Installing dependencies
+    Building the API
+
+  dist/index.mjs                       6.7mb ⚠️
+  dist/pino-worker.mjs               153.5kb
+  dist/pino-file.mjs                 142.1kb
+  dist/pino-pretty.mjs               115.3kb
+  dist/thread-stream-worker.mjs        7.4kb
+  dist/index.mjs.map                  12.8mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.1kb
+  dist/pino-pretty.mjs.map           209.5kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 2307ms
+    Building the web app
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/dropdown-menu.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+[plugin vite:reporter] 
+(!) /opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/exceljs@4.4.0/node_modules/exceljs/dist/exceljs.min.js?commonjs-es-import is dynamically imported by /opt/rejista/releases/20261012-123214-9CXmLQeK/artifacts/school-management/src/pages/import.tsx but also statically imported by /opt/rejista/releases/20261012-123214-9CXmLQeK/artifacts/school-management/src/lib/sheets.ts, dynamic import will not move module into another chunk.
+
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+APP_NAME is "SkulTab": the link-preview image was left out and the icon is a plain "S". Replace public/og-image.png, favicon.svg, apple-touch-icon.png and the icon-*.png files, then set BRAND_IMAGES_READY=true.
+
+==> Database migrations (backup: /etc/rejista/backups/20261012-123214-9CXmLQeK.dump)
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "rejista", schema "public" at "127.0.0.1:5432"
+
+38 migrations found in prisma/migrations
+
+Applying migration `20260501000000_phase1`
+Applying migration `20261003000000_foundation_completion`
+Applying migration `20261004000000_finance`
+Applying migration `20261004010000_finance_integrity`
+Applying migration `20261005000000_remaining_modules`
+Applying migration `20261006000000_module_completion`
+Applying migration `20261006000000_school_registration`
+Applying migration `20261006010000_message_sessions`
+Applying migration `20261006010000_platform_billing`
+Applying migration `20261006020000_historical_labels`
+Applying migration `20261006020000_timed_licensing`
+Applying migration `20261007000000_platform`
+Applying migration `20261007010000_subject_assignment_stream_scope`
+Applying migration `20261007020000_platform_owner_independence`
+Applying migration `20261007030000_platform_actor_scope`
+Applying migration `20261008000000_hybrid_messaging`
+Applying migration `20261009000000_platform_brevo_email`
+Applying migration `20261009000000_subscription_pricing`
+Applying migration `20261010000000_school_email_campaigns`
+Applying migration `20261011000000_whatsapp_assisted_setup`
+Applying migration `20261011010000_whatsapp_connection_pair`
+Applying migration `20261012000000_subscriptions_payments_keys`
+Applying migration `20261012010000_registration_approval_setting`
+Applying migration `20261012020000_standalone_licences`
+Applying migration `20261012030000_licence_key_source`
+Applying migration `20261012040000_free_admin_grants`
+Applying migration `20261012050000_school_onboarding`
+Applying migration `20261013000000_bank_accounts`
+Applying migration `20261013010000_bank_account_owner`
+Applying migration `20261014000000_expenses_and_promises`
+Applying migration `20261015000000_staff_access_procurement_store_library`
+Applying migration `20261016000000_library_soft_delete`
+Applying migration `20261017000000_support_chat`
+Applying migration `20261017010000_support_chat_visitors`
+Applying migration `20261017020000_support_knowledge_base`
+Applying migration `20261017030000_knowledge_audience`
+Applying migration `20261018000000_password_resets`
+Applying migration `20261018010000_learner_packages`
+
+┌─────────────────────────────────────────────────────────┐
+│  Update available 6.19.3 -> 8.0.0-rc.22                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260501000000_phase1/
+    └─ migration.sql
+  └─ 20261003000000_foundation_completion/
+    └─ migration.sql
+  └─ 20261004000000_finance/
+    └─ migration.sql
+  └─ 20261004010000_finance_integrity/
+    └─ migration.sql
+  └─ 20261005000000_remaining_modules/
+    └─ migration.sql
+  └─ 20261006000000_module_completion/
+    └─ migration.sql
+  └─ 20261006000000_school_registration/
+    └─ migration.sql
+  └─ 20261006010000_message_sessions/
+    └─ migration.sql
+  └─ 20261006010000_platform_billing/
+    └─ migration.sql
+  └─ 20261006020000_historical_labels/
+    └─ migration.sql
+  └─ 20261006020000_timed_licensing/
+    └─ migration.sql
+  └─ 20261007000000_platform/
+    └─ migration.sql
+  └─ 20261007010000_subject_assignment_stream_scope/
+    └─ migration.sql
+  └─ 20261007020000_platform_owner_independence/
+    └─ migration.sql
+  └─ 20261007030000_platform_actor_scope/
+    └─ migration.sql
+  └─ 20261008000000_hybrid_messaging/
+    └─ migration.sql
+  └─ 20261009000000_platform_brevo_email/
+    └─ migration.sql
+  └─ 20261009000000_subscription_pricing/
+    └─ migration.sql
+  └─ 20261010000000_school_email_campaigns/
+    └─ migration.sql
+  └─ 20261011000000_whatsapp_assisted_setup/
+    └─ migration.sql
+  └─ 20261011010000_whatsapp_connection_pair/
+    └─ migration.sql
+  └─ 20261012000000_subscriptions_payments_keys/
+    └─ migration.sql
+  └─ 20261012010000_registration_approval_setting/
+    └─ migration.sql
+  └─ 20261012020000_standalone_licences/
+    └─ migration.sql
+  └─ 20261012030000_licence_key_source/
+    └─ migration.sql
+  └─ 20261012040000_free_admin_grants/
+    └─ migration.sql
+  └─ 20261012050000_school_onboarding/
+    └─ migration.sql
+  └─ 20261013000000_bank_accounts/
+    └─ migration.sql
+  └─ 20261013010000_bank_account_owner/
+    └─ migration.sql
+  └─ 20261014000000_expenses_and_promises/
+    └─ migration.sql
+  └─ 20261015000000_staff_access_procurement_store_library/
+    └─ migration.sql
+  └─ 20261016000000_library_soft_delete/
+    └─ migration.sql
+  └─ 20261017000000_support_chat/
+    └─ migration.sql
+  └─ 20261017010000_support_chat_visitors/
+    └─ migration.sql
+  └─ 20261017020000_support_knowledge_base/
+    └─ migration.sql
+  └─ 20261017030000_knowledge_audience/
+    └─ migration.sql
+  └─ 20261018000000_password_resets/
+    └─ migration.sql
+  └─ 20261018010000_learner_packages/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+
+==> Background job schedules
+/opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.1/node_modules/pg-pool/index.js:45
+    Error.captureStackTrace(err)
+          ^
+
+error: function gen_random_uuid() does not exist
+    at /opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.1/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Db.executeSql (file:///opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/pg-boss@12.35.1/node_modules/pg-boss/dist/db.js:98:16)
+    at async Contractor.create (file:///opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/pg-boss@12.35.1/node_modules/pg-boss/dist/contractor.js:264:13)
+    at async Contractor.start (file:///opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/pg-boss@12.35.1/node_modules/pg-boss/dist/contractor.js:89:13)
+    at async #doStart (file:///opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/pg-boss@12.35.1/node_modules/pg-boss/dist/index.js:147:13)
+    at async PgBoss.start (file:///opt/rejista/releases/20261012-123214-9CXmLQeK/node_modules/.pnpm/pg-boss@12.35.1/node_modules/pg-boss/dist/index.js:127:20)
+    at async <anonymous> (/opt/rejista/releases/20261012-123214-9CXmLQeK/artifacts/api-server/install-finance-jobs.ts:10:1) {
+  length: 212,
+  severity: 'ERROR',
+  code: '42883',
+  detail: undefined,
+  hint: 'No function matches the given name and argument types. You might need to add explicit type casts.',
+  position: '3186',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_func.c',
+  line: '624',
+  routine: 'ParseFuncOrColumn'
+}
+
+Node.js v24.21.0
+ERROR: Failed at line 99. Stopping; check the preceding error.
+Failed to stop rejista-api.service: Unit rejista-api.service not loaded.
+Failed to disable unit: Unit file rejista-api.service does not exist.
+nginx: [warn] conflicting server name "doc.tokshoplive.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "tokshoplive.com" on 0.0.0.0:80, ignored
+nginx: [warn] could not build optimal server_names_hash, you should increase either server_names_hash_max_size: 512 or server_names_hash_bucket_size: 64; ignoring server_names_hash_bucket_size
+RECOVERY INCOMPLETE. Some files or services could not be restored. Inspect /var/tmp/rejista-recovery.Z0OTNZPC and the preceding errors. Do not restart blindly.
+API left stopped: database may have changed. Inspect backup and schema before restarting. No automatic database restore was attempted.
+root@vmi1445488:/var/www/rejista# 

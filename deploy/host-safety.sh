@@ -159,7 +159,7 @@ begin_recovery() {
   done
   PREVIOUS=$(readlink -f "$APP_ROOT/current" 2>/dev/null || true)
   WAS_ENABLED=0
-  systemctl is-enabled --quiet rejista-api && WAS_ENABLED=1
+  systemctl is-enabled --quiet rejista-api 2>/dev/null && WAS_ENABLED=1
   printf '%s\n' "$PREVIOUS" > "$RECOVERY/previous-release"
   printf '%s\n' "$RECOVERY" > "$ENV_DIR/deploy-in-progress"
   DEPLOY_SUCCESS=0; MIGRATIONS_STARTED=0
@@ -168,12 +168,17 @@ begin_recovery() {
   trap 'exit 143' TERM
 }
 recover_on_exit() {
-  local status=$? path failed=0
+  local status=$? path failed=0 unit_state
   [[ ${DEPLOY_SUCCESS:-0} == 1 ]] && return
   # set +e alone does not disable an inherited ERR trap.
   trap - ERR EXIT INT TERM
   set +e
-  if [[ ${CUTOVER_STARTED:-0} == 1 || ${MIGRATIONS_STARTED:-0} == 1 ]]; then systemctl stop rejista-api || failed=1; fi
+  if [[ ${CUTOVER_STARTED:-0} == 1 || ${MIGRATIONS_STARTED:-0} == 1 ]]; then
+    unit_state=$(systemctl show rejista-api -p LoadState --value 2>/dev/null || true)
+    # A first install may fail before the unit has ever been written. Only
+    # skip a stop when systemd explicitly confirms that no unit exists.
+    if [[ $unit_state != not-found ]]; then systemctl stop rejista-api || failed=1; fi
+  fi
   for path in /etc/rejista/rejista.env /etc/systemd/system/rejista-api.service /etc/nginx/sites-available/rejista.conf /etc/nginx/sites-enabled/rejista.conf /etc/nginx/snippets/rejista-headers.conf; do
     restore_snapshot_file "$RECOVERY" "$path" || failed=1
   done
@@ -181,7 +186,10 @@ recover_on_exit() {
     ln -sfn "$PREVIOUS" "$APP_ROOT/current" || failed=1
   else rm -f "$APP_ROOT/current" || failed=1; fi
   systemctl daemon-reload || failed=1
-  if [[ ${WAS_ENABLED:-0} != 1 ]]; then systemctl disable rejista-api || failed=1; fi
+  if [[ ${WAS_ENABLED:-0} != 1 ]]; then
+    unit_state=$(systemctl show rejista-api -p LoadState --value 2>/dev/null || true)
+    if [[ $unit_state != not-found ]]; then systemctl disable rejista-api || failed=1; fi
+  fi
   if nginx -t -q; then systemctl reload nginx || failed=1; else failed=1; fi
   if [[ $failed == 0 ]]; then
     echo "Deployment failed. Configuration restored. Recovery snapshot: $RECOVERY" >&2

@@ -25,6 +25,8 @@ elif name == "psql":
         if sql == "SELECT 1":
             if mode == "unreachable": sys.exit(1)
             print("1")
+        elif sql == "SHOW server_version_num":
+            print("120022" if mode == "unsupported" else "160010")
         elif "count(*)" in sql:
             print("1" if mode == "collision" else "0")
         else:
@@ -75,7 +77,7 @@ class CreateDatabase(unittest.TestCase):
                 self.assertEqual(output.stat().st_mode & 0o777, 0o600)
                 self.assertTrue(output.read_text().startswith("postgresql://rejista:"))
                 self.assertFalse(pending)
-            elif mode in ("collision", "unreachable", "existing-file"):
+            elif mode in ("collision", "unreachable", "existing-file", "unsupported"):
                 self.assertFalse((root / "creation-attempted").exists())
                 self.assertFalse(pending)
                 if mode == "existing-file":
@@ -93,6 +95,7 @@ class CreateDatabase(unittest.TestCase):
     def test_partial_creation(self): self.run_case("create-failure")
     def test_tcp_failure(self): self.run_case("tcp-failure")
     def test_tcp_wrong_server(self): self.run_case("wrong-server")
+    def test_unsupported_server_does_not_create_anything(self): self.run_case("unsupported")
 
 
 if __name__ == "__main__":

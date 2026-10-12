@@ -31,6 +31,8 @@ flock -n 9 || die "Another Rejista installer or database setup is running."
 [[ ! -e $OUTPUT && ! -L $OUTPUT ]] || die "Connection file appeared while acquiring the lock."
 admin() { sudo -u postgres env PGCONNECT_TIMEOUT=10 psql -X -w -v ON_ERROR_STOP=1 -h "$SOCKET" -p "$PORT" -d postgres "$@"; }
 admin -Atqc 'SELECT 1' >/dev/null 2>&1 || die "Cannot reach existing PostgreSQL through the local postgres account. No database changes were made."
+SERVER_VERSION=$(admin -Atqc 'SHOW server_version_num') || die "Cannot determine the existing PostgreSQL server version."
+[[ $SERVER_VERSION =~ ^[0-9]+$ ]] && (( SERVER_VERSION >= 130000 )) || die "Rejista requires PostgreSQL 13 or newer. No database or account was created. Shared PostgreSQL will not be upgraded automatically."
 COLLISIONS=$(admin -Atqc "SELECT (SELECT count(*) FROM pg_roles WHERE rolname='rejista') + (SELECT count(*) FROM pg_database WHERE datname='rejista')") || die "Could not inspect existing names."
 [[ ${COLLISIONS//[[:space:]]/} == 0 ]] || die "The rejista login or database already exists. Refusing to overwrite it or reset its password."
 

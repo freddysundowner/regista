@@ -71,6 +71,14 @@ pg_dump() { echo "pg_dump (PostgreSQL) 16.4"; }
 check_existing_database 'postgresql://example/rejista?schema=public&sslmode=require&connection_limit=5&connect_timeout=5'
 ''')
 
+    def test_unsupported_server_refused_before_backup(self):
+        result = self.run_shell('''psql() { echo 120022; }
+pg_dump() { echo SHOULD_NOT_RUN; return 99; }
+check_existing_database 'postgresql://example/rejista'
+''', ok=False)
+        self.assertIn("requires PostgreSQL 13", result.stderr)
+        self.assertNotIn("SHOULD_NOT_RUN", result.stdout)
+
     def test_installer_safety_order(self):
         source = (ROOT / "install.sh").read_text()
         self.assertLess(source.index('postgres_plan "$FIRST_INSTALL"'), source.index("apt-get update"))

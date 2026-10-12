@@ -62,6 +62,10 @@ check_existing_database() {
   server=$(PGDATABASE="$(libpq_database_url "$url")" PGCONNECT_TIMEOUT=10 postgres_client psql -X -w -Atqc 'SHOW server_version_num' 2>/dev/null) \
     || { echo "Cannot connect to the selected database. Check the database URL, access and installed client tools. No database changes were made." >&2; return 1; }
   [[ $server =~ ^[0-9]+$ ]] || { echo "Could not verify PostgreSQL server version." >&2; return 1; }
+  (( server >= 130000 )) || {
+    echo "Selected PostgreSQL server is version $((server / 10000)); Rejista's job queue requires PostgreSQL 13 or newer. Use a separate supported server/database. The installer will not upgrade shared PostgreSQL." >&2
+    return 1
+  }
   dump=$(pg_dump --version 2>/dev/null) || return 1
   major=$(sed -nE 's/.*PostgreSQL\) ([0-9]+).*/\1/p' <<< "$dump")
   [[ $major =~ ^[0-9]+$ ]] && (( major >= server / 10000 )) \

@@ -171,6 +171,21 @@ recover_on_exit''', ok=False)
             self.shell(f"atomic_env_set {shlex.quote(str(path))} PORT $'8081\\nHOST=0.0.0.0'", ok=False)
             self.assertEqual(path.read_text(), "PORT=8080\n")
 
+    def test_first_install_recovery_does_not_stop_nonexistent_unit(self):
+        out = self.shell('''RECOVERY=/nonexistent-recovery; PREVIOUS=""; APP_ROOT=/opt/rejista
+MIGRATIONS_STARTED=1; CUTOVER_STARTED=0; DEPLOY_SUCCESS=0; WAS_ENABLED=0
+systemctl() {
+  if [[ $1 == show ]]; then echo not-found; return; fi
+  echo "SERVICE $*"
+  [[ $1 != stop && $1 != disable ]]
+}
+restore_snapshot_file() { :; }
+nginx() { :; }; rm() { :; }; ln() { :; }
+recover_on_exit''', ok=False)
+        self.assertNotIn("SERVICE stop", out)
+        self.assertNotIn("SERVICE disable", out)
+        self.assertIn("SERVICE daemon-reload", out)
+
 
 if __name__ == "__main__":
     unittest.main()

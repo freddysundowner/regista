@@ -48,6 +48,11 @@ Other required tools are: running nginx, curl, tar, sha256sum, rsync, openssl, s
 issuance, certbot is also required. The installer no longer updates shared
 packages/runtimes, creates swap, changes UFW, or removes nginx's default site.
 
+The selected PostgreSQL server must be version **13 or newer** (required by the
+job queue). The installer checks the actual server version, not just the client
+version, before building or migrating. Use a currently maintained PostgreSQL
+release for a new installation. An older shared server is never upgraded in place.
+
 For an existing database, prefer a root-owned mode-600 file containing only its
 connection URL, and pass `--db-url-file /root/rejista-db-url` rather than putting
 a password in shell history. The database must be empty on first installation
