@@ -10,6 +10,27 @@ ROOT = pathlib.Path(__file__).resolve().parent
 
 
 class HostSafety(unittest.TestCase):
+    def test_private_build_shows_progress_and_preserves_failures(self):
+        source = (ROOT / "private-postgres.sh").read_text()
+        start = source.index('    sudo -u "$account" bash -c')
+        end = source.index('\n    chown -R root:root', start)
+        build = source[start:end]
+        for status in (0, 7):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                script = f'''set -euo pipefail
+account=fixture; version=16.15; root=/unused
+stage={shlex.quote(directory)}
+sudo() {{ echo "compiler progress"; return {status}; }}
+die() {{ echo "$*" >&2; exit 1; }}
+{build}
+'''
+                result = subprocess.run(["bash", "-c", script], text=True, capture_output=True)
+                self.assertIn("compiler progress", result.stdout)
+                self.assertIn("compiler progress", (pathlib.Path(directory) / "build.log").read_text())
+                self.assertEqual(result.returncode, 0 if status == 0 else 1)
+                if status:
+                    self.assertIn("Private PostgreSQL build failed", result.stderr)
+
     def test_service_gets_private_database_client_path(self):
         source = (ROOT / "install.sh").read_text()
         render = "render() {" + source.split("render() {", 1)[1].split("\n}", 1)[0] + "\n}"

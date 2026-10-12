@@ -60,9 +60,12 @@ setup_private_postgres() {
     (cd "$stage"; printf '%s  %s\n' "$hash" "$archive" | sha256sum -c -) || die "PostgreSQL checksum failed."
     (umask 022; tar -xzf "$stage/$archive" -C "$stage")
     chown -R "$account:$account" "$stage"
+    # Show progress while retaining the log. The installer's pipefail keeps
+    # compiler failures fatal even when tee succeeds.
+    info "Compiler progress follows. Leave this terminal running until installation finishes."
     # Compile without optional library dependencies; only local connections are exposed.
     sudo -u "$account" bash -c 'set -e; umask 022; cd "$1"; ./configure --prefix="$2" --without-readline --without-zlib --without-icu; make -j2; make DESTDIR="$3" install' \
-      bash "$stage/postgresql-$version" "$root/pgsql" "$stage/dest" > "$stage/build.log" 2>&1 || die "Private PostgreSQL build failed. See $stage/build.log."
+      bash "$stage/postgresql-$version" "$root/pgsql" "$stage/dest" 2>&1 | tee "$stage/build.log" || die "Private PostgreSQL build failed. See $stage/build.log."
     chown -R root:root "$stage/dest$root/pgsql"
     mv -T "$stage/dest$root/pgsql" "$root/pgsql"
   fi
