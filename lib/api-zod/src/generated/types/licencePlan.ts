@@ -8,6 +8,8 @@
 import type { LicencePlanCurrency } from './licencePlanCurrency';
 
 export interface LicencePlan {
+  /** @nullable */
+  maxLearners: number | null;
   id: string;
   name: string;
   description: string;

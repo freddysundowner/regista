@@ -1,34 +1,30 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { APP_INITIAL } from "@/lib/brand";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreateInitialSchool, useLogin, useGetSetupStatus, getGetCurrentUserQueryKey, getGetSetupStatusQueryKey, SchoolType, type AuthSession } from "@workspace/api-client-react";
-import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
-import { Link } from "wouter";
+import { useCreateInitialSchool, useLogin, useGetSetupStatus, useRequestPasswordReset, useResetPasswordWithLink, getGetCurrentUserQueryKey, getGetSetupStatusQueryKey, SchoolType, type AuthSession } from "@workspace/api-client-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { Field, TextInput, NativeSelect, FormError, Btn } from "@/components/kit";
 import { errMsg } from "@/lib/session";
+import { useInstallation } from "@/lib/installation";
 
 export const COUNTIES = ["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"];
 
-export function Frame({ children, side }: { children: ReactNode; side: ReactNode }) {
+function Brand() {
   return (
-    <div className="grid min-h-[100dvh] grid-cols-1 bg-background lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-      <aside className="relative hidden overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between">
-        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0 39px, currentColor 39px 40px)" }} />
-        <div className="absolute bottom-0 left-16 top-0 w-px bg-sidebar-primary/40" />
-        <div className="relative flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-sidebar-primary font-display text-lg font-bold text-sidebar-primary-foreground">R</div>
-          <span className="font-display text-xl font-semibold text-sidebar-accent-foreground">Rejista</span>
-        </div>
-        <div className="relative pl-10">{side}</div>
-        <div className="relative pl-10 font-mono text-[11px] uppercase tracking-[0.2em] text-sidebar-foreground/50">Admission register · Guardians · Audit trail</div>
-      </aside>
-      <div className="flex min-w-0 flex-col">
-        <div className="flex items-center gap-2.5 bg-sidebar px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-sidebar-foreground lg:hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-lg font-bold text-sidebar-primary-foreground">R</div>
-          <div className="min-w-0"><div className="font-display text-lg font-semibold leading-tight text-sidebar-accent-foreground">Rejista</div><div className="truncate font-mono text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">Admission register · Guardians · Audit</div></div>
-        </div>
-        <div className="flex flex-1 items-start justify-center px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-8 md:items-center md:px-12 md:py-10">
-          <div className="rise min-w-0 w-full max-w-xl">{children}</div>
-        </div>
+    <Link href="/" aria-label="Rejista home" className="mb-7 flex items-center justify-center gap-2.5">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-display text-xl font-bold text-primary-foreground shadow-[0_8px_20px_-8px_hsl(var(--primary)/.7)]">{APP_INITIAL}</div>
+      <span className="font-display text-2xl font-semibold tracking-tight">Rejista</span>
+    </Link>
+  );
+}
+
+export function Frame({ children, wide }: { children: ReactNode; wide?: boolean }) {
+  return (
+    <div className="relative flex min-h-[100dvh] flex-col items-center overflow-hidden bg-muted/40 px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:justify-center">
+      <div className={`rise relative w-full ${wide ? "max-w-4xl" : "max-w-[26rem]"}`}>
+        <Brand />
+        <div className="rounded-3xl bg-card p-6 shadow-[0_1px_2px_hsl(var(--foreground)/.04),0_24px_48px_-24px_hsl(var(--foreground)/.18)] ring-1 ring-foreground/[.06] sm:p-9">{children}</div>
       </div>
     </div>
   );
@@ -36,8 +32,12 @@ export function Frame({ children, side }: { children: ReactNode; side: ReactNode
 
 function useAuthDone() {
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   return (s: AuthSession) => {
+    navigate("/", { replace: true });
     qc.setQueryData(getGetSetupStatusQueryKey(), { needsSetup: false, requiresSetupToken: false });
+    // A "who am I" check still in flight from before the sign-in would answer "nobody" and bounce the person back to the landing page, so it is dropped first.
+    void qc.cancelQueries({ queryKey: getGetCurrentUserQueryKey() });
     qc.setQueryData(getGetCurrentUserQueryKey(), s);
   };
 }
@@ -55,39 +55,46 @@ export function SetupPage() {
     e.preventDefault();
     setErr(null);
     if (!f.email.trim() && !f.phone.trim()) return setErr("Add an email or phone number so the administrator can sign in.");
-    if (f.password.length < 10) return setErr("Password must be at least 10 characters.");
+    if (f.password.length < 6) return setErr("Password must be at least 6 characters.");
     if (f.password !== f.confirm) return setErr("Passwords do not match.");
     if (needsToken && !f.setupToken.trim()) return setErr("Enter the setup token provided by your platform operator.");
     m.mutate({ data: { ...(needsToken ? { setupToken: f.setupToken.trim() } : {}), schoolName: f.schoolName.trim(), schoolCode: f.schoolCode.trim().toUpperCase(), county: f.county || undefined, schoolType: f.schoolType, adminName: f.adminName.trim(), email: f.email.trim() || undefined, phone: f.phone.trim() || undefined, password: f.password } }, { onError: (x) => setErr(errMsg(x)) });
   };
 
+  useEffect(() => { document.title = "Set up your school · Rejista"; }, []);
+
   return (
-    <Frame side={<>
-      <p className="font-display text-4xl font-semibold leading-[1.1] text-sidebar-accent-foreground">Open the register.<br /><span className="text-sidebar-primary">Every learner, every guardian,</span><br />on one page.</p>
-      <p className="mt-6 max-w-sm text-sm leading-relaxed text-sidebar-foreground/70">First-run setup creates your school and its administrator account. You will add staff, grades and streams once you are inside.</p>
-    </>}>
-      <div className="mb-8">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700/80">First-run setup</div>
-        <h1 className="mt-1 font-display text-4xl font-semibold">Register your school</h1>
+    <Frame wide>
+      <div className="mb-6">
+        <Link href="/login" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground" data-testid="link-back-login"><ArrowLeft className="h-4 w-4" />Back to sign in</Link>
+        <h1 className="text-2xl font-semibold tracking-tight">Set up your school</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">This first account becomes the platform owner and can add more schools later.</p>
       </div>
-      <form onSubmit={submit} className="space-y-6">
+      <form onSubmit={submit} className="space-y-5">
         {needsToken && <Field label="Setup token" required hint="Issued by whoever deployed Rejista. Not stored in this browser."><TextInput data-testid="input-setup-token" type="password" autoComplete="off" required maxLength={256} value={f.setupToken} onChange={set("setupToken")} /></Field>}
-        <div className="grid gap-4 sm:grid-cols-6">
-          <Field label="School name" required className="sm:col-span-4"><TextInput data-testid="input-school-name" required minLength={2} value={f.schoolName} onChange={set("schoolName")} placeholder="Kitengela Hills Academy" /></Field>
-          <Field label="School code" required className="sm:col-span-2"><TextInput data-testid="input-school-code" required minLength={2} className="font-mono uppercase" value={f.schoolCode} onChange={set("schoolCode")} placeholder="KHA-01" /></Field>
-          <Field label="County" className="sm:col-span-3"><NativeSelect data-testid="select-county" value={f.county} onChange={set("county")}><option value="">Select county</option>{COUNTIES.map((c) => <option key={c}>{c}</option>)}</NativeSelect></Field>
-          <Field label="Level" required className="sm:col-span-3"><NativeSelect data-testid="select-school-type" value={f.schoolType} onChange={set("schoolType")}>{Object.values(SchoolType).map((t) => <option key={t} value={t} className="capitalize">{t[0].toUpperCase() + t.slice(1)}</option>)}</NativeSelect></Field>
-        </div>
-        <div className="rounded-md border border-amber-600/30 bg-accent/50 px-4 py-3 text-sm text-accent-foreground" data-testid="text-platform-owner-note">
-          <span className="font-semibold">This first account becomes the platform owner.</span> It manages this school and can provision additional schools later. Each extra school gets its own administrator who signs in separately.
-        </div>
-        <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"><span>Platform owner</span><span className="h-px flex-1 bg-border" /></div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Full name" required className="sm:col-span-2"><TextInput data-testid="input-admin-name" required minLength={2} value={f.adminName} onChange={set("adminName")} placeholder="Grace Wanjiru Mwangi" /></Field>
-          <Field label="Email" hint="Email or phone is required"><TextInput data-testid="input-email" type="email" value={f.email} onChange={set("email")} placeholder="admin@school.ac.ke" /></Field>
-          <Field label="Phone"><TextInput data-testid="input-phone" type="tel" value={f.phone} onChange={set("phone")} placeholder="0712 345 678" /></Field>
-          <Field label="Password" required hint="At least 10 characters"><TextInput data-testid="input-password" type="password" required value={f.password} onChange={set("password")} /></Field>
-          <Field label="Confirm password" required><TextInput data-testid="input-confirm" type="password" required value={f.confirm} onChange={set("confirm")} /></Field>
+        <div className="grid gap-x-10 gap-y-6 md:grid-cols-2">
+        <fieldset className="space-y-4">
+          <legend className="mb-3 text-sm font-semibold">School</legend>
+          <Field label="School name" required><TextInput data-testid="input-school-name" required minLength={2} value={f.schoolName} onChange={set("schoolName")} placeholder="e.g. Kitengela Hills Academy" /></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="School code" required><TextInput data-testid="input-school-code" required minLength={2} className="font-mono uppercase" value={f.schoolCode} onChange={set("schoolCode")} placeholder="KHA-01" /></Field>
+            <Field label="Level" required><NativeSelect data-testid="select-school-type" value={f.schoolType} onChange={set("schoolType")}>{Object.values(SchoolType).map((t) => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</NativeSelect></Field>
+          </div>
+          <Field label="County"><NativeSelect data-testid="select-county" value={f.county} onChange={set("county")}><option value="">Select county</option>{COUNTIES.map((c) => <option key={c}>{c}</option>)}</NativeSelect></Field>
+        </fieldset>
+        <fieldset className="space-y-4 border-t border-border pt-5 md:border-l md:border-t-0 md:pl-10 md:pt-0">
+          <legend className="mb-3 text-sm font-semibold">Your account</legend>
+          <Field label="Full name" required><TextInput data-testid="input-admin-name" required minLength={2} autoComplete="name" value={f.adminName} onChange={set("adminName")} /></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Email"><TextInput data-testid="input-email" type="email" autoComplete="email" value={f.email} onChange={set("email")} placeholder="you@school.ac.ke" /></Field>
+            <Field label="Phone"><TextInput data-testid="input-phone" type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} placeholder="0712 345 678" /></Field>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">Enter an email or a phone number. You'll use it to sign in.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Password" required hint="At least 6 characters"><TextInput data-testid="input-password" type="password" autoComplete="new-password" required value={f.password} onChange={set("password")} /></Field>
+            <Field label="Confirm password" required><TextInput data-testid="input-confirm" type="password" autoComplete="new-password" required value={f.confirm} onChange={set("confirm")} /></Field>
+          </div>
+        </fieldset>
         </div>
         <FormError msg={err} />
         <Btn data-testid="button-create-school" type="submit" disabled={m.isPending} className="h-11 w-full text-[15px]">
@@ -98,81 +105,166 @@ export function SetupPage() {
   );
 }
 
-function LoginShell({ children }: { children: ReactNode }) {
-  const areas = ["Learners", "Families", "Fees", "Academics"];
-  return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-[hsl(42_38%_95%)]">
-      <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-[radial-gradient(circle,hsl(38_88%_62%/.32),transparent_65%)]" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-56 -left-40 h-[38rem] w-[38rem] rounded-full bg-[radial-gradient(circle,hsl(188_52%_30%/.20),transparent_65%)]" />
-      <div className="relative mx-auto grid min-h-[100dvh] max-w-6xl grid-cols-1 gap-10 px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-16 lg:py-12">
-        <header className="flex flex-col lg:h-full lg:justify-between lg:py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-display text-xl font-bold text-primary-foreground shadow-[0_6px_16px_-6px_hsl(188_52%_20%/.6)]">R</div>
-            <span className="font-display text-xl font-semibold tracking-tight">Rejista</span>
-          </div>
-          <div className="mt-10 hidden lg:block">
-            <h2 className="text-[clamp(2.75rem,4.6vw,4.25rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-foreground">
-              Your school's<br />day, <span className="text-primary">in one place.</span>
-            </h2>
-            <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">The shared workspace where staff keep learners, families, fees and academics up to date together.</p>
-            <ul className="mt-8 flex flex-wrap gap-2">
-              {areas.map((a) => <li key={a} className="rounded-full border border-primary/15 bg-card/70 px-3.5 py-1.5 text-sm font-medium text-primary backdrop-blur">{a}</li>)}
-            </ul>
-          </div>
-          <p className="mt-10 hidden text-xs text-muted-foreground lg:block">Karibu tena — welcome back.</p>
-        </header>
-        <main className="flex items-start justify-center lg:items-center">
-          <div className="rise w-full max-w-md rounded-[1.75rem] border border-card-border bg-card/90 p-6 shadow-[0_30px_60px_-30px_hsl(192_40%_15%/.35)] backdrop-blur sm:p-10">{children}</div>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-export function LoginPage() {
+/** The sign-in form alone, shared by the full page and the landing-page panel. */
+export function LoginForm() {
   const done = useAuthDone();
   const m = useLogin({ mutation: { onSuccess: done } });
   const [identifier, setId] = useState("");
   const [password, setPw] = useState("");
   const [show, setShow] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => { document.title = "Sign in · Rejista"; }, []);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setErr(null);
     m.mutate({ data: { identifier: identifier.trim(), password } }, { onError: (x) => setErr(errMsg(x, "Sign-in failed")) });
   };
-  const ctl = "h-12 w-full rounded-xl border border-input bg-background/60 px-4 text-[15px] outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/10";
+  const ctl = "peer h-12 w-full rounded-xl border border-input bg-muted/30 pl-11 pr-4 text-[15px] outline-none transition placeholder:text-muted-foreground/60 hover:border-foreground/20 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/10";
+  const icon = "pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/70 transition peer-focus:text-primary";
   return (
-    <LoginShell>
-      <div className="mb-8">
-        <p className="text-sm font-medium text-primary">Staff sign-in</p>
-        <h1 className="mt-1.5 text-3xl font-semibold tracking-[-0.03em] sm:text-[2.1rem]">Welcome back</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Use the email or phone number your school administrator registered for you.</p>
-      </div>
-      <form onSubmit={submit} className="space-y-5">
-        <div className="space-y-1.5">
-          <label htmlFor="login-identifier" className="text-sm font-medium">Email or phone</label>
-          <input id="login-identifier" name="username" data-testid="input-identifier" className={ctl} required minLength={3} autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} value={identifier} onChange={(e) => setId(e.target.value)} placeholder="you@school.ac.ke or 07..." />
+    <form onSubmit={submit} className="space-y-4 max-md:space-y-7">
+      <div className="space-y-2">
+        <label htmlFor="login-identifier" className="text-sm font-medium">Email or phone</label>
+        <div className="relative">
+          <input id="login-identifier" name="username" data-testid="input-identifier" className={ctl} required minLength={3} autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} value={identifier} onChange={(e) => setId(e.target.value)} placeholder="you@school.ac.ke or 07…" />
+          <UserRound className={icon} />
         </div>
-        <div className="space-y-1.5">
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
           <label htmlFor="login-password" className="text-sm font-medium">Password</label>
-          <div className="relative">
-            <input id="login-password" name="password" data-testid="input-password" className={`${ctl} pr-12`} type={show ? "text" : "password"} required autoComplete="current-password" value={password} onChange={(e) => setPw(e.target.value)} />
-            <button type="button" data-testid="button-toggle-password" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"} aria-pressed={show} aria-controls="login-password" className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground">Forgot your password? Ask your school administrator to reset your account.</p>
+          <Link href="/forgot-password" data-testid="link-forgot-password" className="text-xs font-semibold text-primary hover:underline">Forgot password?</Link>
         </div>
-        <FormError msg={err} />
-        <Btn data-testid="button-login" type="submit" disabled={m.isPending} aria-busy={m.isPending} className="h-12 w-full rounded-xl text-[15px] sm:h-12">
-          {m.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing in</> : <>Sign in <ArrowRight className="h-4 w-4" /></>}
-        </Btn>
-      </form>
-      <div className="mt-8 border-t border-border/70 pt-6 text-sm text-muted-foreground">
-        New school? <Link href="/register" data-testid="link-register" className="font-semibold text-primary hover:underline">Register for review</Link>
+        <div className="relative">
+          <input id="login-password" name="password" data-testid="input-password" className={`${ctl} pr-12`} type={show ? "text" : "password"} required autoComplete="current-password" value={password} onChange={(e) => setPw(e.target.value)} placeholder="••••••••••" />
+          <LockKeyhole className={icon} />
+          <button type="button" data-testid="button-toggle-password" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"} aria-pressed={show} aria-controls="login-password" className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
-    </LoginShell>
+      <FormError msg={err} />
+      <Btn data-testid="button-login" type="submit" disabled={m.isPending} aria-busy={m.isPending} className="!mt-6 h-12 w-full rounded-xl text-[15px] font-semibold shadow-[0_10px_24px_-12px_hsl(var(--primary)/.8)] transition hover:-translate-y-px sm:h-12">
+        {m.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing in</> : <>Sign in <ArrowRight className="h-4 w-4" /></>}
+      </Btn>
+    </form>
+  );
+}
+
+const authInput = "peer h-12 w-full rounded-xl border border-input bg-muted/30 pl-11 pr-4 text-[15px] outline-none transition placeholder:text-muted-foreground/60 hover:border-foreground/20 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/10";
+const authIcon = "pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/70 transition peer-focus:text-primary";
+const authButton = "!mt-6 h-12 w-full rounded-xl text-[15px] font-semibold shadow-[0_10px_24px_-12px_hsl(var(--primary)/.8)] transition hover:-translate-y-px sm:h-12";
+const backToSignIn = <p className="mt-6 text-center text-sm"><Link href="/login" data-testid="link-back-to-login" className="font-semibold text-primary hover:underline">Back to sign in</Link></p>;
+
+/** Step one of a forgotten password: ask for the email and send a one-time link to it. */
+export function ForgotPasswordForm() {
+  const m = useRequestPasswordReset();
+  const [email, setEmail] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  if (m.isSuccess) return (
+    <div data-testid="forgot-sent">
+      <div className="flex items-start gap-3 rounded-xl bg-primary/5 p-4 text-sm"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><p>If <b>{email.trim()}</b> has an account, a link to choose a new password is on its way. It works once, for one hour. Check your spam folder if you don't see it.</p></div>
+      <p className="mt-4 text-sm text-muted-foreground">No email on your account, or nothing arrives? Ask your school administrator to reset your password from the Staff page.</p>
+      {backToSignIn}
+    </div>
+  );
+  return (
+    <form className="space-y-4 max-md:space-y-7" onSubmit={(e) => { e.preventDefault(); setErr(null); m.mutate({ data: { email: email.trim() } }, { onError: (x) => setErr(errMsg(x, "Could not send the link.")) }); }}>
+      <div className="space-y-2">
+        <label htmlFor="forgot-email" className="text-sm font-medium">Email</label>
+        <div className="relative">
+          <input id="forgot-email" data-testid="input-forgot-email" className={authInput} type="email" required autoFocus autoComplete="email" autoCapitalize="none" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@school.ac.ke" />
+          <Mail className={authIcon} />
+        </div>
+      </div>
+      <FormError msg={err} />
+      <Btn data-testid="button-send-reset" type="submit" disabled={m.isPending} className={authButton}>{m.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending</> : <>Email me a reset link <ArrowRight className="h-4 w-4" /></>}</Btn>
+      {backToSignIn}
+    </form>
+  );
+}
+
+/** Step two: the emailed link opens this, carrying its one-time token. */
+export function ResetPasswordForm() {
+  const m = useResetPasswordWithLink();
+  // Read once, then taken out of the address bar so the token isn't left in history or shared by accident.
+  const [token] = useState(() => new URLSearchParams(window.location.search).get("token") ?? "");
+  useEffect(() => { if (token) window.history.replaceState(null, "", "/reset-password"); }, [token]);
+  const [pw, setPw] = useState({ next: "", again: "" });
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!token && !m.isSuccess) return (
+    <div data-testid="reset-missing">
+      <p className="rounded-xl bg-amber-50/70 p-4 text-sm text-amber-900">This page opens from the link in a password reset email. Ask for a new link and open it from that email.</p>
+      <p className="mt-6 text-center text-sm"><Link href="/forgot-password" className="font-semibold text-primary hover:underline">Email me a reset link</Link></p>
+    </div>
+  );
+  if (m.isSuccess) return (
+    <div data-testid="reset-done">
+      <div className="flex items-start gap-3 rounded-xl bg-primary/5 p-4 text-sm"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><p>Your password has been changed and every device has been signed out. Sign in with the new password.</p></div>
+      {/* A full page load, so a session that was open in this browser is dropped too. */}
+      <p className="mt-6 text-center text-sm"><a href="/login" data-testid="link-reset-login" className="font-semibold text-primary hover:underline">Go to sign in</a></p>
+    </div>
+  );
+  const submit = (e: FormEvent) => {
+    e.preventDefault(); setErr(null);
+    if (pw.next.length < 6) return setErr("Use at least 6 characters.");
+    if (pw.next !== pw.again) return setErr("The two passwords don't match.");
+    m.mutate({ data: { token, password: pw.next } }, { onError: (x) => setErr(errMsg(x, "Could not change the password.")) });
+  };
+  return (
+    <form className="space-y-4 max-md:space-y-7" onSubmit={submit}>
+      {(["next", "again"] as const).map((k) => (
+        <div key={k} className="space-y-2">
+          <label htmlFor={`reset-${k}`} className="text-sm font-medium">{k === "next" ? "New password" : "Type it again"}</label>
+          <div className="relative">
+            <input id={`reset-${k}`} data-testid={`input-reset-${k}`} className={authInput} type={show ? "text" : "password"} required minLength={6} maxLength={128} autoFocus={k === "next"} autoComplete="new-password" value={pw[k]} onChange={(e) => setPw({ ...pw, [k]: e.target.value })} placeholder="At least 6 characters" />
+            <LockKeyhole className={authIcon} />
+          </div>
+        </div>
+      ))}
+      <label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> Show passwords</label>
+      <FormError msg={err} />
+      <Btn data-testid="button-reset-password" type="submit" disabled={m.isPending} className={authButton}>{m.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving</> : <>Save new password <ArrowRight className="h-4 w-4" /></>}</Btn>
+      {err && <p className="text-center text-sm"><Link href="/forgot-password" className="font-semibold text-primary hover:underline">Email me a new link</Link></p>}
+    </form>
+  );
+}
+
+export const RECOVERY_COPY = {
+  forgot: { title: "Forgot your password?", subtitle: "Enter the email on your account and we'll send you a link to choose a new one." },
+  reset: { title: "Choose a new password", subtitle: "Pick something you don't use anywhere else." },
+} as const;
+
+/** Forgotten-password pages for a standalone school server, which has no landing page around its sign-in. */
+export function RecoveryPage({ mode }: { mode: keyof typeof RECOVERY_COPY }) {
+  useEffect(() => { document.title = `${RECOVERY_COPY[mode].title.replace("?", "")} · Rejista`; }, [mode]);
+  return (
+    <Frame>
+      <div className="mb-7">
+        <h1 className="text-[1.65rem] font-semibold tracking-[-0.02em]">{RECOVERY_COPY[mode].title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{RECOVERY_COPY[mode].subtitle}</p>
+      </div>
+      {mode === "forgot" ? <ForgotPasswordForm /> : <ResetPasswordForm />}
+    </Frame>
+  );
+}
+
+export function LoginPage() {
+  const { standalone } = useInstallation();
+  const needsSetup = useGetSetupStatus().data?.needsSetup === true;
+  useEffect(() => { document.title = "Sign in · Rejista"; }, []);
+  return (
+    <Frame>
+      <div className="mb-7">
+        <h1 className="text-[1.65rem] font-semibold tracking-[-0.02em]">Welcome back</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Sign in to continue to your school.</p>
+      </div>
+      <LoginForm />
+      {!standalone && <div className="mt-7 text-center text-sm text-muted-foreground">
+        {needsSetup
+          ? <>First time here? <Link href="/setup" data-testid="link-setup" className="font-semibold text-primary hover:underline">Set up your school</Link></>
+          : <>New school? <Link href="/register" data-testid="link-register" className="font-semibold text-primary hover:underline">Register for review</Link></>}
+      </div>}
+    </Frame>
   );
 }

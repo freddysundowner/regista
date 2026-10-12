@@ -27,7 +27,7 @@ export interface StudentInput {
      * @minLength 1
      * @maxLength 60
      */
-  admissionNo: string;
+  admissionNo?: string;
   /**
      * @minLength 1
      * @maxLength 100

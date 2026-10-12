@@ -5,6 +5,7 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { StaffPermission } from './staffPermission';
 import type { UserRole } from './userRole';
 
 export interface UserInput {
@@ -22,9 +23,11 @@ export interface UserInput {
      */
   phone?: string | null;
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
   role: UserRole;
+  /** @maxItems 10 */
+  permissions?: StaffPermission[];
 }

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePreviewPromotion, useCommitPromotion, useListAcademicYears, useListStreams, getListAcademicYearsQueryKey, getListStreamsQueryKey, getListStudentsQueryKey, getListGradesQueryKey, getListFamiliesQueryKey, getGetDashboardSummaryQueryKey, getListAuditLogsQueryKey, type PromotionPreview, type PromotionInputAction } from "@workspace/api-client-react";
 import { ArrowRight, GraduationCap, Loader2 } from "lucide-react";
@@ -30,6 +31,7 @@ function PromotionWorkflow({ onBusy, onDone }: { onBusy: (b: boolean) => void; o
   const commit = useCommitPromotion();
   const [f, setF] = useState({ action: "promote" as PromotionInputAction, sourceYearId: "", targetYearId: "", sourceStreamId: "", targetStreamId: "" });
   const [p, setP] = useState<PromotionPreview | null>(null);
+  const previewPages = usePaged(p?.students, p, 50);
   const [at, setAt] = useState(0);
   const [typed, setTyped] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -90,10 +92,11 @@ function PromotionWorkflow({ onBusy, onDone }: { onBusy: (b: boolean) => void; o
             <span className="text-muted-foreground">{f.action === "promote" ? `${streamName(f.targetStreamId)} (${yearName(f.targetYearId)})` : `Graduated (${yearName(f.targetYearId)})`}</span>
           </div>
           {p.count === 0 ? <p className="rounded border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">No eligible learners. Learners already promoted from this year are excluded.</p> : (
-            <div className="max-h-72 overflow-auto rounded border border-border">
+            <><div className="max-h-72 overflow-auto rounded border border-border">
               <CardTable><table className="w-full text-sm"><thead className="sticky top-0 bg-muted text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr><th className="px-3 py-2">Adm. no.</th><th className="px-3 py-2">Name</th><th className="px-3 py-2">Current grade</th></tr></thead>
-                <tbody>{p.students.map((s) => <tr key={s.id} data-testid={`row-promotion-${s.id}`} className="border-t border-border/50"><td className="px-3 py-1.5 font-mono text-xs">{s.admissionNo}</td><td className="px-3 py-1.5">{s.name}</td><td className="px-3 py-1.5 text-muted-foreground">{s.gradeName ?? "\u2014"}</td></tr>)}</tbody></table></CardTable>
+                <tbody>{previewPages.rows.map((s) => <tr key={s.id} data-testid={`row-promotion-${s.id}`} className="border-t border-border/50"><td className="px-3 py-1.5 font-mono text-xs">{s.admissionNo}</td><td className="px-3 py-1.5">{s.name}</td><td className="px-3 py-1.5 text-muted-foreground">{s.gradeName ?? "\u2014"}</td></tr>)}</tbody></table></CardTable>
             </div>
+            <Pager {...previewPages.pager} className="border-t-0" /></>
           )}
           {p.count > 0 && (
             <div className="mt-4 space-y-3">

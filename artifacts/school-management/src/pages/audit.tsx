@@ -1,18 +1,26 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ListSearch } from "@/components/list-search";
+import { Pager, useServerPage } from "@/components/pager";
 import { useListAuditLogs, getListAuditLogsQueryKey } from "@workspace/api-client-react";
 import { ClipboardList } from "lucide-react";
-import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, NativeSelect, Btn } from "@/components/kit";
+import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, NativeSelect } from "@/components/kit";
 import { errMsg, localDay, fmtTime, viewerTimezone } from "@/lib/session";
 import { actionLabel, readable, subjectLabel } from "@/lib/audit-format";
 import { AuditChanges, AuditTechnical } from "@/components/audit-details";
 
 export default function Audit() {
-  const [limit, setLimit] = useState(50);
   const [entity, setEntity] = useState("");
-  const params = { limit };
+  const [text, setText] = useState("");
+  const [search, setSearch] = useState("");
+  useEffect(() => { const t = setTimeout(() => setSearch(text.trim()), 300); return () => clearTimeout(t); }, [text]);
+  // Search and the record filter run on the server, across the whole history, not just this page.
+  const sp = useServerPage([entity, search], 50);
+  const params = { limit: sp.size, page: sp.page, ...(entity ? { entityType: entity } : {}), ...(search ? { search } : {}) };
   const q = useListAuditLogs(params, { query: { queryKey: getListAuditLogsQueryKey(params) } });
-  const entities = useMemo(() => Array.from(new Set(q.data?.map((a) => a.entityType) ?? [])).sort(), [q.data]);
-  const rows = (q.data ?? []).filter((a) => !entity || a.entityType === entity);
+  const [seen, setSeen] = useState<string[]>([]);
+  useEffect(() => { const found = (q.data ?? []).map((a) => a.entityType); if (found.some((e) => !seen.includes(e))) setSeen([...new Set([...seen, ...found])].sort()); }, [q.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const entities = entity && !seen.includes(entity) ? [...seen, entity] : seen;
+  const rows = q.data ?? [];
   const groups = useMemo(() => {
     const m = new Map<string, typeof rows>();
     rows.forEach((a) => { const k = localDay(a.createdAt); m.set(k, [...(m.get(k) ?? []), a]); });
@@ -25,6 +33,7 @@ export default function Audit() {
         <NativeSelect data-testid="filter-entity" value={entity} onChange={(e) => setEntity(e.target.value)} className="w-full sm:w-40"><option value="">All records</option>{entities.map((e) => <option key={e} value={e}>{readable(e)}</option>)}</NativeSelect>
       </PageHeader>
       <Panel className="rise-1">
+        <div className="border-b border-border/70 p-3"><ListSearch value={text} onChange={setText} placeholder="Search action, record or person, e.g. payment Mercy" /></div>
         {q.isLoading ? <SkeletonRows rows={8} cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !rows.length ? <Empty icon={<ClipboardList className="h-5 w-5" />} title="Nothing recorded yet" body="Audit entries appear as soon as anyone changes the register." /> : (
           <>
             {groups.map(([day, items]) => (
@@ -48,9 +57,9 @@ export default function Audit() {
                   </li>))}</ul>
               </section>
             ))}
-            {q.data && q.data.length >= limit && limit < 100 && <div className="border-t border-border/70 p-3 text-center"><Btn variant="outline" data-testid="button-load-more" onClick={() => setLimit(100)}>Show up to 100 entries</Btn></div>}
           </>
         )}
+        <Pager {...sp.pager(q.data?.length ?? 0, q.isFetching)} />
       </Panel>
     </div>
   );

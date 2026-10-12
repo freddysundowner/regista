@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { AuthSession, School, UserRole } from "@workspace/api-client-react";
+import type { AuthSession, School, StaffPermission, UserRole } from "@workspace/api-client-react";
 
 const Ctx = createContext<AuthSession | null>(null);
 
@@ -31,9 +31,38 @@ export function useReadOnly() {
 
 const ADMIN: UserRole[] = ["super_admin", "school_admin"];
 
-export function permissions(role: UserRole) {
+/** Extra access a role brings by default; a school admin can add any of these to one person. */
+export const ROLE_ACCESS: Record<UserRole, StaffPermission[]> = {
+  super_admin: ["expenses", "procurement", "approve_lpo", "store", "library"],
+  school_admin: ["expenses", "procurement", "approve_lpo", "store", "library"],
+  principal: ["approve_lpo"],
+  bursar: ["expenses", "procurement"],
+  storekeeper: ["store"],
+  librarian: ["library"],
+  teacher: [],
+  class_teacher: [],
+};
+export const ACCESS_LABEL: Record<StaffPermission, { label: string; hint: string }> = {
+  expenses: { label: "Record expenses", hint: "Record and void expenses, and pay supplier invoices" },
+  procurement: { label: "Raise LPOs", hint: "Add suppliers, raise LPOs, record deliveries and supplier invoices" },
+  approve_lpo: { label: "Approve LPOs", hint: "Approve or reject LPOs someone else raised" },
+  store: { label: "Run the store", hint: "Add store items, receive and issue stock, count stock" },
+  library: { label: "Run the library", hint: "Catalogue books, lend and receive them back" },
+};
+
+export function permissions(role: UserRole, grants: readonly StaffPermission[] = []) {
   const admin = ADMIN.includes(role);
+  const has = new Set<StaffPermission>([...ROLE_ACCESS[role], ...grants]);
   return {
+    /** Works with learners at all; storekeepers and librarians don't (the library finds borrowers itself). */
+    register: role !== "storekeeper" && role !== "librarian",
+    expenses: has.has("expenses"),
+    procurement: has.has("procurement"),
+    approveLpo: has.has("approve_lpo"),
+    store: has.has("store"),
+    library: has.has("library"),
+    /** Can see purchasing (LPOs, suppliers, supplier invoices). */
+    purchasing: has.has("procurement") || has.has("approve_lpo") || has.has("expenses") || admin || role === "principal" || role === "bursar",
     manageSchool: admin,
     writeStudents: admin || role === "bursar",
     viewGuardians: admin || role === "bursar" || role === "principal",
@@ -59,7 +88,8 @@ export function permissions(role: UserRole) {
 }
 
 export function usePerms() {
-  return permissions(useAuthSession().user.role);
+  const { user } = useAuthSession();
+  return permissions(user.role, user.permissions ?? []);
 }
 
 export const ROLE_LABEL: Record<UserRole, string> = {
@@ -69,6 +99,8 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   bursar: "Bursar",
   teacher: "Teacher",
   class_teacher: "Class teacher",
+  storekeeper: "Storekeeper",
+  librarian: "Librarian",
 };
 
 export function errMsg(e: unknown, fallback = "Something went wrong") {

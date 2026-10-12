@@ -1,9 +1,27 @@
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+// @ts-expect-error plain JS module shared with the API build
+import { appName, rebrand } from '../../brand.config.mjs';
+
+/** Swaps the product name (APP_NAME) into the app's own source and the page shell. See brand.config.mjs. */
+function brandName(): Plugin {
+  const name: string = appName();
+  return {
+    name: 'brand-name',
+    enforce: 'pre',
+    transform(code, id) {
+      const file = id.split('?')[0];
+      if (file.includes('/node_modules/') || !/\.(tsx?|mjs)$/.test(file)) return null;
+      const out: string = rebrand(code, name);
+      return out === code ? null : { code: out, map: null };
+    },
+    transformIndexHtml: (html) => rebrand(html, name),
+  };
+}
 
 const rawPort = process.env.PORT;
 
@@ -30,6 +48,7 @@ if (!basePath) {
 export default defineConfig({
   base: basePath,
   plugins: [
+    brandName(),
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
@@ -69,6 +88,10 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: {
+      // Keep the browser's Host header so the API's same-origin (CSRF) check matches the Origin.
+      '/api': { target: `http://localhost:${process.env.API_PORT ?? 8080}`, changeOrigin: false },
+    },
     fs: {
       strict: true,
     },

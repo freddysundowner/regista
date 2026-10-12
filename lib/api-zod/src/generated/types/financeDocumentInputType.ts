@@ -12,4 +12,5 @@ export type FinanceDocumentInputType = typeof FinanceDocumentInputType[keyof typ
 export const FinanceDocumentInputType = {
   receipt: 'receipt',
   statement: 'statement',
+  invoice: 'invoice',
 } as const;

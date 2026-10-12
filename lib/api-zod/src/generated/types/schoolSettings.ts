@@ -5,11 +5,14 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { FeeStructureTemplate } from './feeStructureTemplate';
 import type { SchoolSettingsKnecColumnsItem } from './schoolSettingsKnecColumnsItem';
 import type { SchoolSettingsMatchingScores } from './schoolSettingsMatchingScores';
 import type { SchoolSettingsMessageTemplates } from './schoolSettingsMessageTemplates';
 import type { SchoolSettingsSiblingFallbackRule } from './schoolSettingsSiblingFallbackRule';
 import type { SchoolSettingsSiblingSplitRule } from './schoolSettingsSiblingSplitRule';
+import type { SchoolSettingsStatusDigest } from './schoolSettingsStatusDigest';
+import type { SchoolSettingsStatusDigestChannel } from './schoolSettingsStatusDigestChannel';
 
 /**
  * Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.
@@ -59,6 +62,17 @@ export interface SchoolSettings {
      */
   defaultAfterMissedInstallments?: number;
   absenceAlertsEnabled?: boolean;
+  /** How often school administrators get a status message on their phone. Weekly when not set. */
+  statusDigest?: SchoolSettingsStatusDigest;
+  /** SMS when not set. WhatsApp needs an approved template named school_digest. */
+  statusDigestChannel?: SchoolSettingsStatusDigestChannel;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
   absenceAlertTime?: string;
+  /** When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited. */
+  requireSecondApproval?: boolean;
+  /**
+     * Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.
+     * @maxItems 20
+     */
+  feeStructureTemplates?: FeeStructureTemplate[];
 }

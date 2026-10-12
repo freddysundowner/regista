@@ -2,30 +2,19 @@ import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { ApiError, audit, owned, type Actor } from "../core";
-import { renderFinancePdf } from "../finance/documents";
-import { storedObject } from "../school-files";
+import { renderFinancePdf, schoolLogoBlock } from "../finance/documents";
+import { readUrl, storedObject } from "../school-files";
 import { academicOwned, classAccess } from "./access";
 import { publicationSnapshot, requirePublicationSnapshot } from "./snapshot";
 
 export async function signedDocument(actor: Actor, id: string) {
   const record = await db.storedFile.findFirst({ where: { id, schoolId: actor.school.id, status: "ready" } });
   if (!record) throw new ApiError(404, "Document not found");
-  const file = storedObject(record.objectKey), expiresAt = new Date(Date.now() + 86400000).toISOString();
-  const response = await fetch("http://127.0.0.1:1106/object-storage/signed-object-url", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bucket_name: file.bucket.name, object_name: file.name, method: "GET", expires_at: expiresAt }), signal: AbortSignal.timeout(30000),
-  });
-  if (!response.ok) throw new ApiError(503, "Private document signing unavailable");
-  return { id, downloadUrl: (await response.json() as { signed_url: string }).signed_url, expiresAt };
+  return { id, ...await readUrl(record.objectKey, `/api/storage/files/${id}`) };
 }
 export async function savePdf(actor: Actor, entityType: string, entityId: string, content: TDocumentDefinitions["content"]) {
-  const logoId = actor.school.logoUrl?.match(/^\/api\/storage\/files\/([a-f0-9-]+)$/i)?.[1];
-  if (logoId) {
-    const logo = await db.storedFile.findFirst({ where: { id: logoId, schoolId: actor.school.id, entityType: "school_logo", status: "ready" } });
-    if (logo && ["image/png", "image/jpeg"].includes(logo.contentType)) {
-      const [bytes] = await storedObject(logo.objectKey).download();
-      content = [{ image: `data:${logo.contentType};base64,${bytes.toString("base64")}`, fit: [80, 60], margin: [0, 0, 0, 8] }, ...(Array.isArray(content) ? content : [content])];
-    }
-  }
+  const logo = await schoolLogoBlock(actor.school);
+  if (logo.length) content = [...logo, ...(Array.isArray(content) ? content : [content])];
   return saveDocument(actor, entityType, entityId, await renderFinancePdf(content), "pdf", "application/pdf");
 }
 export async function saveDocument(actor: Actor, entityType: string, entityId: string, bytes: Buffer, extension: string, contentType: string) {

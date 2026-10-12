@@ -36,8 +36,11 @@ model School {
   files StoredFile[]
   tenantGrants PlatformTenantGrant[]
   platformAudits PlatformAudit[]
+  supportMessages SupportMessage[]
   platformInvoices PlatformBillingInvoice[]
   licenceManaged Boolean @default(false)
+  trialEndsAt DateTime?
+  onboarding Json @default("{}")
   licences SchoolLicence[]
   licenceOrders LicenceOrder[]
   @@map("schools")
@@ -67,6 +70,8 @@ model LicencePlan {
   durationDays Int
   price Decimal @db.Decimal(12,2)
   subscriptionPrice Decimal @db.Decimal(12,2)
+  /// Most active learners this package covers; null covers any number.
+  maxLearners Int?
   isActive Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -78,11 +83,12 @@ model SchoolLicence {
   id String @id @db.Uuid
   schoolId String @db.Uuid
   school School @relation(fields:[schoolId], references:[id])
-  planId String @db.Uuid
-  plan LicencePlan @relation(fields:[planId], references:[id])
+  planId String? @db.Uuid
+  plan LicencePlan? @relation(fields:[planId], references:[id])
   planName String
   durationDays Int
   price Decimal @db.Decimal(12,2)
+  maxLearners Int?
   startsAt DateTime
   expiresAt DateTime
   requestedStartsAt DateTime?
@@ -91,6 +97,7 @@ model SchoolLicence {
   revocationType String?
   createdAt DateTime @default(now())
   order LicenceOrder?
+  key LicenceKey?
   @@index([schoolId,startsAt,expiresAt])
   @@map("school_licences")
 }
@@ -98,18 +105,105 @@ model LicenceOrder {
   id String @id @db.Uuid
   schoolId String @db.Uuid
   school School @relation(fields:[schoolId], references:[id])
-  planId String @db.Uuid
-  plan LicencePlan @relation(fields:[planId], references:[id])
+  planId String? @db.Uuid
+  plan LicencePlan? @relation(fields:[planId], references:[id])
   planName String
   durationDays Int
   price Decimal @db.Decimal(12,2)
+  maxLearners Int?
   invoiceId String @unique @db.Uuid
   invoice PlatformBillingInvoice @relation(fields:[invoiceId], references:[id])
   licenceId String? @unique @db.Uuid
   licence SchoolLicence? @relation(fields:[licenceId], references:[id])
+  /// "renewal" adds time after the school's current licence; "upgrade" is a bigger package for the rest of the licence in upgradeOfId.
+  kind String @default("renewal")
+  upgradeOfId String? @db.Uuid
   createdAt DateTime @default(now())
+  checkouts PaymentCheckout[]
   @@index([schoolId,createdAt])
   @@map("licence_orders")
+}
+model SubscriptionSettings {
+  id String @id @default("default")
+  price Decimal @db.Decimal(12,2)
+  periodDays Int
+  periodLabel String
+  maxLearners Int?
+  trialDays Int @default(7)
+  highlights Json @default("[]")
+  updatedAt DateTime @updatedAt
+  @@map("subscription_settings")
+}
+model PlatformSettings {
+  id String @id @default("default")
+  requireRegistrationApproval Boolean @default(true)
+  installedLicence String?
+  updatedAt DateTime @updatedAt
+  @@map("platform_settings")
+}
+model StandaloneLicence {
+  id String @id @db.Uuid
+  schoolName String
+  maxLearners Int?
+  issuedAt DateTime @default(now())
+  expiresAt DateTime?
+  note String @default("")
+  licence String
+  createdById String @db.Uuid
+  @@index([issuedAt])
+  @@map("standalone_licences")
+}
+model PaymentGateway {
+  provider String @id
+  enabled Boolean @default(false)
+  environment String @default("sandbox")
+  publicConfig Json @default("{}")
+  encryptedCredentials String?
+  updatedAt DateTime @updatedAt
+  @@map("payment_gateways")
+}
+model LicenceKey {
+  id String @id @db.Uuid
+  batchId String @db.Uuid
+  codeHash String @unique
+  encryptedCode String
+  last4 String
+  durationDays Int
+  price Decimal @db.Decimal(12,2)
+  maxLearners Int?
+  note String @default("")
+  createdById String @db.Uuid
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  redeemedAt DateTime?
+  redeemedSchoolId String? @db.Uuid
+  licenceId String? @unique @db.Uuid
+  licence SchoolLicence? @relation(fields:[licenceId], references:[id])
+  @@index([createdAt])
+  @@map("licence_keys")
+}
+model PaymentCheckout {
+  id String @id @db.Uuid
+  orderId String @db.Uuid
+  order LicenceOrder @relation(fields:[orderId], references:[id])
+  schoolId String @db.Uuid
+  provider String
+  environment String
+  status String @default("pending")
+  amount Decimal @db.Decimal(12,2)
+  currency String @default("KES")
+  providerRef String?
+  receipt String?
+  phone String?
+  redirectUrl String?
+  failure String?
+  createdById String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+  @@unique([provider,providerRef])
+  @@index([schoolId,createdAt])
+  @@map("payment_checkouts")
 }
 model PlatformBillingPayment {
   id String @id @db.Uuid
@@ -134,6 +228,8 @@ model User {
   phone String? @unique
   passwordHash String
   role String
+  /// Extra access on top of the role, e.g. a teacher who also runs the library.
+  permissions String[] @default([])
   isActive Boolean @default(true)
   lastLoginAt DateTime?
   sessionVersion Int @default(0)
@@ -144,6 +240,8 @@ model User {
   logs AuditLog[]
   tenantGrants PlatformTenantGrant[]
   platformAudits PlatformAudit[]
+  supportMessages SupportMessage[]
+  passwordResets PasswordReset[]
   @@index([schoolId])
   @@map("users")
 }
@@ -476,6 +574,31 @@ model IntegrationConfig {
   updatedAt DateTime @updatedAt
   @@unique([schoolId,provider])
   @@map("integration_configs")
+}
+/// A bank account the school collects fees into. Banks with a live connection (NCBA) also hold the
+/// notification credentials Rejista generated for the school's request letter.
+model BankAccount {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  bank String
+  accountName String
+  accountNumber String
+  branch String?
+  /// NCBA: "ncba_till" (paid via 880100), "paybill" or "buygoods" and its number. KCB: "kcb_till" and the till business key.
+  collectionType String?
+  collectionNumber String?
+  /// off → requested (letter issued) → live (first verified notification arrived).
+  notificationStatus String @default("off")
+  encryptedCredentials String?
+  callbackTokenHash String? @unique
+  requestedAt DateTime?
+  liveAt DateTime?
+  lastNotificationAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([bank,accountNumber])
+  @@index([schoolId])
+  @@map("bank_accounts")
 }
 model IncomingPayment {
   id String @id @default(uuid()) @db.Uuid
@@ -954,4 +1077,309 @@ model SponsorAllocation {
   amount Decimal @db.Decimal(14,2)
   @@unique([batchId,studentId])
   @@map("sponsor_allocations")
+}
+/// Money the school spends. Voided entries stay for the record and are left out of totals.
+model Expense {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  date DateTime @db.Date
+  category String
+  description String
+  amount Decimal @db.Decimal(14,2)
+  method String
+  payee String?
+  reference String?
+  status String @default("active")
+  voidReason String?
+  supplierId String? @db.Uuid
+  /// Set when the expense pays a supplier invoice.
+  supplierInvoiceId String? @db.Uuid
+  /// Receipt or invoice scan: /api/storage/files/<id>.
+  attachmentUrl String?
+  recordedBy String @db.Uuid
+  voidedBy String? @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([schoolId,date])
+  @@index([schoolId,status,category])
+  @@map("expenses")
+}
+
+/// A parent's promise to pay an amount by a date. Kept or broken is worked out from payments, not stored.
+model PaymentPromise {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  studentId String @db.Uuid
+  amount Decimal @db.Decimal(14,2)
+  promisedFor DateTime @db.Date
+  note String?
+  status String @default("open")
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([schoolId,studentId,status])
+  @@map("payment_promises")
+}
+
+// ---------- Procurement ----------
+
+/// Someone the school buys from.
+model Supplier {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  name String
+  contactPerson String?
+  phone String?
+  email String?
+  kraPin String?
+  address String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders PurchaseOrder[]
+  invoices SupplierInvoice[]
+  @@unique([schoolId,name])
+  @@map("suppliers")
+}
+
+/// Local purchase order (LPO): raised, approved by someone else, then received against.
+model PurchaseOrder {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  number Int
+  supplierId String @db.Uuid
+  supplier Supplier @relation(fields:[supplierId], references:[id])
+  date DateTime @db.Date
+  neededBy DateTime? @db.Date
+  notes String?
+  status String @default("pending")
+  total Decimal @db.Decimal(14,2)
+  createdBy String @db.Uuid
+  decidedBy String? @db.Uuid
+  decidedAt DateTime?
+  decisionNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lines PurchaseOrderLine[]
+  receipts GoodsReceipt[]
+  invoices SupplierInvoice[]
+  @@unique([schoolId,number])
+  @@index([schoolId,status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id String @id @default(uuid()) @db.Uuid
+  orderId String @db.Uuid
+  order PurchaseOrder @relation(fields:[orderId], references:[id])
+  storeItemId String? @db.Uuid
+  description String
+  unit String?
+  quantity Decimal @db.Decimal(12,2)
+  unitPrice Decimal @db.Decimal(14,2)
+  receivedQty Decimal @default(0) @db.Decimal(12,2)
+  position Int
+  @@index([orderId])
+  @@map("purchase_order_lines")
+}
+
+/// Goods received note: what arrived against an LPO and when.
+model GoodsReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  orderId String @db.Uuid
+  order PurchaseOrder @relation(fields:[orderId], references:[id])
+  date DateTime @db.Date
+  deliveryNote String?
+  note String?
+  lines Json
+  receivedBy String @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([orderId])
+  @@map("goods_receipts")
+}
+
+/// A supplier's bill. Paid by recording expenses against it; paid amount is worked out, not stored.
+model SupplierInvoice {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  supplierId String @db.Uuid
+  supplier Supplier @relation(fields:[supplierId], references:[id])
+  orderId String? @db.Uuid
+  order PurchaseOrder? @relation(fields:[orderId], references:[id])
+  invoiceNo String
+  date DateTime @db.Date
+  dueDate DateTime? @db.Date
+  description String
+  category String
+  amount Decimal @db.Decimal(14,2)
+  attachmentUrl String?
+  status String @default("active")
+  voidReason String?
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([schoolId,supplierId,invoiceNo])
+  @@index([schoolId,status])
+  @@map("supplier_invoices")
+}
+
+// ---------- Store ----------
+
+model StoreItem {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  name String
+  sku String?
+  category String
+  unit String
+  quantity Decimal @default(0) @db.Decimal(12,2)
+  reorderLevel Decimal @default(0) @db.Decimal(12,2)
+  unitCost Decimal? @db.Decimal(14,2)
+  location String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  movements StockMovement[]
+  @@unique([schoolId,name])
+  @@map("store_items")
+}
+
+/// Every change to stock. Quantity is signed: in is positive, out is negative.
+model StockMovement {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  itemId String @db.Uuid
+  item StoreItem @relation(fields:[itemId], references:[id])
+  type String
+  quantity Decimal @db.Decimal(12,2)
+  balanceAfter Decimal @db.Decimal(12,2)
+  unitCost Decimal? @db.Decimal(14,2)
+  date DateTime @db.Date
+  issuedTo String?
+  reference String?
+  note String?
+  orderId String? @db.Uuid
+  createdBy String @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([schoolId,date])
+  @@index([itemId,createdAt])
+  @@map("stock_movements")
+}
+
+// ---------- Library ----------
+
+model LibraryBook {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  title String
+  author String?
+  isbn String?
+  publisher String?
+  category String
+  subject String?
+  level String?
+  shelf String?
+  /// Set when a book with borrowing history is deleted: it leaves the catalogue, its past loans keep the title.
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  copies LibraryCopy[]
+  @@index([schoolId,title])
+  @@map("library_books")
+}
+
+/// One physical book, known by its accession number.
+model LibraryCopy {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  bookId String @db.Uuid
+  book LibraryBook @relation(fields:[bookId], references:[id])
+  accessionNo String
+  status String @default("available")
+  /// Set when a copy with borrowing history is deleted; its accession number stays used.
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  loans LibraryLoan[]
+  @@unique([schoolId,accessionNo])
+  @@index([bookId])
+  @@map("library_copies")
+}
+
+model LibraryLoan {
+  id String @id @default(uuid()) @db.Uuid
+  schoolId String @db.Uuid
+  copyId String @db.Uuid
+  copy LibraryCopy @relation(fields:[copyId], references:[id])
+  studentId String? @db.Uuid
+  userId String? @db.Uuid
+  borrowerName String
+  issuedAt DateTime @db.Date
+  dueDate DateTime @db.Date
+  returnedAt DateTime? @db.Date
+  status String @default("out")
+  returnNote String?
+  issuedBy String @db.Uuid
+  returnedBy String? @db.Uuid
+  createdAt DateTime @default(now())
+  @@index([schoolId,status])
+  @@index([copyId])
+  @@index([studentId])
+  @@map("library_loans")
+}
+/// Support chat. A conversation (threadId) belongs to one staff member ("staff-<userId>") or one
+/// website visitor ("visitor-<visitorId>"); the platform's support desk answers in it.
+model SupportMessage {
+  id String @id @default(uuid()) @db.Uuid
+  threadId String
+  schoolId String? @db.Uuid
+  userId String? @db.Uuid
+  visitorId String? @db.Uuid
+  senderId String? @db.Uuid
+  fromSupport Boolean @default(false)
+  byAi Boolean @default(false)
+  body String
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  school School? @relation(fields:[schoolId], references:[id])
+  user User? @relation(fields:[userId], references:[id])
+  visitor SupportVisitor? @relation(fields:[visitorId], references:[id])
+  @@index([threadId, createdAt])
+  @@index([fromSupport, readAt])
+  @@map("support_messages")
+}
+/// Someone chatting from the public landing page. Their browser holds the token; only its hash is stored.
+model SupportVisitor {
+  id String @id @default(uuid()) @db.Uuid
+  tokenHash String @unique
+  name String
+  contact String?
+  createdAt DateTime @default(now())
+  messages SupportMessage[]
+  @@map("support_visitors")
+}
+/// What the support assistant knows. Published articles are its only source; starters are offered as tappable questions.
+model KnowledgeArticle {
+  id String @id @default(uuid()) @db.Uuid
+  question String
+  answer String
+  isPublished Boolean @default(true)
+  isStarter Boolean @default(false)
+  /// "visitors" (the public website), "staff" (signed-in school staff) or "all".
+  audience String @default("all")
+  position Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  @@map("knowledge_articles")
+}
+/// A one-time link emailed to someone who forgot their password. Only the hash of its token is stored.
+model PasswordReset {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@map("password_resets")
 }

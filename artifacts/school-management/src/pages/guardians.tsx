@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListGuardians, useCreateGuardian, useUpdateGuardian, useExportGuardian, getExportGuardianQueryKey, useAnonymizeGuardian, getListAuditLogsQueryKey, type Guardian, useListFamilies, getListGuardiansQueryKey, getListFamiliesQueryKey, getGetDashboardSummaryQueryKey, getListStudentsQueryKey } from "@workspace/api-client-react";
@@ -122,6 +123,8 @@ export default function Guardians() {
   const params = deb ? { search: deb } : undefined;
   const g = useListGuardians(params, { query: { queryKey: getListGuardiansQueryKey(params) } });
   const fam = useListFamilies({ query: { queryKey: getListFamiliesQueryKey(), enabled: tab === "families" } });
+  const gp = usePaged(g.data, params);
+  const fp = usePaged(fam.data, undefined, 12);
 
   return (
     <div className="space-y-6">
@@ -148,7 +151,7 @@ export default function Guardians() {
           {g.isLoading ? <SkeletonRows cols={4} /> : g.isError ? <ErrorState msg={errMsg(g.error)} onRetry={() => g.refetch()} /> : !g.data?.length ? <Empty icon={<Users className="h-5 w-5" />} title={deb ? "No matches" : "No guardians yet"} body={deb ? "Check the spelling or phone number." : "Guardians are created when you admit students, import, or add them here."} /> : (
             <CardTable testid="table-guardians"><table className="w-full text-sm">
               <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2.5">Guardian</th><th className="px-3 py-2.5">Phone</th><th className="hidden px-3 py-2.5 md:table-cell">Relationship</th><th className="px-3 py-2.5">Learners</th>{(p.writeStudents || p.manageGuardianPrivacy) && <th className="px-3 py-2.5"><span className="sr-only">Actions</span></th>}</tr></thead>
-              <tbody>{g.data.map((x) => (
+              <tbody>{gp.rows.map((x) => (
                 <tr key={x.id} data-testid={`row-guardian-${x.id}`} className="border-b border-border/50 last:border-0 hover:bg-accent/30">
                   <td className="px-5 py-3"><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-accent-foreground">{initials(x.name)}</span><div><div className="font-semibold">{x.name}{x.anonymizedAt && <span className="ml-2"><Pill tone="inactive">Anonymized</Pill></span>}</div>{x.email && <div className="text-[11px] text-muted-foreground">{x.email}</div>}</div></div></td>
                   <td className="px-3 py-3 font-mono text-xs">{x.anonymizedAt ? <span className="font-sans text-muted-foreground">Removed</span> : x.phone}{x.altPhone && <div className="text-muted-foreground">{x.altPhone}</div>}</td>
@@ -162,11 +165,12 @@ export default function Guardians() {
                 </tr>))}</tbody>
             </table></CardTable>
           )}
+          <Pager {...gp.pager} />
         </Panel>
       ) : (
         fam.isLoading ? <Panel><SkeletonRows /></Panel> : fam.isError ? <Panel><ErrorState msg={errMsg(fam.error)} onRetry={() => fam.refetch()} /></Panel> : !fam.data?.length ? <Panel><Empty icon={<Users className="h-5 w-5" />} title="No families yet" body="Families form automatically when two or more learners share a guardian." /></Panel> : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {fam.data.map((f, i) => (
+          <div className="space-y-4"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {fp.rows.map((f, i) => (
               <article key={f.id} data-testid={`card-family-${f.id}`} className="rise rounded-lg border border-card-border bg-card" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
                 <div className="border-b border-dashed border-border px-4 py-3">
                   <h3 className="font-display text-lg font-semibold">{f.name}</h3>
@@ -177,7 +181,7 @@ export default function Guardians() {
                 ))}</ul>
               </article>
             ))}
-          </div>
+          </div><Pager {...fp.pager} className="rounded-xl border border-border bg-card" /></div>
         )
       )}
       {p.writeStudents && <Fab testid="fab-new-guardian" label="Add guardian" icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)} />}

@@ -1,22 +1,29 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { APP_INITIAL } from "@/lib/brand";
 import { PageTitleProvider, useRegisteredTitle } from "@/lib/page-title";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useLocation } from "wouter";
 import { ShieldCheck, Building2 , ScrollText, LayoutDashboard, Eye, CalendarClock, GitMerge, MessageSquare, Library, ClipboardCheck, CalendarCheck, FileBadge, BarChart3, Plug, Mail } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLogout } from "@workspace/api-client-react";
+import { useLogout, useGetSchool, getGetSchoolQueryKey, useGetFinanceOverview, getGetFinanceOverviewQueryKey, useGetPlatformSupportUnread, getGetPlatformSupportUnreadQueryKey } from "@workspace/api-client-react";
 import { Activity, Banknote, BookOpen, CheckSquare, ClipboardList, FileText, HandHeart, Receipt, FileSpreadsheet, GraduationCap, LayoutGrid, KeyRound, LogOut, Menu, X, Settings, Users, UserCog } from "lucide-react";
 import { useAuthSession, useReadOnly, usePerms, ROLE_LABEL, initials } from "@/lib/session";
 import { TenantAccessBanner, hardReset } from "@/components/platform-kit";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronsUpDown, ChevronLeft, PanelLeftClose, PanelLeftOpen, Wallet } from "lucide-react";
+import { ChevronsUpDown, ChevronLeft, Headset, PanelLeftClose, PanelLeftOpen, Wallet, Wand2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { pageName } from "@/lib/route-names";
 
 const COLLAPSE_KEY = "rejista.sidebar.collapsed";
 function readCollapsed() { try { return localStorage.getItem(COLLAPSE_KEY) === "1"; } catch { return false; } }
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useInstallation } from "@/lib/installation";
+import { SectionTabs } from "@/components/section-tabs";
+import { StaffChatWidget, HelpButton } from "@/components/support-chat";
+import { TermLine } from "@/components/home-panels";
+import { InstallPrompt } from "@/components/install-prompt";
+import { visibleSections, sectionFor, SECTION_GROUPS } from "@/lib/sections";
 
 export function Shell({ children }: { children: ReactNode }) {
   return <PageTitleProvider><ShellInner>{children}</ShellInner></PageTitleProvider>;
@@ -47,70 +54,55 @@ function ShellInner({ children }: { children: ReactNode }) {
   const logout = useLogout({ mutation: { onSuccess: () => hardReset(qc) } });
 
   const N = (h: string) => pageName(h, platformMode) ?? h;
+  const install = useInstallation();
+  // Questions waiting for a person, shown as a count beside Support in the platform menu.
+  const deskUnread = useGetPlatformSupportUnread({ query: { queryKey: getGetPlatformSupportUnreadQueryKey(), enabled: platformMode, refetchInterval: 30_000 } });
+  const badgeFor = (href: string) => href === "/platform/support" ? deskUnread.data?.count ?? 0 : 0;
   const platformNav = [
     { href: "/", label: N("/"), icon: LayoutDashboard, show: true },
     { href: "/schools", label: N("/schools"), icon: Building2, show: true },
-    { href: "/platform/subscriptions", label: N("/platform/subscriptions"), icon: Wallet, show: true },
+    { href: "/platform/subscriptions", label: N("/platform/subscriptions"), icon: Wallet, show: install.hosted },
+    { href: "/licence", label: N("/licence"), icon: ShieldCheck, show: install.licensed },
+    { href: "/platform/support", label: N("/platform/support"), icon: Headset, show: true },
+    { href: "/platform/knowledge", label: N("/platform/knowledge"), icon: BookOpen, show: true },
     { href: "/platform/emails", label: N("/platform/emails"), icon: Mail, show: true },
     { href: "/platform/settings", label: N("/platform/settings"), icon: Settings, show: true },
     { href: "/platform/audit", label: N("/platform/audit"), icon: ScrollText, show: true },
     { href: "/account", label: N("/account"), icon: KeyRound, show: true },
   ];
 
-  const tenantNav = [
-    { href: "/", label: N("/"), icon: LayoutGrid, show: true },
-    { href: "/students", label: N("/students"), icon: GraduationCap, show: true },
-    { href: "/guardians", label: N("/guardians"), icon: Users, show: p.viewGuardians },
-    { href: "/import", label: N("/import"), icon: FileSpreadsheet, show: p.importStudents },
-    { href: "/fees", label: N("/fees"), icon: Receipt, show: p.financeRead },
-    { href: "/invoices", label: N("/invoices"), icon: FileText, show: p.financeRead },
-    { href: "/payments", label: N("/payments"), icon: Banknote, show: p.financeRead },
-    { href: "/approvals", label: N("/approvals"), icon: CheckSquare, show: p.financeRead },
-    { href: "/sponsors", label: N("/sponsors"), icon: HandHeart, show: p.financeRead },
-    { href: "/payment-plans", label: N("/payment-plans"), icon: CalendarClock, show: p.financeRead },
-    { href: "/reconciliation", label: N("/reconciliation"), icon: GitMerge, show: p.financeRead },
-    { href: "/notifications", label: N("/notifications"), icon: MessageSquare, show: p.financeRead },
-    { href: "/curriculum", label: N("/curriculum"), icon: Library, show: p.academicRead },
-    { href: "/assessments", label: N("/assessments"), icon: ClipboardCheck, show: p.academicRead },
-    { href: "/attendance", label: N("/attendance"), icon: CalendarCheck, show: p.academicRead },
-    { href: "/report-cards", label: N("/report-cards"), icon: FileBadge, show: p.academicRead },
-    { href: "/reports", label: N("/reports"), icon: BarChart3, show: p.reports },
-    { href: "/emails", label: N("/emails"), icon: Mail, show: user.role === "school_admin" },
-    { href: "/integrations", label: N("/integrations"), icon: Plug, show: p.integrations },
-    { href: "/jobs", label: N("/jobs"), icon: Activity, show: p.financeJobs },
-    { href: "/academics", label: N("/academics"), icon: BookOpen, show: p.manageSchool },
-    { href: "/staff", label: N("/staff"), icon: UserCog, show: p.manageSchool },
-    { href: "/audit", label: N("/audit"), icon: ClipboardList, show: p.viewAudit },
-    { href: "/settings", label: N("/settings"), icon: Settings, show: p.manageSchool },
-    { href: "/subscription", label: N("/subscription"), icon: ShieldCheck, show: user.role === "school_admin" && !tenantAccess },
-    { href: "/account", label: N("/account"), icon: KeyRound, show: true },
-  ];
+  const schoolQ = useGetSchool({ query: { queryKey: getGetSchoolQueryKey(), enabled: !platformMode } });
+  const finance = useGetFinanceOverview({ query: { queryKey: getGetFinanceOverviewQueryKey(), enabled: !platformMode && p.financeRead } });
+  const approvals = schoolQ.data?.settings?.requireSecondApproval !== false || (finance.data?.pendingApprovals ?? 0) > 0;
+  const sections = visibleSections({ perms: p as unknown as Record<string, boolean>, isAdmin: user.role === "school_admin", supportSession: !!tenantAccess, hosted: install.hosted, licensed: install.licensed, approvals });
+  const tenantNav = sections.map((sec) => ({ href: sec.tabs[0].href, label: sec.label, icon: sec.icon, group: sec.group, show: true }));
+  const currentSection = platformMode ? null : sectionFor(sections, loc);
   const nav = (platformMode ? platformNav : tenantNav).filter((n) => n.show);
 
   const groups = platformMode ? [
-    { label: "Platform", paths: ["/", "/schools", "/platform/subscriptions", "/platform/emails", "/platform/audit", "/platform/settings"] },
+    { label: "Platform", paths: ["/", "/schools", "/platform/subscriptions", "/licence", "/platform/support", "/platform/knowledge", "/platform/emails", "/platform/audit", "/platform/settings"] },
     { label: "Account", paths: ["/account"] },
-  ].map(group => ({ label: group.label, items: group.paths.flatMap(path => nav.filter(item => item.href === path)) })) : [
-    { label: "School", paths: ["/", "/students", "/guardians", "/import"] },
-    { label: "Finance", paths: ["/fees", "/invoices", "/payments", "/reconciliation", "/payment-plans", "/sponsors", "/approvals"] },
-    { label: "Academics", paths: ["/academics", "/curriculum", "/assessments", "/attendance", "/report-cards"] },
-    { label: "Communication & reports", paths: ["/notifications", "/emails", "/reports"] },
-    { label: "Administration", paths: ["/staff", "/settings", "/subscription", "/integrations", "/jobs", "/audit", "/account"] },
-  ].map(group => ({
-    label: group.label,
-    items: group.paths.flatMap(path => nav.filter(item => item.href === path)),
-  })).filter(group => group.items.length > 0);
+  ].map(group => ({ label: group.label, items: group.paths.flatMap(path => nav.filter(item => item.href === path)) })) : SECTION_GROUPS.map((g) => ({ label: g.label, items: tenantNav.filter((n) => n.group === g.id) })).filter((g) => g.items.length);
 
-  const dockPriority = platformMode ? ["/", "/schools", "/platform/subscriptions", "/account"] : ["/", "/students", "/payments", "/attendance", "/fees", "/assessments", "/reports", "/account"];
+  // Phone bar: Home, Learners and the two money pages first, then whatever else this person has.
+  const dockPriority = platformMode ? ["/", "/schools", "/platform/subscriptions", "/account"] : [...new Set(["/", "/students", "/invoices", "/payments", ...nav.map((n) => n.href)])];
   const dock = dockPriority.flatMap(path => nav.filter(item => item.href === path)).slice(0, 4);
 
-  const parentOf = (path: string) => (/^\/students\/[^/]+/.test(path) ? "/students" : /^\/schools\/[^/]+/.test(path) ? "/schools" : "/");
+  // The phone's top-left button goes "up", not through everything visited. A page with a name of its own (any tab
+  // or menu page: Learners, Payments, Fees...) closes straight to Home, however many pages were opened on the way.
+  // A page inside one of those (a learner, a class, a member of staff) goes back to the list it belongs to.
+  const named = (path: string) => !!pageName(path, platformMode);
+  const topLevel = named(loc);
+  const parentOf = (path: string) => { let up = path.replace(/\/[^/]*$/, ""); while (up && !named(up)) up = up.replace(/\/[^/]*$/, ""); return up || "/"; };
   const goBack = () => {
-    if (stack.current.length > 1) window.history.back();
-    else { const parent = parentOf(loc); stack.current = [parent]; navigate(parent, { replace: true }); }
+    const target = topLevel ? "/" : parentOf(loc);
+    const st = stack.current;
+    // When the page we want is the one we just came from, step back to it so the browser's own history stays short.
+    if (st.length > 1 && st[st.length - 2] === target) window.history.back();
+    else { stack.current = [target]; navigate(target, { replace: true }); }
   };
   const fallbackTitle = (loc !== "/" ? pageName(loc, platformMode) : undefined)
-    ?? (loc.startsWith("/students/") ? "Student" : loc.startsWith("/schools/") ? "School" : "Not found");
+    ?? (loc.startsWith("/students/") ? "Student" : loc.startsWith("/classes/") ? "Class" : loc.startsWith("/staff/") ? "Staff member" : loc.startsWith("/schools/") ? "School" : "Not found");
   const registered = useRegisteredTitle(loc);
   const pageTitle = registered ?? fallbackTitle;
   const isHome = loc === "/";
@@ -118,14 +110,14 @@ function ShellInner({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem(COLLAPSE_KEY, n ? "1" : "0"); } catch { /* storage unavailable */ } return n; });
 
-  const active = (h: string) => (h === "/" ? loc === "/" : loc.startsWith(h));
+  const active = (h: string) => platformMode ? (h === "/" ? loc === "/" : loc.startsWith(h)) : currentSection?.tabs[0].href === h;
 
   const side = (compact: boolean) => (
     <div className="flex h-full flex-col bg-sidebar pt-[env(safe-area-inset-top)] text-sidebar-foreground">
       <div className={cn("border-b border-sidebar-border pb-5 pt-6", compact ? "px-3" : "px-5")}>
         <div className={cn("flex items-center gap-2", compact ? "flex-col" : "justify-between")}>
           <Link href="/" onClick={() => setOpen(false)} aria-label="Rejista home" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">{APP_INITIAL}</div>
             {!compact && <span className="font-display text-lg font-semibold tracking-tight text-sidebar-accent-foreground">Rejista</span>}
           </Link>
           <Tooltip><TooltipTrigger asChild>
@@ -160,6 +152,7 @@ function ShellInner({ children }: { children: ReactNode }) {
                   <span className={cn("absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-sidebar-primary transition-transform", active(n.href) ? "scale-y-100" : "scale-y-0")} />
                   <n.icon className={cn("h-4 w-4 shrink-0", active(n.href) && "text-sidebar-primary")} />
                   {!compact && n.label}
+                  {badgeFor(n.href) > 0 && <span data-testid="badge-support-unread" className={cn("flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-primary px-1.5 text-[11px] font-semibold text-sidebar-primary-foreground", compact ? "absolute right-1 top-0.5 h-4 min-w-4 px-1 text-[10px]" : "ml-auto")}>{badgeFor(n.href)}</span>}
                 </Link>
                 );
                 return compact ? <Tooltip key={n.href}><TooltipTrigger asChild>{link}</TooltipTrigger><TooltipContent side="right">{n.label}</TooltipContent></Tooltip> : link;
@@ -199,36 +192,43 @@ function ShellInner({ children }: { children: ReactNode }) {
     <div className={cn("app-shell min-h-[100dvh] bg-background transition-[padding] duration-200", collapsed ? "md:pl-16" : "md:pl-64")}>
       <aside id="desktop-sidebar" aria-label="Sidebar" className={cn("fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-200 md:block", collapsed ? "w-16" : "w-64")}>{side(collapsed)}</aside>
       <Dialog.Root open={open} onOpenChange={setOpen}>
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-sidebar-foreground md:hidden">
-{isHome ? (
-                    <Link href="/" className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</span>
-            <span className="min-w-0">
-              <span className="block font-display text-base font-semibold leading-tight text-sidebar-accent-foreground">Rejista</span>
-              <span className="block truncate text-[11px] text-sidebar-foreground/60">{platformMode || !school ? "Platform console" : school.name}</span>
-            </span>
-          </Link>
+        {/* Phone: the app bar. Home names the school with the current term under it; every other page is a back arrow and its name. Help and the account sit on the right of both. */}
+        <header className="sticky top-0 z-20 flex items-center gap-2 bg-background/90 px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-md md:hidden">
+          {isHome ? (
+            <Link href="/" className="flex min-w-0 flex-1 items-center gap-2.5 py-1">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-base font-bold text-primary-foreground">{APP_INITIAL}</span>
+              <span className="min-w-0">
+                <span data-testid="text-mobile-title" className="block truncate font-display text-[1.05rem] font-semibold leading-tight">{platformMode || !school ? "Platform console" : school.name}</span>
+                <span data-testid="text-mobile-subtitle" className="block truncate text-[11px] text-muted-foreground">{platformMode || !school ? "Rejista" : <TermLine fallback="Rejista" />}</span>
+              </span>
+            </Link>
           ) : (
-            <div className="flex min-w-0 flex-1 items-center gap-1">
-              <button type="button" onClick={goBack} aria-label="Back" data-testid="button-header-back" className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent"><ChevronLeft className="h-6 w-6" /></button>
-              <h1 data-testid="text-mobile-title" title={pageTitle} className="line-clamp-2 min-w-0 flex-1 break-words font-display text-[1.05rem] font-semibold leading-tight text-sidebar-accent-foreground">{pageTitle}</h1>
-            </div>
+            <>
+              <button type="button" onClick={goBack} aria-label={topLevel ? "Close, back to Home" : "Back"} data-testid="button-header-back" className="-ml-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground active:bg-muted">{topLevel ? <X className="h-[22px] w-[22px]" /> : <ChevronLeft className="h-6 w-6" />}</button>
+              <h1 data-testid="text-mobile-title" title={pageTitle} className="min-w-0 flex-1 truncate font-display text-[1.15rem] font-semibold leading-tight">{pageTitle}</h1>
+            </>
           )}
-          <Dialog.Trigger asChild><button data-testid="button-menu" aria-label="Open all sections" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent"><Menu className="h-5 w-5" /></button></Dialog.Trigger>
+          <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
+            {!platformMode && !tenantAccess && <HelpButton />}
+            <Link href="/account" aria-label={`My account, ${user.name}`} data-testid="link-header-account" className="flex h-10 w-10 items-center justify-center rounded-full active:bg-muted">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">{initials(user.name)}</span>
+            </Link>
+          </div>
         </header>
-        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] text-sidebar-foreground md:hidden">
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${dock.length + 1}, minmax(0, 1fr))` }}>
+        {/* Phone: the bottom bar is icons on the page's own background, each with its name under it. */}
+        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
+          <div className="mx-auto grid max-w-md" style={{ gridTemplateColumns: `repeat(${dock.length + 1}, minmax(0, 1fr))` }}>
             {dock.map(n => (
-              <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} data-testid={`link-dock-${n.href.slice(1).replace(/\//g, "-") || "home"}`}
-                className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium", active(n.href) ? "text-sidebar-primary" : "text-sidebar-foreground/70")}>
-                <span className={cn("absolute top-0 h-[3px] w-8 rounded-b bg-sidebar-primary transition-transform", active(n.href) ? "scale-x-100" : "scale-x-0")} />
-                <n.icon className="h-5 w-5" />
-                <span className="max-w-full px-1 text-center leading-tight [overflow-wrap:anywhere]">{n.label}</span>
+              <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} aria-label={n.label} data-testid={`link-dock-${n.href.slice(1).replace(/\//g, "-") || "home"}`}
+                className={cn("flex h-14 flex-col items-center justify-center gap-0.5 transition active:scale-95", active(n.href) ? "text-primary" : "text-muted-foreground/80")}>
+                <n.icon className="h-[22px] w-[22px]" strokeWidth={active(n.href) ? 2.4 : 1.8} />
+                <span className={cn("max-w-full truncate px-1 text-[10px] leading-none", active(n.href) ? "font-semibold" : "font-medium")}>{n.label}</span>
               </Link>
             ))}
             <Dialog.Trigger asChild>
-              <button type="button" data-testid="button-dock-more" className="flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium text-sidebar-foreground/70">
-                <Menu className="h-5 w-5" /><span>More</span>
+              <button type="button" data-testid="button-dock-more" aria-label="More" className={cn("flex h-14 flex-col items-center justify-center gap-0.5 transition active:scale-95", open ? "text-primary" : "text-muted-foreground/80")}>
+                <Menu className="h-[22px] w-[22px]" strokeWidth={1.8} />
+                <span className="text-[10px] font-medium leading-none">More</span>
               </button>
             </Dialog.Trigger>
           </div>
@@ -236,26 +236,26 @@ function ShellInner({ children }: { children: ReactNode }) {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 md:hidden" />
           <Dialog.Content aria-describedby={undefined} data-testid="sheet-more"
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-2xl bg-sidebar text-sidebar-foreground outline-none md:hidden">
-            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-sidebar-foreground/25" />
-            <div className="flex shrink-0 items-center gap-3 border-b border-sidebar-border px-4 pb-3 pt-2">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary font-display text-base font-bold text-sidebar-primary-foreground">R</span>
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-2xl bg-card text-foreground outline-none md:hidden">
+            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-foreground/20" />
+            <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 pb-3 pt-2">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-base font-bold text-primary-foreground">{APP_INITIAL}</span>
               <div className="min-w-0 flex-1">
-                <Dialog.Title className="truncate font-display text-base font-semibold text-sidebar-accent-foreground">{platformMode || !school ? "Platform console" : school.name}</Dialog.Title>
-                <div className="truncate font-mono text-[11px] text-sidebar-foreground/60">{platformMode || !school ? "All schools · no tenant" : `${school.code}${school.county ? ` · ${school.county}` : ""}`}{tenantAccess ? (tenantAccess.writeEnabled ? " · Support write" : " · Support read-only") : ""}</div>
+                <Dialog.Title className="truncate font-display text-base font-semibold text-foreground">{platformMode || !school ? "Platform console" : school.name}</Dialog.Title>
+                <div className="truncate font-mono text-[11px] text-muted-foreground">{platformMode || !school ? "All schools · no tenant" : `${school.code}${school.county ? ` · ${school.county}` : ""}`}{tenantAccess ? (tenantAccess.writeEnabled ? " · Support write" : " · Support read-only") : ""}</div>
               </div>
-              <Dialog.Close aria-label="Close menu" data-testid="button-close-more" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground"><X className="h-5 w-5" /></Dialog.Close>
+              <Dialog.Close aria-label="Close menu" data-testid="button-close-more" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-foreground"><X className="h-5 w-5" /></Dialog.Close>
             </div>
             <nav aria-label="All sections" className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {groups.map(group => (
                 <section key={group.label} aria-label={group.label}>
-                  <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/60">{group.label}</h2>
+                  <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</h2>
                   <div className="grid grid-cols-3 gap-2">
                     {group.items.map(n => (
                       <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined} onClick={() => setOpen(false)} data-testid={`link-more-${n.href.slice(1).replace(/\//g, "-") || "home"}`}
                         className={cn("flex min-h-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-center text-[11.5px] font-medium leading-tight transition active:scale-95",
-                          active(n.href) ? "border-sidebar-primary/60 bg-sidebar-primary/10 text-sidebar-accent-foreground" : "border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground/85")}>
-                        <n.icon className={cn("h-5 w-5", active(n.href) ? "text-sidebar-primary" : "text-sidebar-foreground/70")} />
+                          active(n.href) ? "border-primary/50 bg-primary/10 text-foreground" : "border-border bg-muted/50 text-foreground/85")}>
+                        <n.icon className={cn("h-5 w-5", active(n.href) ? "text-primary" : "text-muted-foreground")} />
                         <span className="line-clamp-2">{n.label}</span>
                       </Link>
                     ))}
@@ -263,24 +263,25 @@ function ShellInner({ children }: { children: ReactNode }) {
                 </section>
               ))}
             </nav>
-            <div className="shrink-0 border-t border-sidebar-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="shrink-0 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-xs font-bold text-sidebar-primary">{initials(user.name)}</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{initials(user.name)}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">{user.name}</div>
-                  <div className="text-[11px] text-sidebar-foreground/60">{ROLE_LABEL[user.role]}</div>
+                  <div className="truncate text-sm font-semibold text-foreground">{user.name}</div>
+                  <div className="text-[11px] text-muted-foreground">{ROLE_LABEL[user.role]}</div>
                 </div>
-                <Link href="/account" onClick={() => setOpen(false)} data-testid="link-more-account-menu" aria-label="My account" className="flex h-11 w-11 items-center justify-center rounded-full bg-sidebar-accent"><KeyRound className="h-4 w-4" /></Link>
-                <button type="button" data-testid="button-logout-mobile" disabled={logout.isPending} onClick={() => logout.mutate()} className="inline-flex h-11 items-center gap-1.5 rounded-full bg-sidebar-accent px-4 text-sm font-semibold text-sidebar-accent-foreground disabled:opacity-50">
+                <Link href="/account" onClick={() => setOpen(false)} data-testid="link-more-account-menu" aria-label="My account" className="flex h-11 w-11 items-center justify-center rounded-full bg-muted"><KeyRound className="h-4 w-4" /></Link>
+                <button type="button" data-testid="button-logout-mobile" disabled={logout.isPending} onClick={() => logout.mutate()} className="inline-flex h-11 items-center gap-1.5 rounded-full bg-muted px-4 text-sm font-semibold text-foreground disabled:opacity-50">
                   <LogOut className="h-4 w-4" />{logout.isPending ? "Signing out" : "Sign out"}
                 </button>
               </div>
-              {logout.isError && <div role="alert" className="pt-2 text-xs text-red-300">Sign-out failed. Please retry.</div>}
+              {logout.isError && <div role="alert" className="pt-2 text-xs text-red-700">Sign-out failed. Please retry.</div>}
             </div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
       <TenantAccessBanner />
+      <InstallPrompt />
       <main data-readonly={ro ? "true" : undefined} className="app-main w-full min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 md:px-6 md:py-8 lg:px-8"
         onSubmitCapture={ro ? (e) => {
           // Read-only support session: block every form save before it reaches the API (which also refuses).
@@ -288,7 +289,9 @@ function ShellInner({ children }: { children: ReactNode }) {
           if (e.target instanceof HTMLFormElement && e.target.hasAttribute("data-readonly-safe")) return;
           e.preventDefault(); e.stopPropagation();
           toast({ title: "Read-only support session", description: "Saving is disabled. Exit and re-enter with write access if the school asked for a change." });
-        } : undefined}>{children}</main>
+        } : undefined}>{!platformMode && <SectionTabs sections={sections} />}{children}</main>
+      {/* The helper floats over every school page. The platform owner answers from their own console instead. */}
+      {!platformMode && !tenantAccess && <StaffChatWidget />}
     </div>
   );
 }

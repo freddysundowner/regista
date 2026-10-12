@@ -268,7 +268,7 @@ export function WhatsappSetup({ platform, compact = false }: { platform: boolean
           {q.isLoading ? "Loading…" : q.isError ? "Open configuration to check status." : s?.phoneNumber || "No managed number yet."}
         </p>
       </div>
-      <Btn variant="outline" data-testid="button-configure-whatsapp" onClick={() => navigate(platform ? "/platform/settings/whatsapp" : "/settings/whatsapp")}>Configure</Btn>
+      <Btn variant="outline" data-testid="button-configure-whatsapp" onClick={() => navigate(platform ? "/platform/settings/whatsapp" : "/settings/messaging/whatsapp")}>Configure</Btn>
     </li>
   );
 

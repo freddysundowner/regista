@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListCollectionRefunds, useDecideCollectionRefund, usePayCollectionRefund, useListSponsorBatches, useGenerateSponsorAcknowledgement, useListApprovalInbox,
@@ -59,12 +60,14 @@ function RefundActions({ r }: { r: CollectionRefundView }) {
 /** Refunds of money that never belonged to a learner. A different person approves; only approved ones can be paid out. */
 export function CollectionRefundsPanel() {
   const q = useListCollectionRefunds({ query: { queryKey: getListCollectionRefundsQueryKey() } });
+  const pg = usePaged(q.data);
   return (
     <Panel title="Refunds to payers" note="Requested from the unmatched queue. An independent checker approves, then the payout reference is recorded. No learner account is credited.">
       {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<Undo2 className="h-5 w-5" />} title="No refund requests" body="Choose Refund to payer on an unmatched payment to start one." /> : (
-        <Table head={["Amount", "Reason", "Status", "Payout ref", ""]}>{q.data.map((r) => (
+        <Table head={["Amount", "Reason", "Status", "Payout ref", ""]}>{pg.rows.map((r) => (
           <tr key={r.id} data-testid={`row-refund-${r.id}`}><td className={td}><Money v={r.amount} /></td><td className={`${td} text-xs`}>{r.reason ?? "\u2014"}</td><td className={td}><Pill tone={tone(r.status)}>{r.status}</Pill></td><td className={`${td} font-mono text-xs`}>{r.paidReference ?? "\u2014"}</td><td className={td}><RefundActions r={r} /></td></tr>))}</Table>
       )}
+      <Pager {...pg.pager} />
     </Panel>
   );
 }
@@ -72,6 +75,7 @@ export function CollectionRefundsPanel() {
 export function SponsorBatchesPanel() {
   const q = useListSponsorBatches({ query: { queryKey: getListSponsorBatchesQueryKey() } });
   const sponsors = useFinanceRecords({ kind: "sponsor" });
+  const pg = usePaged(q.data);
   const ack = useGenerateSponsorAcknowledgement(); const { toast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const p = usePerms();
@@ -96,10 +100,11 @@ export function SponsorBatchesPanel() {
       </form>
     </FormDialog><Panel title="Sponsor batches" note="Use Allocate sponsor lump sum to reallocate held funds, or request a refund below. Both require independent approval.">
       {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<Users className="h-5 w-5" />} title="No sponsor batches" body="Allocating a lump sum creates a batch here." /> : (
-        <Table head={["Sponsor", "Requested credits", "Held", "Status", ""]}>{q.data.map((b) => (
+        <Table head={["Sponsor", "Requested credits", "Held", "Status", ""]}>{pg.rows.map((b) => (
           <tr key={b.id} data-testid={`row-batch-${b.id}`}><td className={td}>{sname(b.sponsorId)}</td><td className={td}><Money v={b.allocatedAmount} /></td><td className={td}><Money v={b.heldAmount} />{b.remainderReason && <div className="text-[11px] text-muted-foreground">{b.remainderReason}</div>}</td><td className={td}><Pill tone={tone(b.status)}>{b.status.replace(/_/g, " ")}</Pill></td>
             <td className={td}>{p.bursar && b.status === "remainder_held" && <Btn variant="outline" className="h-7 px-2 text-xs" onClick={() => { setRefundId(b.id); setReason(""); setError(null); }}>Refund held funds</Btn>}<Btn variant="outline" className="h-7 px-2 text-xs" disabled={busy === b.id} onClick={() => { setBusy(b.id); ack.mutate({ id: b.id }, { onSuccess: (d) => { setBusy(null); window.open(d.downloadUrl, "_blank", "noopener"); }, onError: (x) => { setBusy(null); toast({ title: "Acknowledgement not available", description: errMsg(x), variant: "destructive" }); } }); }}>{busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}Acknowledgement</Btn></td></tr>))}</Table>
       )}
+      <Pager {...pg.pager} />
     </Panel></>
   );
 }
@@ -108,12 +113,14 @@ const INBOX_LABEL: Record<string, string> = { collection_refund: "Refund to paye
 export function ApprovalInboxPanel() {
   const q = useListApprovalInbox({ query: { queryKey: getListApprovalInboxQueryKey() } });
   const sname = useStudentNames();
+  const pg = usePaged(q.data);
   return (
     <Panel title="Inbox" note="Everything waiting for a checker, across finance requests, refunds and plans. Refunds are decided under Reconciliation, plans under Payment plans.">
       {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <p className="p-5 text-sm text-muted-foreground">Nothing waiting.</p> : (
-        <Table head={["Type", "Learner", "Amount", "Raised", ""]}>{q.data.map((i) => (
+        <Table head={["Type", "Learner", "Amount", "Raised", ""]}>{pg.rows.map((i) => (
           <tr key={`${i.type}${i.id}`}><td className={td}>{INBOX_LABEL[i.type] ?? i.type.replace(/_/g, " ")}</td><td className={td}>{sname(i.studentId)}</td><td className={td}><Money v={i.amount} /></td><td className={`${td} text-xs`}>{fmtDateTime(i.createdAt)}</td><td className={td}>{i.canApprove ? <Pill tone="current">You can decide</Pill> : <Pill tone="left">Another checker</Pill>}</td></tr>))}</Table>
       )}
+      <Pager {...pg.pager} />
     </Panel>
   );
 }

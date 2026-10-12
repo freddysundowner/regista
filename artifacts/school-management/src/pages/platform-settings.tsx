@@ -1,42 +1,50 @@
 import { useRef, type KeyboardEvent } from "react";
 import { useLocation, useSearch } from "wouter";
-import { BadgeCheck, Mail, RadioTower } from "lucide-react";
+import { CreditCard, KeyRound, Mail, RadioTower, ServerCog, Tag } from "lucide-react";
+import { GatewaySettings, LicenceKeySettings, PricingSettings, StandaloneLicenceSettings } from "@/pages/platform-billing-settings";
 import { PageHeader } from "@/components/kit";
 import { PlatformMessagingPage } from "@/pages/messaging-settings";
-import LicencePlans from "@/pages/licence-plans";
 import PlatformEmailSettings from "@/pages/platform-email-settings";
 import { cn } from "@/lib/utils";
+import { useInstallation } from "@/lib/installation";
 
 const TABS = [
+  { id: "pricing", label: "Pricing & sign-up", icon: Tag },
+  { id: "payments", label: "Payments", icon: CreditCard },
+  { id: "keys", label: "Licence keys", icon: KeyRound },
+  { id: "standalone", label: "Standalone installs", icon: ServerCog },
   { id: "email", label: "Email", icon: Mail },
   { id: "messaging", label: "Messaging", icon: RadioTower },
-  { id: "licences", label: "Licence plans", icon: BadgeCheck },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
+const HOSTED_ONLY = new Set(["pricing", "payments", "keys", "standalone"]);
+
 export default function PlatformSettings() {
+  const { standalone } = useInstallation();
+  const tabs = TABS.filter((t) => !standalone || !HOSTED_ONLY.has(t.id));
   const search = useSearch();
   const [, navigate] = useLocation();
   const raw = new URLSearchParams(search).get("tab");
-  const tab: TabId = TABS.some((t) => t.id === raw) ? (raw as TabId) : "email";
+  const tab: TabId = tabs.some((t) => t.id === raw) ? (raw as TabId) : tabs[0].id;
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const go = (id: TabId) => { if (id !== tab) navigate(`/platform/settings?tab=${id}`); };
   const onKey = (e: KeyboardEvent) => {
-    const i = TABS.findIndex((t) => t.id === tab);
+    const i = tabs.findIndex((t) => t.id === tab);
     let n = -1;
-    if (e.key === "ArrowRight") n = (i + 1) % TABS.length;
-    else if (e.key === "ArrowLeft") n = (i - 1 + TABS.length) % TABS.length;
+    if (e.key === "ArrowRight") n = (i + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") n = (i - 1 + tabs.length) % tabs.length;
     else if (e.key === "Home") n = 0;
-    else if (e.key === "End") n = TABS.length - 1;
+    else if (e.key === "End") n = tabs.length - 1;
     if (n < 0) return;
-    e.preventDefault(); go(TABS[n].id); refs.current[TABS[n].id]?.focus();
+    e.preventDefault(); go(tabs[n].id); refs.current[tabs[n].id]?.focus();
   };
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Platform" title="Settings" meta="Platform-wide email, messaging defaults and licence plans." />
+      <PageHeader eyebrow="Platform" title="Settings" meta="Pricing, payments, licences, email and messaging for the whole platform." />
       <div role="tablist" aria-label="Settings sections" onKeyDown={onKey}
         className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const on = t.id === tab;
           return (
             <button key={t.id} ref={(el) => { refs.current[t.id] = el; }} type="button" role="tab" id={`tab-${t.id}`} aria-selected={on} aria-controls={`panel-${t.id}`}
@@ -50,7 +58,7 @@ export default function PlatformSettings() {
         })}
       </div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} key={tab} className="rise">
-        {tab === "email" ? <PlatformEmailSettings /> : tab === "messaging" ? <PlatformMessagingPage embedded /> : <LicencePlans embedded />}
+        {tab === "pricing" ? <PricingSettings /> : tab === "payments" ? <GatewaySettings /> : tab === "keys" ? <LicenceKeySettings /> : tab === "standalone" ? <StandaloneLicenceSettings /> : tab === "email" ? <PlatformEmailSettings /> : <PlatformMessagingPage embedded />}
       </div>
     </div>
   );

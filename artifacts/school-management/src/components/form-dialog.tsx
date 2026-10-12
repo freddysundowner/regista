@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import * as D from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,14 +10,20 @@ import { cn } from "@/lib/utils";
  * - Callers keep the dialog open on error and close it in onSuccess.
  * - `busy` blocks dismissal while a mutation is in flight.
  * - size "full" is a full-screen workflow dialog for long forms.
+ * - On a phone the longer forms (size "lg", "xl" and "full") open as a full page: a plain bar with a back arrow,
+ *   no dimmed page behind, the Save bar resting at the bottom. Short ones ("sm", "md") slide up as a sheet.
+ *   `phonePage` overrides that either way, for a short-sized form that is long, or the reverse.
+ * - Either way the form is sized to the part of the screen that is visible (see useVisibleArea), so when the
+ *   keyboard is up it shrinks to sit above it and its Save bar is never buried.
  */
-export function FormDialog({ open, onOpenChange, title, description, children, size = "md", busy, testid }: {
+export function FormDialog({ open, onOpenChange, title, description, children, size = "md", busy, testid, phonePage }: {
   open: boolean; onOpenChange: (open: boolean) => void; title: string; description?: ReactNode; children: ReactNode;
-  size?: "sm" | "md" | "lg" | "xl" | "full"; busy?: boolean; testid?: string;
+  size?: "sm" | "md" | "lg" | "xl" | "full"; busy?: boolean; testid?: string; phonePage?: boolean;
 }) {
   const block = (e: Event) => { if (busy) e.preventDefault(); };
   const w = { sm: "sm:max-w-md", md: "sm:max-w-xl", lg: "sm:max-w-3xl", xl: "sm:max-w-5xl", full: "" }[size];
   const full = size === "full";
+  const page = phonePage ?? (size === "lg" || size === "xl" || full);
   const opener = useRef<HTMLElement | null>(null);
   return (
     <D.Root open={open} onOpenChange={(o) => { if (!o && busy) return; onOpenChange(o); }}>
@@ -25,7 +31,13 @@ export function FormDialog({ open, onOpenChange, title, description, children, s
         <D.Overlay className="fixed inset-0 z-50 bg-black/40" />
         <D.Content
           data-testid={testid ?? "form-dialog"}
-          onOpenAutoFocus={() => { opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
+          tabIndex={-1}
+          onOpenAutoFocus={(event) => {
+            opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            // Phone: the form opens with nothing focused, so the keyboard (or a date's calendar) only comes up
+            // when the person taps a field, and they see the whole form first.
+            if (window.matchMedia("(max-width: 767px)").matches) { event.preventDefault(); (event.currentTarget as HTMLElement).focus(); }
+          }}
           onCloseAutoFocus={(event) => {
             if (opener.current?.isConnected) {
               event.preventDefault();
@@ -34,19 +46,19 @@ export function FormDialog({ open, onOpenChange, title, description, children, s
           }}
           onEscapeKeyDown={block} onPointerDownOutside={block} onInteractOutside={block}
           className={cn(
-            "fixed z-50 flex flex-col border border-card-border bg-card shadow-lg outline-none",
-            full
-              ? "inset-0 pt-[env(safe-area-inset-top)] sm:inset-4 sm:rounded-lg sm:pt-0"
-              : cn("inset-x-0 bottom-0 max-h-[94dvh] rounded-t-xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg", w),
+            "fixed inset-x-0 z-50 flex flex-col border border-card-border bg-card shadow-lg outline-none",
+            page ? "phone-page max-sm:top-[var(--vvt,0px)] max-sm:h-[var(--vvh,100dvh)] max-sm:rounded-none max-sm:border-0 max-sm:bg-background max-sm:pt-[env(safe-area-inset-top)] max-sm:shadow-none"
+              : "max-sm:top-[calc(var(--vvt,0px)+var(--vvh,100dvh))] max-sm:max-h-[calc(var(--vvh,100dvh)*0.96)] max-sm:-translate-y-full max-sm:rounded-t-xl",
+            full ? "sm:inset-4 sm:rounded-lg" : cn("sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg", w),
           )}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-border/70 px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className={cn("flex items-start justify-between gap-4 border-b border-border/70 px-4 py-3.5 max-sm:items-center max-sm:py-1.5 sm:px-5 sm:py-4", page && "max-sm:justify-start max-sm:gap-0 max-sm:border-0 max-sm:px-1.5 max-sm:!py-0")}>
+            {page && <D.Close disabled={busy} aria-label="Back" data-testid="button-dialog-back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground active:bg-muted disabled:opacity-40 sm:hidden"><ChevronLeft className="h-6 w-6" /></D.Close>}
             <div className="min-w-0">
-              <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700/80">Rejista</div>
-              <D.Title className="font-display text-xl font-semibold leading-tight">{title}</D.Title>
-              {description ? <D.Description className="mt-1 text-sm text-muted-foreground">{description}</D.Description> : <D.Description className="sr-only">{title}</D.Description>}
+              <D.Title className="font-display text-xl font-semibold leading-tight max-sm:text-[1.0625rem]">{title}</D.Title>
+              {description ? <D.Description className="mt-1 text-sm text-muted-foreground max-sm:sr-only">{description}</D.Description> : <D.Description className="sr-only">{title}</D.Description>}
             </div>
-            <D.Close disabled={busy} aria-label="Close dialog" data-testid="button-dialog-close" className="-mr-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-40">
+            <D.Close disabled={busy} aria-label="Close dialog" data-testid="button-dialog-close" className={cn("-mr-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-40", page && "max-sm:hidden")}>
               <X className="h-4 w-4" />
             </D.Close>
           </div>

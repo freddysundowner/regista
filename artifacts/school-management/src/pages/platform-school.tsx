@@ -1,9 +1,10 @@
 import { actionLabel } from "@/lib/audit-format";
+import { Pager, usePaged } from "@/components/pager";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useGetPlatformSchool, useListPlatformAdmins, useListPlatformAudit, getGetPlatformSchoolQueryKey, getListPlatformAdminsQueryKey, getListPlatformAuditQueryKey, type User } from "@workspace/api-client-react";
 import { RegistrationReviewDialog } from "@/components/registration-review";
-import { ArrowLeft, CalendarClock, ClipboardCheck, DoorOpen, KeyRound, Pencil, Plus, Power, ScrollText, UserCog } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, DoorOpen, KeyRound, Pencil, Plus, Power, ScrollText, UserCog } from "lucide-react";
 import { BillingPanel } from "@/components/platform-billing";
 import { LicensingPanel } from "@/components/platform-licensing";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Pill } from "@/components/kit";
@@ -22,9 +23,10 @@ export default function PlatformSchool() {
   const { id = "" } = useParams<{ id: string }>();
   const sq = useGetPlatformSchool(id, { query: { queryKey: getGetPlatformSchoolQueryKey(id), enabled: !!id } });
   const aq = useListPlatformAdmins(id, { query: { queryKey: getListPlatformAdminsQueryKey(id), enabled: !!id } });
+  const admins = usePaged(aq.data);
   const auditParams = { schoolId: id, limit: 8 };
   const lq = useListPlatformAudit(auditParams, { query: { queryKey: getListPlatformAuditQueryKey(auditParams), enabled: !!id } });
-  const [editing, setEditing] = useState<"profile" | "subscription" | null>(null);
+  const [editing, setEditing] = useState<"profile" | null>(null);
   const [entering, setEntering] = useState(false);
   const [dlg, setDlg] = useState<Dlg>(null);
   const [reviewing, setReviewing] = useState<"approve" | "reject" | null>(null);
@@ -52,14 +54,14 @@ export default function PlatformSchool() {
       {inReview && <div data-testid="banner-registration" className={s.status === "pending" ? "rounded-md border border-amber-600/35 bg-amber-500/10 px-4 py-3 text-sm" : "rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"}>
         <span className="font-semibold">{s.status === "pending" ? "Self-registered school awaiting review." : "Registration rejected."}</span> {s.status === "pending" ? "Editing and support access open after approval." : `Reason: ${s.registrationNote || "none recorded"}. You can still approve it.`}
       </div>}
-      <FormDialog open={!!editing && !inReview} onOpenChange={(o) => !o && setEditing(null)} size="lg" title={editing === "subscription" ? "Edit legacy subscription metadata" : `Edit ${s.name}`} description={editing === "subscription" ? "Informational only. Licence-managed schools get access from timed licences, not these fields." : "Profile, contact and access status."}>
-        {editing && <SchoolEditForm key={editing + s.id} section={editing} school={s} onDone={() => setEditing(null)} />}
+      <FormDialog open={!!editing && !inReview} onOpenChange={(o) => !o && setEditing(null)} size="lg" title={`Edit ${s.name}`} description="Profile, contact and access status.">
+        {editing && <SchoolEditForm key={editing + s.id} school={s} onDone={() => setEditing(null)} />}
       </FormDialog>
       <EnterSchoolDialog school={s} open={entering && s.status === "active"} onOpenChange={setEntering} />
-      <FormDialog open={dlg?.kind === "add"} onOpenChange={(o) => !o && setDlg(null)} title="Add school administrator" description={`New administrator for ${s.name}.`}>
+      <FormDialog phonePage open={dlg?.kind === "add"} onOpenChange={(o) => !o && setDlg(null)} title="Add school administrator" description={`New administrator for ${s.name}.`}>
         <AdminForm schoolId={s.id} onDone={() => setDlg(null)} />
       </FormDialog>
-      <FormDialog open={dlg?.kind === "edit"} onOpenChange={(o) => !o && setDlg(null)} title={`Edit ${dlg?.kind === "edit" ? dlg.admin.name : "administrator"}`}>
+      <FormDialog phonePage open={dlg?.kind === "edit"} onOpenChange={(o) => !o && setDlg(null)} title={`Edit ${dlg?.kind === "edit" ? dlg.admin.name : "administrator"}`}>
         {dlg?.kind === "edit" && <AdminForm schoolId={s.id} admin={dlg.admin} onDone={() => setDlg(null)} />}
       </FormDialog>
       <FormDialog open={dlg?.kind === "status"} onOpenChange={(o) => !o && setDlg(null)} size="sm" title={dlg?.kind === "status" ? `${dlg.admin.isActive ? "Disable" : "Enable"} ${dlg.admin.name}` : "Change status"}>
@@ -81,7 +83,7 @@ export default function PlatformSchool() {
             {aq.isLoading ? <SkeletonRows rows={3} cols={3} /> : aq.isError ? <ErrorState msg={errMsg(aq.error)} onRetry={() => aq.refetch()} /> : !aq.data?.length ? (
               <Empty icon={<UserCog className="h-5 w-5" />} title="No administrators" body="Add a school administrator so the school can sign in." />
             ) : (
-              <ul className="divide-y divide-border/60">{aq.data.map((a) => (
+              <ul className="divide-y divide-border/60">{admins.rows.map((a) => (
                 <li key={a.id} data-testid={`row-admin-${a.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{initials(a.name)}</span>
                   <div className="min-w-0 flex-1">
@@ -96,6 +98,7 @@ export default function PlatformSchool() {
                 </li>
               ))}</ul>
             )}
+            <Pager {...admins.pager} />
           </Panel>
           <Panel title="Recent platform actions" note="Latest audited actions on this school." action={<Link href={`/platform/audit?school=${s.id}`} className="text-xs font-semibold text-primary hover:underline" data-testid="link-school-audit">Full log</Link>}>
             {lq.isLoading ? <SkeletonRows rows={3} cols={3} /> : lq.isError ? <ErrorState msg={errMsg(lq.error)} onRetry={() => lq.refetch()} /> : !lq.data?.length ? (
@@ -118,14 +121,6 @@ export default function PlatformSchool() {
               <Fact k="Phone" v={<span className="normal-case">{s.phone || "\u2014"}</span>} />
               <Fact k="Code" v={<span className="font-mono normal-case">{s.code}</span>} />
               <div className="col-span-2"><Fact k="Address" v={<span className="normal-case">{s.address || "\u2014"}</span>} /></div>
-            </dl>
-          </Panel>
-          <Panel title="Legacy subscription metadata" note="Reference only. Once a timed licence is granted, the licence alone decides access; these fields never override it." action={!inReview ? <Btn variant="ghost" className="h-8 px-2.5 text-xs" data-testid="button-edit-subscription" onClick={() => setEditing("subscription")}><CalendarClock className="h-3.5 w-3.5" />Change</Btn> : undefined}>
-            <dl className="grid grid-cols-2 gap-4 p-5">
-              <Fact k="Plan" v={s.subscriptionPlan || "\u2014"} />
-              <Fact k="Status" v={s.subscriptionStatus ? <Pill tone={s.subscriptionStatus === "active" ? "active" : s.subscriptionStatus === "trial" ? "duplicate" : "error"}>{s.subscriptionStatus}</Pill> : "\u2014"} />
-              <Fact k="Starts" v={fmtDate(s.subscriptionStartDate)} />
-              <Fact k="Renews" v={fmtDate(s.subscriptionEndDate)} />
             </dl>
           </Panel>
         </div>

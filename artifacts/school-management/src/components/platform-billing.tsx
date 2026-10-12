@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetPlatformBilling, useCreatePlatformInvoice, useRecordPlatformPayment, useVoidPlatformInvoice, useReversePlatformPayment,
@@ -195,6 +196,7 @@ export function BillingPanel({ school }: { school: School }) {
   const [draft, setDraft] = useState(0);
   const inReview = school.status === "pending" || school.status === "rejected";
   const b = q.data;
+  const { rows: invoiceRows, pager } = usePaged(b?.invoices);
   // Always resolve the dialog invoice from fresh query data so details update after each correction.
   const inv = dlg && dlg.kind !== "create" ? b?.invoices.find((i) => i.id === dlg.id) : undefined;
   const pay = dlg?.kind === "reverse" ? inv?.payments.find((p) => p.id === dlg.paymentId) : undefined;
@@ -202,7 +204,7 @@ export function BillingPanel({ school }: { school: School }) {
   const openCreate = () => { setDraft((n) => n + 1); setDlg({ kind: "create" }); };
 
   return (
-    <Panel title="Subscription billing" note="Manual KES ledger. Fully paying a licence-renewal invoice activates its licence; reversing a payment suspends it until repaid (original dates kept). Other invoices do not change access."
+    <Panel title="Invoices & payments" note="Record bank or cash payments here. Paying a renewal invoice in full activates its licence."
       action={<Btn className="h-8" data-testid="button-new-invoice" disabled={inReview || !b} title={inReview ? "Available after the registration is approved" : undefined} onClick={openCreate}><Plus className="h-4 w-4" />Invoice</Btn>}>
       {q.isLoading ? <SkeletonRows rows={3} cols={4} /> : q.isError || !b ? <ErrorState msg={errMsg(q.error, "Could not load billing.")} onRetry={() => q.refetch()} /> : <>
         <div className="grid grid-cols-2 divide-border/60 border-b border-border/60 sm:grid-cols-4 sm:divide-x">
@@ -214,7 +216,7 @@ export function BillingPanel({ school }: { school: School }) {
         {!b.invoices.length ? (
           <Empty icon={<ReceiptText className="h-5 w-5" />} title="No invoices yet" body={inReview ? "Billing opens once this registration is approved." : "Issue a subscription invoice, then record payments as they arrive."} />
         ) : (
-          <ul className="divide-y divide-border/60" data-testid="list-invoices">{b.invoices.map((i) => (
+          <ul className="divide-y divide-border/60" data-testid="list-invoices">{invoiceRows.map((i) => (
             <li key={i.id} data-testid={`row-invoice-${i.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3">
               <button type="button" onClick={() => setDlg({ kind: "view", id: i.id })} className="min-w-0 flex-1 text-left" data-testid={`button-view-invoice-${i.id}`}>
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold"><span className="font-mono">{i.number}</span><Pill tone={TONE[i.status] ?? "inactive"}>{i.status}</Pill></div>
@@ -228,6 +230,7 @@ export function BillingPanel({ school }: { school: School }) {
             </li>
           ))}</ul>
         )}
+        <Pager {...pager} />
       </>}
 
       <FormDialog open={dlg?.kind === "create"} onOpenChange={(o) => !o && setDlg(null)} title="Issue subscription invoice" description={`KES invoice for ${school.name}.`} testid="dialog-new-invoice">

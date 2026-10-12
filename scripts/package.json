@@ -8,7 +8,9 @@
     "test:api": "tsx ./src/api-acceptance.ts",
     "test:finance": "tsx ./src/finance-acceptance.ts",
     "seed:demo": "tsx ./src/seed-demo.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:matching": "node ./src/matching-acceptance.mjs",
+    "seed:showcase": "node ./src/seed-showcase.mjs"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",

@@ -23,5 +23,12 @@ export interface LicencePlanInput {
   price: string;
   /** @pattern ^[0-9]{1,10}(\.[0-9]{1,2})?$ */
   subscriptionPrice: string;
+  /**
+     * Most active learners the package covers; null covers any number.
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  maxLearners?: number | null;
   isActive: boolean;
 }

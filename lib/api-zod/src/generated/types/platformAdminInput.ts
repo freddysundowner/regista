@@ -9,13 +9,13 @@ import type { PlatformAdminUpdate } from './platformAdminUpdate';
 
 export type PlatformAdminInput = PlatformAdminUpdate & {
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
 } & Required<Pick<PlatformAdminUpdate & {
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;

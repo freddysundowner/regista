@@ -288,6 +288,56 @@ paths:
     $ref: './licensing.yaml#/paths/issue'
   /platform/schools/{schoolId}/licences/{licenceId}/revoke:
     $ref: './licensing.yaml#/paths/revoke'
+  /public/pricing:
+    $ref: './licensing.yaml#/paths/publicPricing'
+  /platform/pricing:
+    $ref: './licensing.yaml#/paths/pricing'
+  /installation:
+    $ref: './licensing.yaml#/paths/installation'
+  /installation/licence:
+    $ref: './licensing.yaml#/paths/installationLicence'
+  /platform/standalone-licences:
+    $ref: './licensing.yaml#/paths/standaloneLicences'
+  /platform/registration-settings:
+    $ref: './licensing.yaml#/paths/registrationSettings'
+  /platform/payment-gateways:
+    $ref: './licensing.yaml#/paths/gateways'
+  /platform/payment-gateways/{provider}:
+    $ref: './licensing.yaml#/paths/gateway'
+  /platform/licence-keys:
+    $ref: './licensing.yaml#/paths/keys'
+  /platform/licence-keys/{keyId}/reveal:
+    $ref: './licensing.yaml#/paths/keyReveal'
+  /platform/licence-keys/{keyId}/revoke:
+    $ref: './licensing.yaml#/paths/keyRevoke'
+  /school/subscription/orders/{orderId}/checkout:
+    $ref: './licensing.yaml#/paths/checkout'
+  /school/subscription/checkouts/{checkoutId}:
+    $ref: './licensing.yaml#/paths/checkoutStatus'
+  /school/subscription/redeem:
+    $ref: './licensing.yaml#/paths/redeem'
+  /onboarding:
+    get:
+      operationId: getOnboarding
+      responses:
+        "200":
+          description: Setup-guide progress, worked out from the school's real data
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Onboarding' }
+    patch:
+      operationId: updateOnboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OnboardingInput' }
+      responses:
+        "200":
+          description: Guide preferences saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Onboarding' }
   /school/subscription:
     $ref: './licensing.yaml#/paths/subscription'
   /school/subscription/orders:
@@ -387,6 +437,21 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuthSession" }
+  /auth/email-available:
+    post:
+      operationId: checkEmailAvailable
+      summary: Whether a new account can use this email, asked while signing up so a taken email is caught on the first screen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailAvailabilityInput" }
+      responses:
+        "200":
+          description: Availability
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailAvailability" }
   /platform/schools/{schoolId}/registration:
     post:
       operationId: reviewSchoolRegistration
@@ -567,6 +632,20 @@ paths:
     $ref: './kcb.yaml#/paths/accountNotification'
   /integrations/kcb/till-notification/{token}:
     $ref: './kcb.yaml#/paths/tillNotification'
+  /bank-accounts:
+    $ref: './banks.yaml#/paths/accounts'
+  /bank-accounts/{id}:
+    $ref: './banks.yaml#/paths/account'
+  /bank-accounts/{id}/ncba-request:
+    $ref: './banks.yaml#/paths/ncbaRequest'
+  /bank-accounts/{id}/kcb:
+    $ref: './banks.yaml#/paths/kcb'
+  /bank-accounts/{id}/kcb-letter.pdf:
+    $ref: './banks.yaml#/paths/kcbLetter'
+  /bank-accounts/{id}/kcb-key:
+    $ref: './banks.yaml#/paths/kcbKey'
+  /integrations/ncba/notification/{token}:
+    $ref: './banks.yaml#/paths/ncbaNotification'
   /integrations/daraja/register:
     $ref: './remaining.yaml#/paths/registration'
   /payments/incoming:
@@ -717,6 +796,20 @@ paths:
     $ref: './finance.yaml#/paths/commit'
   /finance/overview:
     $ref: './finance.yaml#/paths/overview'
+  /finance/summary:
+    $ref: './finance.yaml#/paths/summary'
+  /finance/expenses:
+    $ref: './finance.yaml#/paths/expenses'
+  /finance/expenses/{id}/void:
+    $ref: './finance.yaml#/paths/expenseVoid'
+  /finance/promises:
+    $ref: './finance.yaml#/paths/promises'
+  /finance/promises/{id}/cancel:
+    $ref: './finance.yaml#/paths/promiseCancel'
+  /finance/arrears:
+    $ref: './finance.yaml#/paths/arrears'
+  /finance/reminders:
+    $ref: './finance.yaml#/paths/reminders'
   /finance/students/{id}/history:
     $ref: './finance.yaml#/paths/history'
   /finance/documents:
@@ -725,6 +818,48 @@ paths:
     $ref: './finance.yaml#/paths/download'
   /finance/jobs/failed:
     $ref: './finance.yaml#/paths/jobs'
+  /procurement/suppliers:
+    $ref: './procurement.yaml#/paths/suppliers'
+  /procurement/suppliers/{id}:
+    $ref: './procurement.yaml#/paths/supplier'
+  /procurement/orders:
+    $ref: './procurement.yaml#/paths/orders'
+  /procurement/orders/{id}:
+    $ref: './procurement.yaml#/paths/order'
+  /procurement/orders/{id}/decision:
+    $ref: './procurement.yaml#/paths/orderDecision'
+  /procurement/orders/{id}/cancel:
+    $ref: './procurement.yaml#/paths/orderCancel'
+  /procurement/orders/{id}/receive:
+    $ref: './procurement.yaml#/paths/orderReceive'
+  /procurement/invoices:
+    $ref: './procurement.yaml#/paths/invoices'
+  /procurement/invoices/{id}/void:
+    $ref: './procurement.yaml#/paths/invoiceVoid'
+  /procurement/invoices/{id}/pay:
+    $ref: './procurement.yaml#/paths/invoicePay'
+  /store/items:
+    $ref: './store.yaml#/paths/items'
+  /store/items/{id}:
+    $ref: './store.yaml#/paths/item'
+  /store/movements:
+    $ref: './store.yaml#/paths/movements'
+  /library/summary:
+    $ref: './library.yaml#/paths/summary'
+  /library/books:
+    $ref: './library.yaml#/paths/books'
+  /library/books/{id}:
+    $ref: './library.yaml#/paths/book'
+  /library/books/{id}/copies:
+    $ref: './library.yaml#/paths/bookCopies'
+  /library/copies/{id}:
+    $ref: './library.yaml#/paths/copy'
+  /library/loans:
+    $ref: './library.yaml#/paths/loans'
+  /library/loans/{id}/return:
+    $ref: './library.yaml#/paths/loanReturn'
+  /library/borrowers:
+    $ref: './library.yaml#/paths/borrowers'
   /storage/uploads:
     post:
       operationId: requestFileUpload
@@ -781,6 +916,38 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/School" }
+  /auth/forgot-password:
+    post:
+      operationId: requestPasswordReset
+      tags: [auth]
+      summary: Email a one-time link to choose a new password; the reply is the same whether or not the address has an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordResetRequest" }
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+  /auth/reset-password:
+    post:
+      operationId: resetPasswordWithLink
+      tags: [auth]
+      summary: Choose a new password with the token from an emailed link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordResetInput" }
+      responses:
+        "200":
+          description: Password changed and every session signed out
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
   /auth/password:
     post:
       operationId: changeOwnPassword
@@ -796,6 +963,356 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/MessageResponse" }
+  /support/messages:
+    get:
+      operationId: listSupportMessages
+      tags: [support]
+      summary: The signed-in staff member's conversation with support; opening it marks support's replies as read
+      responses:
+        "200":
+          description: Messages, oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SupportMessage" } }
+    post:
+      operationId: sendSupportMessage
+      tags: [support]
+      summary: Send a message to support
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportMessageInput" }
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportMessage" }
+  /integrations/sunpay:
+    get:
+      operationId: getSunpayConnection
+      tags: [integrations]
+      summary: Whether the school collects M-Pesa through SunPay, and how parents pay
+      responses:
+        "200":
+          description: SunPay connection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SunpayConnection" }
+    post:
+      operationId: connectSunpay
+      tags: [integrations]
+      summary: Register the school's till or paybill with SunPay as a sub-merchant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SunpayConnectInput" }
+      responses:
+        "200":
+          description: Connected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SunpayConnection" }
+  /integrations/sunpay/disconnect:
+    post:
+      operationId: disconnectSunpay
+      tags: [integrations]
+      summary: Stop collecting through SunPay; the registration at SunPay is kept
+      responses:
+        "200":
+          description: Disconnected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SunpayConnection" }
+  /support/starters:
+    get:
+      operationId: listStaffSupportStarters
+      tags: [support]
+      summary: The questions offered to signed-in school staff when the helper opens
+      responses:
+        "200":
+          description: Starter questions, in the owner's order
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SupportStarter" } }
+  /support/unread:
+    get:
+      operationId: getSupportUnread
+      tags: [support]
+      summary: How many replies from support the staff member has not opened
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportUnread" }
+  /platform/support/threads:
+    get:
+      operationId: listSupportThreads
+      tags: [support]
+      summary: Every support conversation, most recent first
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SupportThread" } }
+  /platform/support/unread:
+    get:
+      operationId: getPlatformSupportUnread
+      tags: [support]
+      summary: How many staff messages support has not opened
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportUnread" }
+  /public/support/starters:
+    get:
+      operationId: listSupportStarters
+      tags: [support]
+      summary: The questions offered to website visitors when the chat opens
+      responses:
+        "200":
+          description: Starter questions, in the owner's order
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SupportStarter" } }
+  /platform/knowledge:
+    get:
+      operationId: getKnowledgeBase
+      tags: [support]
+      summary: Every knowledge base article and whether the assistant is switched on
+      responses:
+        "200":
+          description: Knowledge base
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeBase" }
+    post:
+      operationId: createKnowledgeArticle
+      tags: [support]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KnowledgeArticleInput" }
+      responses:
+        "201":
+          description: Article added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeArticle" }
+  /platform/knowledge/seed:
+    post:
+      operationId: seedKnowledgeBase
+      tags: [support]
+      summary: Add the ready-made articles that are not in the knowledge base yet
+      responses:
+        "200":
+          description: Knowledge base after seeding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeBase" }
+  /platform/knowledge/ask:
+    post:
+      operationId: askKnowledgeBase
+      tags: [support]
+      summary: Try a question against the assistant without sending anything to anyone
+      parameters:
+        - { name: audience, in: query, schema: { type: string, enum: [visitors, staff], default: visitors } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportMessageInput" }
+      responses:
+        "200":
+          description: The assistant's answer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeAnswer" }
+  /platform/knowledge/{articleId}:
+    parameters:
+      - { name: articleId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: updateKnowledgeArticle
+      tags: [support]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KnowledgeArticleInput" }
+      responses:
+        "200":
+          description: Article saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeArticle" }
+    delete:
+      operationId: deleteKnowledgeArticle
+      tags: [support]
+      responses:
+        "200":
+          description: Article removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+  /public/support/chat:
+    post:
+      operationId: startVisitorChat
+      tags: [support]
+      summary: Start a chat from the public website; returns the token the visitor's browser keeps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VisitorChatInput" }
+      responses:
+        "201":
+          description: Chat started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VisitorChat" }
+  /public/support/messages:
+    get:
+      operationId: listVisitorMessages
+      tags: [support]
+      summary: The visitor's conversation, identified by the X-Support-Token header
+      responses:
+        "200":
+          description: Messages, oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SupportMessage" } }
+    post:
+      operationId: sendVisitorMessage
+      tags: [support]
+      summary: Send a message as the visitor identified by the X-Support-Token header
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportMessageInput" }
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportMessage" }
+  /platform/support/threads/{threadId}/messages:
+    parameters:
+      - { name: threadId, in: path, required: true, schema: { type: string, pattern: "^(staff|visitor)-[0-9a-fA-F-]{36}$" } }
+    get:
+      operationId: listSupportThreadMessages
+      tags: [support]
+      summary: One conversation; opening it marks the other person's messages as read
+      responses:
+        "200":
+          description: Messages, oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SupportMessage" } }
+    post:
+      operationId: replySupportThread
+      tags: [support]
+      summary: Reply in a conversation as support
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportMessageInput" }
+      responses:
+        "201":
+          description: Reply sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportMessage" }
+  /users/{userId}/reset-password:
+    post:
+      operationId: resetStaffPassword
+      tags: [users]
+      summary: Set a new temporary password for a staff member who is locked out
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StaffPasswordInput" }
+      responses:
+        "200":
+          description: Password replaced and the staff member signed out everywhere
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+  /users/{userId}/profile:
+    get:
+      operationId: getStaffProfile
+      tags: [staff]
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: One staff member with their assignments, workload and recent activity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffProfile" }
+  /subject-assignments/{assignmentId}:
+    delete:
+      operationId: deleteSubjectAssignment
+      tags: [academics]
+      parameters:
+        - { name: assignmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Subject teacher removed; marks already entered are kept
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+  /students/{studentId}/removal:
+    get:
+      operationId: getStudentRemoval
+      tags: [students]
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: What removing this learner would erase or keep
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentRemoval" }
+    post:
+      operationId: removeStudent
+      tags: [students]
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StudentRemovalInput" }
+      responses:
+        "200":
+          description: Learner deleted, or their personal details removed when fee history must be kept
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentRemoval" }
+  /staff-assignments:
+    get:
+      operationId: listStaffAssignments
+      tags: [academics]
+      responses:
+        "200":
+          description: Every teaching assignment in the school - class teachers, stream access and subject teachers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StaffAssignment" }
   /teacher-assignments:
     get:
       operationId: listTeacherAssignments
@@ -936,6 +1453,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Grade" }
+    delete:
+      operationId: deleteGrade
+      tags: [academics]
+      parameters:
+        - { name: gradeId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Grade removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
   /streams/{streamId}:
     patch:
       operationId: updateStream
@@ -953,6 +1481,30 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Stream" }
+    delete:
+      operationId: deleteStream
+      tags: [academics]
+      parameters:
+        - { name: streamId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Class removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+  /class-summary:
+    get:
+      operationId: getClassSummary
+      tags: [academics]
+      parameters:
+        - { name: streamId, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: gradeId, in: query, required: false, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: One class (or a grade without classes) with its teachers, learners, attendance and fees
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClassSummary" }
   /guardians/{guardianId}:
     patch:
       operationId: updateGuardian
@@ -1429,6 +1981,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Student"
+  /notifications/audience:
+    get:
+      operationId: getMessageAudience
+      tags: [notifications]
+      summary: How many parents a message to everyone (or to one grade) would reach
+      parameters:
+        - name: gradeId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The number of parents, counted once each
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageAudience" }
+  /notifications/broadcast:
+    post:
+      operationId: broadcastSchoolMessage
+      tags: [notifications]
+      summary: Send one message to every parent of an active learner, or to one grade's parents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BroadcastInput" }
+      responses:
+        "200":
+          description: How many messages were queued and how many parents were skipped
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BroadcastResult" }
+  /students/{studentId}/id-card:
+    post:
+      operationId: generateStudentIdCard
+      tags: [students]
+      summary: The learner's identity card as a print-ready PDF (front and back, bank-card size)
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Where to download the PDF
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GeneratedDocument" }
   /students/{studentId}:
     get:
       operationId: getStudent
@@ -1572,6 +2172,27 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+        - name: page
+          in: query
+          required: false
+          description: 1-based page of `limit` entries, newest first.
+          schema:
+            type: integer
+            minimum: 1
+        - name: search
+          in: query
+          required: false
+          description: Words to find in the action, record type or the person's name.
+          schema:
+            type: string
+            maxLength: 100
+        - name: entityType
+          in: query
+          required: false
+          description: Only entries about this kind of record.
+          schema:
+            type: string
+            maxLength: 60
       responses:
         "200":
           description: Audit history
@@ -1583,6 +2204,136 @@ paths:
                   $ref: "#/components/schemas/AuditLog"
 components:
   schemas:
+    StudentRemovalInput:
+      type: object
+      additionalProperties: false
+      required: [confirmAdmissionNo]
+      properties:
+        confirmAdmissionNo: { type: string, minLength: 1 }
+    StudentRemoval:
+      type: object
+      required: [mode, admissionNo, name, attendance, marks, ratings, reportCards, files, guardiansRemoved, guardiansKept, financeRecords]
+      properties:
+        mode: { type: string, enum: [delete, anonymize] }
+        admissionNo: { type: string }
+        name: { type: string }
+        attendance: { type: integer }
+        marks: { type: integer }
+        ratings: { type: integer }
+        reportCards: { type: integer }
+        files: { type: integer }
+        guardiansRemoved: { type: integer }
+        guardiansKept: { type: integer }
+        financeRecords: { type: integer }
+    StaffProfile:
+      type: object
+      required: [user, assignments, stats, activity]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/StaffAssignment" }
+        stats:
+          type: object
+          required: [classes, learners, subjects, attendanceMarked, registersMarked, assessments, actions, lastActivityAt]
+          properties:
+            classes: { type: integer }
+            learners: { type: integer }
+            subjects: { type: integer }
+            attendanceMarked: { type: integer }
+            registersMarked: { type: integer }
+            assessments: { type: integer }
+            actions: { type: integer }
+            lastActivityAt: { type: string, format: date-time, nullable: true }
+        activity:
+          type: array
+          items: { $ref: "#/components/schemas/AuditLog" }
+    StaffAssignment:
+      type: object
+      required: [id, kind, recordId, userId, userName, userRole, userActive, gradeId, gradeName, streamId, streamName, subject, termName, isCurrentTerm, assignedAt]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [class_teacher, stream_access, subject] }
+        recordId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        userName: { type: string }
+        userRole: { type: string }
+        userActive: { type: boolean }
+        gradeId: { type: string, format: uuid }
+        gradeName: { type: string }
+        streamId: { type: string, format: uuid }
+        streamName: { type: string }
+        subject: { type: string, nullable: true }
+        termName: { type: string, nullable: true }
+        isCurrentTerm: { type: boolean }
+        assignedAt: { type: string, format: date-time }
+    ClassSummary:
+      type: object
+      required: [kind, id, name, gradeId, gradeName, levelBand, streamName, classTeacher, teachers, learners, attendance, fees, students]
+      properties:
+        kind: { type: string, enum: [stream, grade] }
+        id: { type: string, format: uuid }
+        name: { type: string }
+        gradeId: { type: string, format: uuid }
+        gradeName: { type: string }
+        levelBand: { type: string }
+        streamName: { type: string, nullable: true }
+        classTeacher:
+          type: object
+          nullable: true
+          required: [id, name]
+          properties: { id: { type: string, format: uuid }, name: { type: string } }
+        teachers:
+          type: array
+          items:
+            type: object
+            required: [id, name, subjects]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              subjects: { type: array, items: { type: string } }
+        learners:
+          type: object
+          required: [total, male, female, other, boarders, day, former]
+          properties:
+            total: { type: integer }
+            male: { type: integer }
+            female: { type: integer }
+            other: { type: integer }
+            boarders: { type: integer }
+            day: { type: integer }
+            former: { type: integer }
+        attendance:
+          type: object
+          required: [days, records, percent, todayMarked, todayPresent, todayAbsent]
+          properties:
+            days: { type: integer }
+            records: { type: integer }
+            percent: { type: string, nullable: true }
+            todayMarked: { type: integer }
+            todayPresent: { type: integer }
+            todayAbsent: { type: integer }
+        fees:
+          type: object
+          nullable: true
+          required: [outstanding, credit, owing]
+          properties:
+            outstanding: { type: string }
+            credit: { type: string }
+            owing: { type: integer }
+        students:
+          type: array
+          items:
+            type: object
+            required: [id, admissionNo, fullName, gender, boardingStatus, balance, attendancePercent]
+            properties:
+              id: { type: string, format: uuid }
+              admissionNo: { type: string }
+              fullName: { type: string }
+              gender: { type: string, nullable: true }
+              boardingStatus: { type: string }
+              balance: { type: string, nullable: true }
+              attendancePercent: { type: string, nullable: true }
     WhatsappSetupState:
       type: object
       required: [platformKeyConfigured, hasOwnConnection, status, phoneNumber, businessName, displayName, error, connectionActive, inherited, legacyConfigured]
@@ -1717,7 +2468,35 @@ components:
       enum: [primary, junior, senior, comprehensive, other]
     UserRole:
       type: string
-      enum: [super_admin, school_admin, principal, bursar, teacher, class_teacher]
+      enum: [super_admin, school_admin, principal, bursar, teacher, class_teacher, storekeeper, librarian]
+    StaffPermission:
+      type: string
+      description: Extra access a school admin can give one person on top of their role.
+      enum: [expenses, procurement, approve_lpo, store, library]
+    OnboardingStepId:
+      type: string
+      enum: [profile, calendar, classes, learners, staff, fees, invoices, collections, curriculum, parents]
+    Onboarding:
+      type: object
+      required: [dismissed, steps]
+      properties:
+        dismissed: { type: boolean }
+        steps:
+          type: array
+          items:
+            type: object
+            required: [id, done, skipped, optional]
+            properties:
+              id: { $ref: '#/components/schemas/OnboardingStepId' }
+              done: { type: boolean }
+              skipped: { type: boolean }
+              optional: { type: boolean }
+    OnboardingInput:
+      type: object
+      properties:
+        dismissed: { type: boolean }
+        skip: { $ref: '#/components/schemas/OnboardingStepId' }
+        unskip: { $ref: '#/components/schemas/OnboardingStepId' }
     StudentStatus:
       type: string
       enum: [active, transferred, graduated, left]
@@ -1769,18 +2548,58 @@ components:
         adminName: { type: string, minLength: 2, maxLength: 160 }
         email: { type: string, format: email }
         phone: { type: string, minLength: 9, maxLength: 20 }
-        password: { type: string, minLength: 10, maxLength: 128 }
+        password: { type: string, minLength: 6, maxLength: 128 }
       required: [schoolName, schoolCode, schoolType, adminName, password]
     SchoolRegistrationInput:
       type: object
       additionalProperties: false
-      required: [schoolName, schoolType, adminName, email, password]
+      required: [adminName, email, password]
       properties:
-        schoolName: { type: string, minLength: 2, maxLength: 180 }
+        schoolName: { type: string, minLength: 2, maxLength: 180, description: Optional; the school is named on the dashboard after sign-up. }
         schoolType: { $ref: "#/components/schemas/SchoolType" }
         adminName: { type: string, minLength: 2, maxLength: 160 }
         email: { type: string, format: email, maxLength: 180 }
-        password: { type: string, minLength: 10, maxLength: 128 }
+        password: { type: string, minLength: 6, maxLength: 128 }
+        acceptedTerms: { type: boolean, description: The person ticked the box agreeing to the Terms and Privacy Policy. Recorded with the account. }
+    MessageAudience:
+      type: object
+      required: [parents]
+      properties:
+        parents: { type: integer }
+    BroadcastInput:
+      type: object
+      additionalProperties: false
+      required: [channel, template, content, idempotencyKey]
+      properties:
+        channel: { type: string, enum: [whatsapp, sms] }
+        template: { type: string, minLength: 1, maxLength: 60 }
+        content: { type: string, minLength: 5, maxLength: 1000 }
+        gradeId: { type: string, format: uuid, description: Only this grade's parents. Left out, every parent. }
+        idempotencyKey: { type: string, minLength: 8, maxLength: 80 }
+    BroadcastResult:
+      type: object
+      required: [queued, skipped]
+      properties:
+        queued: { type: integer }
+        skipped: { type: integer, description: Parents who could not be sent to on this channel (for WhatsApp, usually no open chat). }
+    GeneratedDocument:
+      type: object
+      required: [id, downloadUrl]
+      properties:
+        id: { type: string, format: uuid }
+        downloadUrl: { type: string }
+        expiresAt: { type: string, format: date-time }
+    EmailAvailabilityInput:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 180 }
+    EmailAvailability:
+      type: object
+      required: [available]
+      properties:
+        available: { type: boolean }
     SchoolRegistrationReview:
       type: object
       additionalProperties: false
@@ -1804,9 +2623,10 @@ components:
         email: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }
         role: { $ref: "#/components/schemas/UserRole" }
+        permissions: { type: array, items: { $ref: "#/components/schemas/StaffPermission" }, description: Extra access on top of the role }
         isActive: { type: boolean }
         createdAt: { type: string, format: date-time }
-      required: [id, schoolId, name, role, isActive, createdAt]
+      required: [id, schoolId, name, role, permissions, isActive, createdAt]
     AuthSession:
       type: object
       properties:
@@ -1846,7 +2666,7 @@ components:
         - { $ref: "#/components/schemas/PlatformAdminUpdate" }
         - type: object
           properties:
-            password: { type: string, minLength: 10, maxLength: 128 }
+            password: { type: string, minLength: 6, maxLength: 128 }
           required: [name, password]
     PlatformAdminUpdate:
       type: object
@@ -1858,12 +2678,145 @@ components:
         reason: { type: string, minLength: 3, maxLength: 500 }
         confirmation: { type: string, enum: [CONFIRM] }
       required: [reason, confirmation]
+    SupportMessage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        body: { type: string }
+        fromSupport: { type: boolean }
+        byAi: { type: boolean, description: "Written by the assistant rather than a person" }
+        senderName: { type: string }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: string, format: date-time, nullable: true }
+      required: [id, body, fromSupport, byAi, senderName, createdAt, readAt]
+    SunpayConnection:
+      type: object
+      properties:
+        available: { type: boolean, description: "The platform's SunPay account is switched on" }
+        connected: { type: boolean }
+        feePercent: { type: string }
+        collectionPaybill: { type: string, nullable: true, description: "SunPay's paybill that parents pay into" }
+        type: { type: string, enum: [till, paybill], nullable: true }
+        shortcode: { type: string, nullable: true }
+        merchantRef: { type: string, nullable: true }
+        connectedAt: { type: string, format: date-time, nullable: true }
+      required: [available, connected, feePercent, collectionPaybill, type, shortcode, merchantRef, connectedAt]
+    SunpayConnectInput:
+      type: object
+      additionalProperties: false
+      properties:
+        type: { type: string, enum: [till, paybill] }
+        shortcode: { type: string, pattern: "^[0-9]{4,9}$" }
+        phone: { type: string, maxLength: 20 }
+      required: [type, shortcode]
+    SupportStarter:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        question: { type: string }
+      required: [id, question]
+    KnowledgeArticle:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        question: { type: string }
+        answer: { type: string }
+        isPublished: { type: boolean }
+        isStarter: { type: boolean }
+        audience: { $ref: "#/components/schemas/KnowledgeAudience" }
+        position: { type: integer }
+        updatedAt: { type: string, format: date-time }
+      required: [id, question, answer, isPublished, isStarter, audience, position, updatedAt]
+    KnowledgeAudience:
+      type: string
+      enum: [all, visitors, staff]
+      description: "Website visitors, signed-in school staff, or both"
+    KnowledgeArticleInput:
+      type: object
+      additionalProperties: false
+      properties:
+        question: { type: string, minLength: 3, maxLength: 200 }
+        answer: { type: string, minLength: 3, maxLength: 4000 }
+        isPublished: { type: boolean }
+        isStarter: { type: boolean }
+        audience: { $ref: "#/components/schemas/KnowledgeAudience" }
+        position: { type: integer, minimum: 0, maximum: 9999 }
+      required: [question, answer, isPublished, isStarter, audience]
+    KnowledgeBase:
+      type: object
+      properties:
+        aiConfigured: { type: boolean }
+        model: { type: string }
+        articles: { type: array, items: { $ref: "#/components/schemas/KnowledgeArticle" } }
+        missingStarters: { type: integer, description: "Ready-made articles not in the knowledge base yet" }
+      required: [aiConfigured, model, articles, missingStarters]
+    KnowledgeAnswer:
+      type: object
+      properties:
+        answer: { type: string }
+        answered: { type: boolean, description: "False when the knowledge base did not cover the question" }
+        source: { type: string, enum: [article, assistant, unavailable] }
+      required: [answer, answered, source]
+    SupportMessageInput:
+      type: object
+      additionalProperties: false
+      properties:
+        body: { type: string, minLength: 1, maxLength: 2000 }
+      required: [body]
+    SupportUnread:
+      type: object
+      properties:
+        count: { type: integer }
+      required: [count]
+    SupportThread:
+      type: object
+      properties:
+        threadId: { type: string }
+        kind: { type: string, enum: [staff, visitor] }
+        name: { type: string }
+        detail: { type: string, description: "Role and school for staff; the contact a visitor left, if any" }
+        lastBody: { type: string }
+        lastAt: { type: string, format: date-time }
+        lastFromSupport: { type: boolean }
+        unread: { type: integer }
+      required: [threadId, kind, name, detail, lastBody, lastAt, lastFromSupport, unread]
+    VisitorChatInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80, description: "Optional; visitors are numbered when they give none" }
+        contact: { type: string, maxLength: 120, description: "Phone or email, so support can follow up" }
+    VisitorChat:
+      type: object
+      properties:
+        token: { type: string }
+        name: { type: string }
+      required: [token, name]
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 180 }
+      required: [email]
+    PasswordResetInput:
+      type: object
+      additionalProperties: false
+      properties:
+        token: { type: string, minLength: 20, maxLength: 100 }
+        password: { type: string, minLength: 6, maxLength: 128 }
+      required: [token, password]
+    StaffPasswordInput:
+      type: object
+      additionalProperties: false
+      properties:
+        password: { type: string, minLength: 6, maxLength: 128 }
+      required: [password]
     PlatformPasswordInput:
       allOf:
         - { $ref: "#/components/schemas/PlatformConfirmation" }
         - type: object
           properties:
-            password: { type: string, minLength: 10, maxLength: 128 }
+            password: { type: string, minLength: 6, maxLength: 128 }
           required: [password]
     TenantAccessInput:
       allOf:
@@ -1925,8 +2878,9 @@ components:
         name: { type: string, minLength: 2, maxLength: 160 }
         email: { type: ["string", "null"], format: email }
         phone: { type: ["string", "null"], minLength: 9, maxLength: 20 }
-        password: { type: string, minLength: 10, maxLength: 128 }
+        password: { type: string, minLength: 6, maxLength: 128 }
         role: { $ref: "#/components/schemas/UserRole" }
+        permissions: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/StaffPermission" } }
       required: [name, password, role]
     UserUpdate:
       type: object
@@ -1935,6 +2889,7 @@ components:
         email: { type: ["string", "null"], format: email }
         phone: { type: ["string", "null"], minLength: 9, maxLength: 20 }
         role: { $ref: "#/components/schemas/UserRole" }
+        permissions: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/StaffPermission" } }
         isActive: { type: boolean }
     DashboardSummary:
       type: object
@@ -2148,7 +3103,7 @@ components:
         guardians:
           type: array
           items: { $ref: "#/components/schemas/GuardianLinkInput" }
-      required: [admissionNo, firstName, lastName, status, boardingStatus]
+      required: [firstName, lastName, status, boardingStatus]
     StudentUpdate:
       type: object
       properties:
@@ -2292,8 +3247,69 @@ components:
           items: { type: integer, minimum: -365, maximum: 365 }
         defaultAfterMissedInstallments: { type: integer, minimum: 1, maximum: 24 }
         absenceAlertsEnabled: { type: boolean }
+        statusDigest:
+          type: string
+          enum: [off, weekly, monthly]
+          description: How often school administrators get a status message on their phone. Weekly when not set.
+        statusDigestChannel:
+          type: string
+          enum: [sms, whatsapp]
+          description: SMS when not set. WhatsApp needs an approved template named school_digest.
         absenceAlertTime: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        requireSecondApproval:
+          type: boolean
+          description: When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.
+        feeStructureTemplates:
+          type: array
+          maxItems: 20
+          description: Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.
+          items: { $ref: "#/components/schemas/FeeStructureTemplate" }
       description: Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.
+    FeeStructureTemplate:
+      type: object
+      additionalProperties: false
+      description: A saved fee structure printout. Every layout field is optional; missing ones use the defaults.
+      properties:
+        id: { type: string, minLength: 1, maxLength: 40 }
+        name: { type: string, maxLength: 80 }
+        grade: { type: string, maxLength: 40, description: A grade id, or "all" for one page per grade. }
+        period: { type: string, enum: [current, year], description: The current term, or the whole school year. }
+        who: { type: string, enum: [both, day, boarder] }
+        title: { type: string, maxLength: 120 }
+        subtitle: { type: string, maxLength: 200, description: Motto or a line under the school name. }
+        showLogo: { type: boolean }
+        showContacts: { type: boolean }
+        showYearTotal: { type: boolean }
+        showExtras: { type: boolean }
+        showPayment: { type: boolean }
+        showSignatures: { type: boolean }
+        payment: { type: string, maxLength: 2000, description: Paybill, bank accounts and how to pay. }
+        extras:
+          type: array
+          maxItems: 30
+          description: Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 120 }
+              amount: { type: string, maxLength: 120 }
+        sections:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [heading, body]
+            properties:
+              heading: { type: string, maxLength: 120 }
+              body: { type: string, maxLength: 4000 }
+        signatories:
+          type: array
+          maxItems: 4
+          items: { type: string, minLength: 1, maxLength: 60 }
+        footer: { type: string, maxLength: 400 }
     PlatformSchoolUpdate:
       type: object
       additionalProperties: false
@@ -2423,7 +3439,7 @@ components:
       required: [currentPassword, newPassword]
       properties:
         currentPassword: { type: string, minLength: 1, maxLength: 128 }
-        newPassword: { type: string, minLength: 10, maxLength: 128 }
+        newPassword: { type: string, minLength: 6, maxLength: 128 }
     TeacherAssignmentInput:
       type: object
       required: [userId, streamId]
@@ -2497,8 +3513,8 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 180 }
         size: { type: integer, minimum: 1, maximum: 5242880 }
-        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
-        purpose: { type: string, enum: [school_logo, student_photo] }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp, application/pdf] }
+        purpose: { type: string, enum: [school_logo, student_photo, finance_document], description: 'finance_document: a receipt or invoice scan; entityId is the school' }
         entityId: { type: string, format: uuid }
     FileUpload:
       type: object

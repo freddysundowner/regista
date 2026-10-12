@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
+    "build": "vite build --config vite.config.ts && vite build --config vite.config.ts --ssr src/prerender.tsx --outDir dist/ssr --emptyOutDir && node scripts/prerender.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -78,6 +78,8 @@
   "dependencies": {
     "@tiptap/extension-link": "^3.31.4",
     "@tiptap/react": "^3.31.4",
-    "@tiptap/starter-kit": "^3.31.4"
+    "@tiptap/starter-kit": "^3.31.4",
+    "html2canvas-pro": "^2.5.1",
+    "jspdf": "^4.2.1"
   }
 }

@@ -1,13 +1,26 @@
 import { db, Prisma } from "@workspace/db";
 import type { IncomingInput, ResolutionInput } from "@workspace/api-zod";
-import { ApiError, audit, owned, type Actor, type Tx } from "../core";
+import { ApiError, audit, lock, owned, type Actor, type Tx } from "../core";
 import { allocate, counter, financeTransaction, json, ledger, outbox } from "../finance/posting";
 import { minimum, money, sum, zero } from "../finance/money";
 import { choose, editDistance, fullPhone, jaroWinkler, reference, type Candidate } from "./matching";
 import { systemActor } from "../integrations/security";
 import { queueMessage } from "../integrations/messages";
 import { requestUnmatchedRefund, suspenseEntry } from "./settlements";
+import { nudgePayments } from "./nudge";
 
+/**
+ * High-value or oddly timed payments cannot be independently verified yet (no approved Transaction Status
+ * contract), so they are never auto-posted. They are still stored and go to the Unmatched list for the bursar:
+ * refusing the callback would lose a payment the parent has already made.
+ */
+export async function needsVerification(actor: Actor, provider: string, amount: string, at: Date, transactionId: string) {
+  const settings = actor.school.settings as Record<string, any>;
+  const threshold = money(String(settings.highValuePaymentThreshold ?? "100000"));
+  const hold = !threshold.gt(0) || money(amount).gte(threshold) || at.getTime() > Date.now() + 300000 || Date.now() - at.getTime() > 48 * 3600000;
+  if (hold) await db.integrationEvent.create({ data: { schoolId: actor.school.id, provider, event: "transaction_verification_required", status: "held_for_review", detail: { transactionId, amount } } });
+  return hold;
+}
 export async function ingest(actor: Actor, input: IncomingInput, source = "manual_import", rawPayload: unknown = input) {
   const amount = money(input.amount);
   if (!amount.greaterThan(0)) throw new ApiError(400, "Payment amount must be positive");
@@ -15,7 +28,7 @@ export async function ingest(actor: Actor, input: IncomingInput, source = "manua
   const key = { schoolId: actor.school.id, provider: input.provider, providerTxnId: input.providerTxnId };
   const existing = await db.incomingPayment.findUnique({ where: { schoolId_provider_providerTxnId: key } });
   if (existing) {
-    if (!existing.amount.equals(amount) || (input.provider === "kcb" && existing.accountReference !== (input.accountReference ?? null))) throw new ApiError(409, "Provider transaction identity has conflicting amount or reference");
+    if (!existing.amount.equals(amount) || (["kcb", "ncba"].includes(input.provider) && existing.accountReference !== (input.accountReference ?? null))) throw new ApiError(409, "Provider transaction identity has conflicting amount or reference");
     return existing;
   }
   const phone = fullPhone(input.payerPhone);
@@ -31,11 +44,15 @@ export async function ingest(actor: Actor, input: IncomingInput, source = "manua
       await audit(tx, actor, "received", "incoming_payment", created.id, undefined, { provider: input.provider, providerTxnId: input.providerTxnId, amount: amount.toFixed(2), source, duplicateOfId: duplicate?.id });
       await suspenseEntry(tx, actor, created.id, "received", "0.00");
       return created;
+    }).then(created => {
+      // Ask the worker to match it now so receipts go out in seconds; the minute sweep remains the safety net.
+      nudgePayments();
+      return created;
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const prior = await db.incomingPayment.findUniqueOrThrow({ where: { schoolId_provider_providerTxnId: key } });
-      if (!prior.amount.equals(amount) || (input.provider === "kcb" && prior.accountReference !== (input.accountReference ?? null))) throw new ApiError(409, "Conflicting duplicate payment");
+      if (!prior.amount.equals(amount) || (["kcb", "ncba"].includes(input.provider) && prior.accountReference !== (input.accountReference ?? null))) throw new ApiError(409, "Conflicting duplicate payment");
       return prior;
     }
     throw error;
@@ -128,8 +145,22 @@ export async function postIncoming(tx: Tx, actor: Actor, paymentId: string, spli
 export async function processPayment(schoolId: string, id: string) {
   const actor = await systemActor(schoolId);
   return financeTransaction(actor, async tx => {
+    // One processor per payment: a concurrent run waits here, then sees it is no longer "received".
+    await lock(tx, `incoming-payment:${id}`);
     const payment = await tx.incomingPayment.findFirst({ where: { id, schoolId } });
     if (!payment || payment.status !== "received") return;
+    // The same money reported by two providers (say M-Pesa and the bank it settles into) must not credit a learner twice.
+    // Two payments through one provider are separate transactions the parent really made, so those still post.
+    const twin = payment.duplicateOfId ? await tx.incomingPayment.findFirst({ where: { id: payment.duplicateOfId, schoolId }, select: { provider: true } }) : null;
+    const possibleDuplicate = !!twin && twin.provider !== payment.provider;
+    if (payment.source === "callback_hold" || possibleDuplicate) {
+      // Stored but not provider-verified: the bursar confirms it from the Unmatched list before it posts.
+      const match = payment.knownStudentId ? { candidates: [{ studentId: payment.knownStudentId, score: 100, reasons: ["known_student"] }], familyId: null } : await candidates(tx, actor, payment);
+      await tx.matchException.create({ data: { schoolId, paymentId: id, reason: possibleDuplicate ? "possible_duplicate" : "verification_required", candidates: json(match.candidates), familyId: match.familyId ?? null, expiresAt: null } });
+      await tx.incomingPayment.update({ where: { id }, data: { status: "unmatched" } });
+      await audit(tx, actor, possibleDuplicate ? "held_as_possible_duplicate" : "held_for_verification", "incoming_payment", id, undefined, { candidates: match.candidates, ...(possibleDuplicate ? { duplicateOfId: payment.duplicateOfId } : {}) });
+      return;
+    }
     if (payment.knownStudentId) { await postIncoming(tx, actor, id, [{ studentId: payment.knownStudentId, amount: payment.amount.toFixed(2) }], "known_student"); return; }
     const match = await candidates(tx, actor, payment);
     if (payment.provider === "kcb") {

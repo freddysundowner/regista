@@ -55,6 +55,8 @@ A multi-school administration system for Kenyan schools. The full supplied speci
 - Incoming payment matching, exception queue, sibling allocation, sponsor batches, statement comparison, payment plans and message outbox.
 - Curriculum/scales, teacher assessment grids, report cards, KNEC export, attendance, 13 report families and private exports.
 - Operational dashboards, job visibility/retry, privacy requests, year-end promotion, per-school encrypted integration configuration.
+- Procurement (suppliers, LPOs with maker-checker approval, goods received, supplier invoices paid as expenses, receipt/invoice attachments), the school store (items, stock movements, stock cards) and the library (catalogue, accession-numbered copies, loans).
+- Staff access: storekeeper and librarian roles are fenced to their areas server-side (`lib/access.ts`); any staff member can be given extra access (expenses, procurement, approve_lpo, store, library) on top of their role.
 
 ## Acceptance and external dependencies
 

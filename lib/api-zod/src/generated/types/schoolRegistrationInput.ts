@@ -9,11 +9,12 @@ import type { SchoolType } from './schoolType';
 
 export interface SchoolRegistrationInput {
   /**
+     * Optional; the school is named on the dashboard after sign-up.
      * @minLength 2
      * @maxLength 180
      */
-  schoolName: string;
-  schoolType: SchoolType;
+  schoolName?: string;
+  schoolType?: SchoolType;
   /**
      * @minLength 2
      * @maxLength 160
@@ -22,8 +23,10 @@ export interface SchoolRegistrationInput {
   /** @maxLength 180 */
   email: string;
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
+  /** The person ticked the box agreeing to the Terms and Privacy Policy. Recorded with the account. */
+  acceptedTerms?: boolean;
 }

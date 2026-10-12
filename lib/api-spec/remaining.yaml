@@ -10191,6 +10191,13 @@
                 },
                 "code": {
                   "type": "string"
+                },
+                "isCore": {
+                  "type": "boolean"
+                },
+                "pathway": {
+                  "type": "string",
+                  "nullable": true
                 }
               },
               "required": [

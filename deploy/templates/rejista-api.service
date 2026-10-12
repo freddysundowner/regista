@@ -1,0 +1,33 @@
+# Rejista API. Installed by deploy/install.sh as /etc/systemd/system/rejista-api.service.
+[Unit]
+Description=Rejista API server
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rejista
+Group=rejista
+# "current" points at the live release; install.sh switches it and restarts this service.
+WorkingDirectory=__APP_ROOT__/current/artifacts/api-server
+EnvironmentFile=/etc/rejista/rejista.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node --enable-source-maps dist/index.mjs
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65536
+
+# Hardening: the code is read-only; the service may only write its storage folder.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/rejista
+
+[Install]
+WantedBy=multi-user.target

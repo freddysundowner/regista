@@ -8,4 +8,4 @@ if (!process.env.DATABASE_URL) {
 
 export const db = new PrismaClient();
 export { Prisma } from "@prisma/client";
-export type { User, School, FinanceRecord } from "@prisma/client";
+export type { User, School, FinanceRecord, BankAccount, SupportMessage, SupportVisitor, KnowledgeArticle } from "@prisma/client";

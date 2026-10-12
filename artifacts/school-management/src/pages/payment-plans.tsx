@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { ListSearch, matches } from "@/components/list-search";
+import { Pager, usePaged } from "@/components/pager";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListPaymentPlans, useCreatePaymentPlan, useDecidePaymentPlan, getListPaymentPlansQueryKey, type PlanView, type DecisionInputDecision } from "@workspace/api-client-react";
 import { CalendarClock, Loader2, Plus, X } from "lucide-react";
@@ -13,9 +15,10 @@ const TONE: Record<string, string> = { proposed: "duplicate", active: "current",
 
 function useInv() { const qc = useQueryClient(); const fin = useFinanceInvalidate(); return () => { fin(); qc.invalidateQueries({ queryKey: getListPaymentPlansQueryKey() }); }; }
 
-function NewPlan({ onDone }: { onDone: () => void }) {
+/** With `studentId` the learner is fixed, for use on the learner page. */
+export function NewPlan({ onDone, studentId }: { onDone: () => void; studentId?: string }) {
   const m = useCreatePaymentPlan(); const inv = useInv(); const { toast } = useToast();
-  const [f, setF] = useState({ studentId: "", termId: "" });
+  const [f, setF] = useState({ studentId: studentId ?? "", termId: "" });
   const [rows, setRows] = useState([{ dueDate: localToday(), amount: "" }]);
   const [err, setErr] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
@@ -31,7 +34,7 @@ function NewPlan({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
       <div className="grid gap-3 sm:grid-cols-2">
-        <StudentPicker value={f.studentId} onChange={(v) => setF({ ...f, studentId: v })} />
+        {!studentId && <StudentPicker value={f.studentId} onChange={(v) => setF({ ...f, studentId: v })} />}
         <TermSelect required value={f.termId} onChange={(v) => setF({ ...f, termId: v })} />
         <div className="col-span-full space-y-2">
           {rows.map((r, i) => (
@@ -82,11 +85,10 @@ export function PlanTable({ plans, decide }: { plans: PlanView[]; decide?: boole
 export default function PaymentPlans() {
   const p = usePerms();
   const q = useListPaymentPlans({ query: { queryKey: getListPaymentPlansQueryKey() } });
-  const [open, setOpen] = useState(false); const [st, setSt] = useState("");
-  const [page, setPage] = useState(1);
-  const filtered = (q.data ?? []).filter((x) => !st || x.status === st);
-  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 25)));
-  const list = filtered.slice((currentPage - 1) * 25, currentPage * 25);
+  const [open, setOpen] = useState(false); const [st, setSt] = useState(""); const [text, setText] = useState("");
+  const names = useStudentNames(); const terms = useTermNames();
+  const filtered = (q.data ?? []).filter((x) => (!st || x.status === st) && matches(text, names(x.studentId), terms(x.termId), x.totalAmount));
+  const { rows: list, pager } = usePaged(filtered, [st, text]);
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Collections" title="Payment plans" meta="Instalment agreements. Proposed by the bursar or a parent, approved by the principal or administrator.">
@@ -94,9 +96,10 @@ export default function PaymentPlans() {
       </PageHeader>
       {p.bursar && <FormDialog open={open} onOpenChange={setOpen} size="lg" title="Propose a payment plan" description="A learner can have one unresolved plan, including a defaulted plan. Only net payments satisfy installments; waivers and invoice cancellations do not."><NewPlan onDone={() => setOpen(false)} /></FormDialog>}
       <Panel action={<NativeSelect aria-label="Status" className="w-full text-xs sm:h-8 sm:w-36" value={st} onChange={(e) => setSt(e.target.value)}><option value="">All plans</option>{["proposed", "active", "completed", "defaulted", "rejected"].map((s) => <option key={s} value={s}>{s}</option>)}</NativeSelect>} title="Plans">
+        <div className="border-b border-border/70 p-3"><ListSearch value={text} onChange={setText} placeholder="Search learner or term" /></div>
         {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !list.length ? <Empty icon={<CalendarClock className="h-5 w-5" />} title="No plans" body="Plans that parents request through the bot also appear here." /> : <PlanTable plans={list} decide={p.planDecide} />}
+        <Pager {...pager} />
       </Panel>
-      <div className="flex items-center justify-end gap-3"><span>{filtered.length} plans · page {currentPage}</span><Btn variant="outline" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</Btn><Btn variant="outline" disabled={currentPage * 25 >= filtered.length} onClick={() => setPage(currentPage + 1)}>Next</Btn></div>
       {p.bursar && <Fab testid="fab-new-plan" label="New plan" icon={<Plus className="h-4 w-4" />} onClick={() => setOpen(true)} />}
     </div>
   );

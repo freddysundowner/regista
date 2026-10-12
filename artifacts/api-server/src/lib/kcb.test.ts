@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign, randomUUID, randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
-import { normalizeKcb, verifyKcbSignature, kcbPublicKey, kcbTime, kcbTillTime } from "./integrations/kcb";
+import { normalizeKcb, verifyKcbSignature, kcbPublicKey, kcbTime, kcbTillTime, kcbTillDate } from "./integrations/kcb";
 import { saveIntegration } from "./integrations/security";
 import { kcbHandler } from "../routes/kcb-callbacks";
 import { processPayment } from "./payments/pipeline";
@@ -44,6 +44,24 @@ test("KCB validates receiving identity, currency, decimal precision and EAT time
         transactionID: "FT-1", transactionAmt: "100", currency: "KES", transactionDate: "Mon May 19 13:30:54 EAT 2025" } } } };
   assert.equal(normalizeKcb("till", till, { tillBusinessKey: "TILL-A" }).input.accountReference, "ADM-001");
   assert.throws(() => normalizeKcb("till", till, { tillBusinessKey: "ADM-001" }));
+});
+
+test("KCB formats from its PDF samples are accepted, and unreadable times are kept but flagged", () => {
+  // Till sample from the PDF: "queryBiller" and a bare date, timed from the header on the same day.
+  const pdfTill = { header: { messageID: "m", originatorConversationID: "", channelCode: "202", timeStamp: "20201102101010" },
+    requestPayload: { primaryData: { businessKey: "000000", businessKeyType: "queryBiller" },
+      additionalData: { notificationData: { businessKey: "P-INV-001", businessKeyType: "BillReferenceNumber", debitMSISDN: "254722520441",
+        transactionAmt: "100.00", transactionDate: "20201102", transactionID: "FT235373", firstName: "James", currency: "KES", transactionType: "vooma", balance: "0.00" } } } };
+  const till = normalizeKcb("till", pdfTill, { tillBusinessKey: "000000" });
+  assert.equal(till.timeTrusted, true);
+  assert.equal(till.input.transactionTime.toISOString(), "2020-11-02T07:10:10.000Z");
+  assert.equal(kcbTillDate("20201102", "20201103000000").toISOString(), "2020-11-01T21:00:00.000Z");
+  assert.equal(kcbTillDate("20250519133054").toISOString(), "2025-05-19T10:30:54.000Z");
+  // Account sample from the PDF has a 13-digit timestamp: stored with the receipt time and flagged, not refused.
+  const account = normalizeKcb("account", { ...notification, timestamp: "2021111103005" }, { accountNumber: notification.creditAccountIdentifier });
+  assert.equal(account.timeTrusted, false);
+  assert.ok(Math.abs(account.input.transactionTime.getTime() - Date.now()) < 5000);
+  assert.equal(normalizeKcb("account", notification, { accountNumber: notification.creditAccountIdentifier }).timeTrusted, true);
 });
 
 test("KCB signed handler and real ledger: isolation, duplicate retries, conflicts, unmatched and disabled callbacks", async t => {

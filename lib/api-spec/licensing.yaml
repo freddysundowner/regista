@@ -110,21 +110,234 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LicenceOrder' }
+  publicPricing:
+    get:
+      operationId: getPublicPricing
+      security: []
+      responses:
+        "200":
+          description: Published subscription price, limits and enabled payment methods
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicPricing' }
+  pricing:
+    get:
+      operationId: getPlatformPricing
+      responses:
+        "200":
+          description: Subscription price, period, learner limit and trial length
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingSettings' }
+    put:
+      operationId: updatePlatformPricing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PricingSettingsInput' }
+      responses:
+        "200":
+          description: Pricing saved; existing licences keep their purchased terms
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingSettings' }
+  installation:
+    get:
+      operationId: getInstallation
+      security: []
+      responses:
+        "200":
+          description: Deployment mode and, for licensed standalone installs, the installed licence
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Installation' }
+  installationLicence:
+    put:
+      operationId: installLicence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstallLicenceInput' }
+      responses:
+        "200":
+          description: Licence verified and installed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Installation' }
+  standaloneLicences:
+    get:
+      operationId: listStandaloneLicences
+      responses:
+        "200":
+          description: Licences issued for standalone installs
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/StandaloneLicence' } }
+    post:
+      operationId: issueStandaloneLicence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StandaloneLicenceInput' }
+      responses:
+        "201":
+          description: Signed licence issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StandaloneLicence' }
+  registrationSettings:
+    get:
+      operationId: getRegistrationSettings
+      responses:
+        "200":
+          description: Whether self-registered schools wait for approval
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegistrationSettings' }
+    put:
+      operationId: updateRegistrationSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegistrationSettings' }
+      responses:
+        "200":
+          description: Registration settings saved; applies to new registrations only
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegistrationSettings' }
+  gateways:
+    get:
+      operationId: listPaymentGateways
+      responses:
+        "200":
+          description: Online payment gateways; credentials are never returned
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/PaymentGateway' } }
+  gateway:
+    parameters:
+      - { name: provider, in: path, required: true, schema: { $ref: '#/components/schemas/PaymentProvider' } }
+    put:
+      operationId: updatePaymentGateway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentGatewayInput' }
+      responses:
+        "200":
+          description: Gateway settings saved; this is not a connectivity test
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentGateway' }
+  keys:
+    get:
+      operationId: listLicenceKeys
+      responses:
+        "200":
+          description: Prepaid licence keys, newest first; codes are masked
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/LicenceKey' } }
+    post:
+      operationId: generateLicenceKeys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LicenceKeyBatchInput' }
+      responses:
+        "201":
+          description: Keys generated; full codes are included in this response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenceKeyBatch' }
+  keyReveal:
+    post:
+      operationId: revealLicenceKey
+      parameters:
+        - { name: keyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Full key code; the reveal is audited
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenceKeyCode' }
+  keyRevoke:
+    post:
+      operationId: revokeLicenceKey
+      parameters:
+        - { name: keyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Unredeemed key revoked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenceKey' }
+  checkout:
+    post:
+      operationId: startSubscriptionCheckout
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutInput' }
+      responses:
+        "201":
+          description: Checkout started with the payment provider
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Checkout' }
+  checkoutStatus:
+    get:
+      operationId: getSubscriptionCheckout
+      parameters:
+        - { name: checkoutId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Checkout status, re-verified with the provider while pending
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Checkout' }
+  redeem:
+    post:
+      operationId: redeemLicenceKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RedeemKeyInput' }
+      responses:
+        "201":
+          description: Key redeemed; licence time added after any current coverage
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SchoolLicence' }
 components:
   schemas:
     LicenceIssueInput:
       type: object
-      required: [requestId, planId]
+      required: [requestId, durationDays, maxLearners]
       properties:
         requestId: { type: string, format: uuid }
-        planId: { type: string, format: uuid }
+        durationDays: { type: integer, minimum: 1, maximum: 3650 }
+        maxLearners: { type: ["integer", "null"], minimum: 1, maximum: 1000000 }
+        label: { type: string, maxLength: 100 }
         startsAt: { type: string, format: date-time }
     LicenceRenewalInput:
       type: object
-      required: [requestId, planId]
+      required: [requestId]
       properties:
         requestId: { type: string, format: uuid }
         planId: { type: string, format: uuid }
+        upgrade: { type: boolean, description: "Move to a bigger package now, for the rest of the current licence, paying only the difference for the days left." }
     LicencePlanInput:
       type: object
       required: [name, durationDays, price, subscriptionPrice, isActive]
@@ -134,11 +347,35 @@ components:
         durationDays: { type: integer, minimum: 1, maximum: 3650 }
         price: { type: string, pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$' }
         subscriptionPrice: { type: string, pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$' }
+        maxLearners: { type: ["integer", "null"], minimum: 1, maximum: 1000000, description: "Most active learners the package covers; null covers any number." }
         isActive: { type: boolean }
+    SubscriptionPackage:
+      type: object
+      description: A package as one school sees it.
+      required: [id, name, description, durationDays, price, maxLearners, fits, current, upgradePrice]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        durationDays: { type: integer }
+        price: { type: string }
+        maxLearners: { type: ["integer", "null"] }
+        fits: { type: boolean, description: "Covers the school's active learners today." }
+        current: { type: boolean, description: "The package the school's current licence is on." }
+        upgradePrice: { type: ["string", "null"], description: "What moving to it now costs for the days left; null when it is not an upgrade." }
+    PublicPackage:
+      type: object
+      required: [name, durationDays, price, maxLearners]
+      properties:
+        name: { type: string }
+        durationDays: { type: integer }
+        price: { type: string }
+        maxLearners: { type: ["integer", "null"] }
     LicencePlan:
       type: object
-      required: [id, name, description, durationDays, price, subscriptionPrice, currency, isActive]
+      required: [id, name, description, durationDays, price, subscriptionPrice, maxLearners, currency, isActive]
       properties:
+        maxLearners: { type: ["integer", "null"] }
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
@@ -149,17 +386,18 @@ components:
         isActive: { type: boolean }
     SchoolLicence:
       type: object
-      required: [id, schoolId, planId, planName, durationDays, price, startsAt, expiresAt, source, status, revokedAt, createdAt]
+      required: [id, schoolId, planId, planName, durationDays, price, maxLearners, startsAt, expiresAt, source, status, revokedAt, createdAt]
       properties:
         id: { type: string, format: uuid }
         schoolId: { type: string, format: uuid }
-        planId: { type: string, format: uuid }
+        planId: { type: ["string", "null"], format: uuid }
+        maxLearners: { type: ["integer", "null"] }
         planName: { type: string }
         durationDays: { type: integer }
         price: { type: string }
         startsAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
-        source: { type: string, enum: [admin, payment] }
+        source: { type: string, enum: [admin, payment, key] }
         status: { type: string, enum: [active, scheduled, expired, revoked] }
         revokedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
@@ -179,8 +417,17 @@ components:
         createdAt: { type: string, format: date-time }
     SchoolSubscription:
       type: object
-      required: [managed, accessAllowed, status, currentEndsAt, plans, licences, orders, paymentMethods]
+      required: [managed, accessAllowed, status, currentEndsAt, trialEndsAt, pricing, learners, plans, packages, licences, orders, paymentMethods]
       properties:
+        packages: { type: array, items: { $ref: '#/components/schemas/SubscriptionPackage' } }
+        trialEndsAt: { type: ["string", "null"], format: date-time }
+        pricing: { $ref: '#/components/schemas/PricingSettings' }
+        learners:
+          type: object
+          required: [active, max]
+          properties:
+            active: { type: integer }
+            max: { type: ["integer", "null"] }
         managed: { type: boolean }
         accessAllowed: { type: boolean }
         status: { $ref: '#/components/schemas/LicenceCoverageStatus' }
@@ -200,4 +447,180 @@ components:
               reason: { type: string }
     LicenceCoverageStatus:
       type: string
-      enum: [unmanaged, active, scheduled, expired]
+      enum: [unmanaged, trial, active, scheduled, expired]
+    Installation:
+      type: object
+      required: [mode, licensing, licence]
+      properties:
+        mode: { type: string, enum: [hosted, standalone] }
+        licensing: { type: ["string", "null"], enum: [licensed, open, null] }
+        licence:
+          anyOf:
+            - { $ref: '#/components/schemas/InstalledLicence' }
+            - { type: "null" }
+    InstalledLicence:
+      type: object
+      required: [status, schoolName, expiresAt, maxLearners, issuedAt]
+      properties:
+        status: { type: string, enum: [active, expired, missing, invalid, unconfigured] }
+        schoolName: { type: ["string", "null"] }
+        expiresAt: { type: ["string", "null"], format: date-time }
+        maxLearners: { type: ["integer", "null"] }
+        issuedAt: { type: ["string", "null"], format: date-time }
+    InstallLicenceInput:
+      type: object
+      required: [licence]
+      properties:
+        licence: { type: string, minLength: 20, maxLength: 4000 }
+    StandaloneLicenceInput:
+      type: object
+      required: [requestId, schoolName, maxLearners]
+      properties:
+        requestId: { type: string, format: uuid }
+        schoolName: { type: string, minLength: 2, maxLength: 180 }
+        expiresAt: { type: ["string", "null"], format: date-time }
+        maxLearners: { type: ["integer", "null"], minimum: 1, maximum: 1000000 }
+        note: { type: string, maxLength: 200 }
+    StandaloneLicence:
+      type: object
+      required: [id, schoolName, maxLearners, issuedAt, expiresAt, note, licence]
+      properties:
+        id: { type: string, format: uuid }
+        schoolName: { type: string }
+        maxLearners: { type: ["integer", "null"] }
+        issuedAt: { type: string, format: date-time }
+        expiresAt: { type: ["string", "null"], format: date-time }
+        note: { type: string }
+        licence: { type: string }
+    RegistrationSettings:
+      type: object
+      required: [requireApproval]
+      properties:
+        requireApproval: { type: boolean }
+    PaymentProvider:
+      type: string
+      enum: [mpesa, stripe, paystack]
+    PricingSettingsInput:
+      type: object
+      required: [price, periodDays, periodLabel, maxLearners, trialDays, highlights]
+      properties:
+        price: { type: string, pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$' }
+        periodDays: { type: integer, minimum: 1, maximum: 3650 }
+        periodLabel: { type: string, minLength: 2, maxLength: 30 }
+        maxLearners: { type: ["integer", "null"], minimum: 1, maximum: 1000000 }
+        trialDays: { type: integer, minimum: 0, maximum: 90 }
+        highlights: { type: array, maxItems: 12, items: { type: string, minLength: 2, maxLength: 120 } }
+    PricingSettings:
+      type: object
+      required: [configured, currency, price, periodDays, periodLabel, maxLearners, trialDays, highlights]
+      properties:
+        configured: { type: boolean }
+        currency: { type: string, enum: [KES] }
+        price: { type: string }
+        periodDays: { type: integer }
+        periodLabel: { type: string }
+        maxLearners: { type: ["integer", "null"] }
+        trialDays: { type: integer }
+        highlights: { type: array, items: { type: string } }
+    PublicPricing:
+      allOf:
+        - { $ref: '#/components/schemas/PricingSettings' }
+        - type: object
+          required: [paymentMethods, requireApproval, packages]
+          properties:
+            requireApproval: { type: boolean }
+            packages: { type: array, items: { $ref: '#/components/schemas/PublicPackage' } }
+            paymentMethods:
+              type: array
+              items:
+                type: object
+                required: [id, name]
+                properties:
+                  id: { $ref: '#/components/schemas/PaymentProvider' }
+                  name: { type: string }
+    PaymentGateway:
+      type: object
+      required: [provider, name, enabled, environment, publicConfig, configured, savedCredentials, webhookUrl, updatedAt]
+      properties:
+        provider: { $ref: '#/components/schemas/PaymentProvider' }
+        name: { type: string }
+        enabled: { type: boolean }
+        environment: { type: string, enum: [sandbox, live] }
+        publicConfig: { type: object, additionalProperties: { type: string } }
+        configured: { type: boolean }
+        savedCredentials: { type: array, items: { type: string } }
+        webhookUrl: { type: ["string", "null"] }
+        updatedAt: { type: ["string", "null"], format: date-time }
+    PaymentGatewayInput:
+      type: object
+      required: [enabled, environment, publicConfig]
+      properties:
+        enabled: { type: boolean }
+        environment: { type: string, enum: [sandbox, live] }
+        publicConfig: { type: object, additionalProperties: { type: string, maxLength: 200 } }
+        credentials: { type: object, additionalProperties: { type: string, maxLength: 4000 } }
+    LicenceKey:
+      type: object
+      required: [id, batchId, maskedCode, durationDays, price, maxLearners, note, status, redeemedAt, redeemedSchoolId, redeemedSchoolName, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        batchId: { type: string, format: uuid }
+        maskedCode: { type: string }
+        durationDays: { type: integer }
+        price: { type: string }
+        maxLearners: { type: ["integer", "null"] }
+        note: { type: string }
+        status: { type: string, enum: [available, redeemed, revoked] }
+        redeemedAt: { type: ["string", "null"], format: date-time }
+        redeemedSchoolId: { type: ["string", "null"], format: uuid }
+        redeemedSchoolName: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    LicenceKeyBatchInput:
+      type: object
+      required: [requestId, quantity, durationDays, price, maxLearners]
+      properties:
+        requestId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, maximum: 200 }
+        durationDays: { type: integer, minimum: 1, maximum: 3650 }
+        price: { type: string, pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$' }
+        maxLearners: { type: ["integer", "null"], minimum: 1, maximum: 1000000 }
+        note: { type: string, maxLength: 200 }
+    LicenceKeyCode:
+      type: object
+      required: [id, code]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+    LicenceKeyBatch:
+      type: object
+      required: [batchId, keys]
+      properties:
+        batchId: { type: string, format: uuid }
+        keys: { type: array, items: { $ref: '#/components/schemas/LicenceKeyCode' } }
+    CheckoutInput:
+      type: object
+      required: [requestId, method]
+      properties:
+        requestId: { type: string, format: uuid }
+        method: { $ref: '#/components/schemas/PaymentProvider' }
+        phone: { type: string, maxLength: 20 }
+        email: { type: string, format: email, maxLength: 200 }
+    Checkout:
+      type: object
+      required: [id, orderId, provider, status, amount, currency, redirectUrl, receipt, message, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        provider: { $ref: '#/components/schemas/PaymentProvider' }
+        status: { type: string, enum: [pending, paid, failed, cancelled] }
+        amount: { type: string }
+        currency: { type: string }
+        redirectUrl: { type: ["string", "null"] }
+        receipt: { type: ["string", "null"] }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+    RedeemKeyInput:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, minLength: 8, maxLength: 40 }

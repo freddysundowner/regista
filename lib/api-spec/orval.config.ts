@@ -17,7 +17,7 @@ export default defineConfig({
   "api-client-react": {
     input: {
       target: "./openapi.yaml",
-      parserOptions: { externalRefs: { allow: ["./finance.yaml", "./remaining.yaml", "./kcb.yaml", "./licensing.yaml", "./messaging.yaml"] } },
+      parserOptions: { externalRefs: { allow: ["./finance.yaml", "./remaining.yaml", "./kcb.yaml", "./licensing.yaml", "./messaging.yaml", "./banks.yaml", "./procurement.yaml", "./store.yaml", "./library.yaml"] } },
       override: {
         transformer: titleTransformer,
       },
@@ -44,7 +44,7 @@ export default defineConfig({
   zod: {
     input: {
       target: "./openapi.yaml",
-      parserOptions: { externalRefs: { allow: ["./finance.yaml", "./remaining.yaml", "./kcb.yaml", "./licensing.yaml", "./messaging.yaml"] } },
+      parserOptions: { externalRefs: { allow: ["./finance.yaml", "./remaining.yaml", "./kcb.yaml", "./licensing.yaml", "./messaging.yaml", "./banks.yaml", "./procurement.yaml", "./store.yaml", "./library.yaml"] } },
       override: {
         transformer: titleTransformer,
       },

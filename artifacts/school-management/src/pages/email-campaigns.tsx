@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -282,11 +283,12 @@ function History({ platform }: { platform: boolean }) {
   const pq = useListPlatformEmailCampaigns({ query: { queryKey: getListPlatformEmailCampaignsQueryKey(), enabled: platform, ...poll } });
   const sq = useListSchoolEmailCampaigns({ query: { queryKey: getListSchoolEmailCampaignsQueryKey(), enabled: !platform, ...poll } });
   const q = platform ? pq : sq;
-  const rows = (q.data ?? []) as EmailCampaignSummary[];
+  const all = (q.data ?? []) as EmailCampaignSummary[];
+  const { rows, pager } = usePaged(all);
   return (
     <Panel title="History" note="Includes automatic welcome emails. Refreshes every 5 seconds.">
       {q.isLoading ? <SkeletonRows rows={4} cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error, "Could not load email history.")} onRetry={() => q.refetch()} />
-        : !rows.length ? <Empty icon={<Mail className="h-5 w-5" />} title="No emails yet" body="Campaigns you queue and automatic emails appear here with their Brevo status." />
+        : !all.length ? <Empty icon={<Mail className="h-5 w-5" />} title="No emails yet" body="Campaigns you queue and automatic emails appear here with their Brevo status." />
         : <ul className="divide-y divide-border/70" data-testid="list-campaigns">{rows.map((c) => (
           <li key={c.id} className="flex flex-wrap items-start gap-3 px-5 py-4" data-testid={`row-campaign-${c.id}`}>
             <div className="min-w-0 flex-1">
@@ -304,7 +306,8 @@ function History({ platform }: { platform: boolean }) {
               <Count n={c.skipped} label="skipped" tone="inactive" />
             </div>
           </li>))}</ul>}
-      {rows.length > 0 && <p className="border-t border-border/60 px-5 py-2.5 text-xs text-muted-foreground">Accepted means Brevo accepted the request, not that it reached the inbox. Uncertain sends are never retried automatically.</p>}
+      <Pager {...pager} />
+      {all.length > 0 && <p className="border-t border-border/60 px-5 py-2.5 text-xs text-muted-foreground">Accepted means Brevo accepted the request, not that it reached the inbox. Uncertain sends are never retried automatically.</p>}
     </Panel>
   );
 }

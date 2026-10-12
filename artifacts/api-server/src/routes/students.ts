@@ -1,8 +1,12 @@
 import { Router } from "express";
+import { enforceLearnerLimit } from "../lib/billing";
 import { db } from "@workspace/db";
 import * as z from "@workspace/api-zod";
-import { allow, writers, send, body, parse, audit, lock, owned, ApiError, validateAsset } from "../lib/core";
-import { studentInclude, studentView, scope, checkPlacement, createStudentRecord, linkGuardian, mergeFamily } from "../lib/students";
+import { allow, admin, writers, send, body, parse, audit, lock, owned, ApiError, validateAsset } from "../lib/core";
+import { storedObject } from "../lib/school-files";
+import { logger } from "../lib/logger";
+import { learnerIdCard } from "../lib/id-card";
+import { studentInclude, studentView, scope, checkPlacement, createStudentRecord, linkGuardian, mergeFamily, removeStudent } from "../lib/students";
 const router = Router();
 router.get("/students", async (req, res) => {
   const { search, gradeId, streamId, status } = parse(z.ListStudentsQueryParams, req.query);
@@ -20,6 +24,12 @@ router.get("/students/:studentId", async (req, res) => {
   if (!record) throw new ApiError(404, "Student not found");
   send(res, "GetStudent", studentView(record, req));
 });
+// The learner's identity card as a PDF. Anyone who can open the learner's record may print their card.
+router.post("/students/:studentId/id-card", async (req, res) => {
+  const { studentId } = parse(z.GetStudentParams, req.params);
+  if (!await db.student.findFirst({ where: { id: studentId, ...scope(req) }, select: { id: true } })) throw new ApiError(404, "Student not found");
+  res.json(await learnerIdCard(req.actor, studentId));
+});
 router.post("/students", async (req, res) => {
   allow(req, writers); const input = body(z.CreateStudentBody, req.body);
   const record = await db.$transaction(async tx => {
@@ -36,11 +46,28 @@ router.patch("/students/:studentId", async (req, res) => {
     const old = await owned(tx, "student", studentId, req.actor.school.id);
     const effective = { ...old, ...data };
     await checkPlacement(tx, req.actor.school.id, effective.gradeId, effective.streamId);
+    if (old.status !== "active" && effective.status === "active") await enforceLearnerLimit(tx, req.actor.school.id);
     await validateAsset(tx, req.actor.school.id, studentId, "student_photo", data.photoUrl);
     const record = await tx.student.update({ where: { id: studentId }, data, include: studentInclude });
     await audit(tx, req.actor, "updated", "student", studentId); return record;
   });
   send(res, "UpdateStudent", studentView(record));
+});
+router.get("/students/:studentId/removal", async (req, res) => {
+  allow(req, admin); const { studentId } = parse(z.GetStudentRemovalParams, req.params);
+  send(res, "GetStudentRemoval", (await removeStudent(db, req.actor, studentId, false)).summary);
+});
+router.post("/students/:studentId/removal", async (req, res) => {
+  allow(req, admin); const { studentId } = parse(z.RemoveStudentParams, req.params); const { confirmAdmissionNo } = body(z.RemoveStudentBody, req.body);
+  const result = await db.$transaction(async tx => {
+    await lock(tx, req.actor.school.id);
+    const student = await owned(tx, "student", studentId, req.actor.school.id);
+    if (confirmAdmissionNo.trim().toUpperCase() !== student.admissionNo.trim().toUpperCase()) throw new ApiError(400, "Type the learner's admission number exactly to confirm");
+    return removeStudent(tx, req.actor, studentId, true);
+  });
+  // Stored bytes go after the records commit; a leftover object is unreachable without its record.
+  for (const key of result.objectKeys) await storedObject(key).delete({ ignoreNotFound: true }).catch(err => logger.warn({ err, key }, "Removed learner file could not be deleted"));
+  send(res, "RemoveStudent", result.summary);
 });
 router.post("/students/:studentId/guardians", async (req, res) => {
   allow(req, writers);

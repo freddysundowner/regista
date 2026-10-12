@@ -11,9 +11,10 @@ const accountSchema = z.object({
   customerName: z.string().max(200).optional(), customerMobileNumber: z.string().max(30).optional(),
 });
 const tillSchema = z.object({
-  header: z.object({ messageID: text, originatorConversationID: text, timeStamp: text }),
+  header: z.object({ messageID: text, originatorConversationID: z.string().max(200).default(""), timeStamp: text }),
   requestPayload: z.object({
-    primaryData: z.object({ businessKey: text, businessKeyType: z.literal("notifyBiller") }),
+    // KCB's API definition shows "notifyBiller"; its PDF shows "queryBiller". The till is identified by businessKey.
+    primaryData: z.object({ businessKey: text, businessKeyType: z.string().max(50) }),
     additionalData: z.object({ notificationData: z.object({
       businessKey: z.string().max(200), businessKeyType: z.literal("BillReferenceNumber"),
       transactionID: text, transactionAmt: amount, transactionDate: text, currency: z.literal("KES"),
@@ -52,6 +53,17 @@ export function kcbTime(value: string) {
   return date;
 }
 
+/**
+ * Till transaction dates seen in KCB's documents: "Mon May 19 13:30:54 EAT 2025" (API definition),
+ * yyyyMMddHHmmss, and a bare yyyyMMdd (PDF sample). A bare date takes its time from the message header when
+ * that header is on the same day; otherwise the payment is dated the start of that day in Nairobi.
+ */
+export function kcbTillDate(value: string, headerTimeStamp?: string) {
+  if (/^\d{14}$/.test(value)) return kcbTime(value);
+  if (/^\d{8}$/.test(value)) return headerTimeStamp && /^\d{14}$/.test(headerTimeStamp) && headerTimeStamp.startsWith(value) ? kcbTime(headerTimeStamp) : kcbTime(`${value}0000`);
+  return kcbTillTime(value);
+}
+
 export function kcbTillTime(value: string) {
   const m = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) EAT (\d{4})$/.exec(value);
   if (!m) throw new ApiError(400, "Unsupported KCB till transaction date");
@@ -59,21 +71,30 @@ export function kcbTillTime(value: string) {
   return kcbTime(`${m[6]}${month}${m[2].padStart(2,"0")}${m[3]}${m[4]}${m[5]}`);
 }
 
+/** A time KCB sent but we can't read is not a reason to refuse money: use the receipt time and flag it for review. */
+function readTime(read: () => Date) {
+  try { return { transactionTime: read(), timeTrusted: true }; } catch { return { transactionTime: new Date(), timeTrusted: false }; }
+}
+
 export function normalizeKcb(kind: "account" | "till", body: unknown, config: { accountNumber?: string; tillBusinessKey?: string }) {
   if (kind === "account") {
     const p = parse(accountSchema, body);
     if (!config.accountNumber || p.creditAccountIdentifier !== config.accountNumber) throw new ApiError(403, "KCB receiving account does not match this school");
+    const { transactionTime, timeTrusted } = readTime(() => kcbTime(p.timestamp));
     return {
+      timeTrusted,
       input: { provider: "kcb", providerTxnId: p.transactionReference, channel: "bank" as const, amount: p.transactionAmount,
-        transactionTime: kcbTime(p.timestamp), accountReference: p.customerReference, payerName: p.customerName, payerPhone: p.customerMobileNumber },
+        transactionTime, accountReference: p.customerReference, payerName: p.customerName, payerPhone: p.customerMobileNumber },
       acknowledgement: { transactionID: p.requestId, statusCode: "0", statusMessage: "Notification received successfully" },
     };
   }
   const p = parse(tillSchema, body), n = p.requestPayload.additionalData.notificationData;
   if (!config.tillBusinessKey || p.requestPayload.primaryData.businessKey !== config.tillBusinessKey) throw new ApiError(403, "KCB receiving business key does not match this school");
+  const { transactionTime, timeTrusted } = readTime(() => kcbTillDate(n.transactionDate, p.header.timeStamp));
   return {
+    timeTrusted,
     input: { provider: "kcb", providerTxnId: n.transactionID, channel: "bank" as const, amount: n.transactionAmt,
-      transactionTime: kcbTillTime(n.transactionDate), accountReference: n.businessKey,
+      transactionTime, accountReference: n.businessKey,
       payerPhone: n.debitMSISDN, payerName: [n.firstName, n.middleName, n.lastName].filter(Boolean).join(" ") },
     acknowledgement: { header: { messageID: p.header.messageID, originatorConversationID: p.header.originatorConversationID,
       statusCode: "0", statusMessage: "Notification received successfully" }, responsePayload: { transactionInfo: { transactionId: n.transactionID } } },

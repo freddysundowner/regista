@@ -5,9 +5,14 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { FinanceOverviewTerm } from './financeOverviewTerm';
+import type { FinanceOverviewToday } from './financeOverviewToday';
 import type { Money } from './money';
 
 export interface FinanceOverview {
+  /** The current term's billing and collections; null when no term is current. */
+  term: FinanceOverviewTerm;
+  today: FinanceOverviewToday;
   invoiced: Money;
   collected: Money;
   outstanding: Money;

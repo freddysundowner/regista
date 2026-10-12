@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import * as schemas from "@workspace/api-zod";
-import { allow, admin, readers, writers, auditors, body, ApiError, audit } from "../lib/core";
+import { allow, admin, readers, writers, auditors, body, send, ApiError, audit } from "../lib/core";
 import { saveIntegration } from "../lib/integrations/security";
 import { registerCallbacks, startStk } from "../lib/integrations/daraja";
+import { connectSunpay, disconnectSunpay, sunpayView } from "../lib/integrations/sunpay";
 import { ingest, resolveException, postedStkStatus } from "../lib/payments/pipeline";
 import { previewStatement, reconcileStatement } from "../lib/integrations/banks";
 import { financeTransaction, record, view } from "../lib/finance/posting";
@@ -11,6 +12,7 @@ import { createRecord } from "../lib/finance/service";
 import { sum, money } from "../lib/finance/money";
 import { createPlan, decidePlan, planView } from "../lib/payments/plans";
 import { queueMessage, messageReadiness } from "../lib/integrations/messages";
+import { REMOVED_PREFIX } from "../lib/students";
 import { decideUnmatchedRefund, payUnmatchedRefund, sponsorAcknowledgement, requestUnmatchedRefund } from "../lib/payments/settlements";
 import { z } from "zod";
 
@@ -46,6 +48,9 @@ router.get("/integrations/config", async (req, res) => {
   }));
 });
 router.put("/integrations/config", async (req, res) => { allow(req, admin); res.json(await saveIntegration(req.actor, body(schemas.ConfigureIntegrationBody, req.body))); });
+router.get("/integrations/sunpay", async (req, res) => { allow(req, admin); send(res, "GetSunpayConnection", await sunpayView(req.actor.school.id)); });
+router.post("/integrations/sunpay", async (req, res) => { allow(req, admin); send(res, "ConnectSunpay", await connectSunpay(req.actor, body(schemas.ConnectSunpayBody.strict(), req.body))); });
+router.post("/integrations/sunpay/disconnect", async (req, res) => { allow(req, admin); send(res, "DisconnectSunpay", await disconnectSunpay(req.actor)); });
 router.post("/integrations/daraja/register", async (req, res) => { allow(req, admin); res.json(await registerCallbacks(req.actor)); });
 router.get("/payments/incoming", async (req, res) => {
   allow(req, readers);
@@ -127,6 +132,35 @@ router.post("/payment-plans/:id/decision", async (req, res) => {
 router.get("/notifications", async (req, res) => {
   allow(req, readers);
   res.json(view(await db.messageDelivery.findMany({ where: { schoolId: req.actor.school.id, template: { not: "otp" } }, select: { id: true, guardianId: true, channel: true, template: true, status: true, attempts: true, error: true, providerMessageId: true }, orderBy: { createdAt: "desc" }, take: 500 })));
+});
+// Everyone a notice should reach: each parent who gets messages for at least one active learner, once each
+// (a parent of three children gets one message), optionally just one grade's.
+const audience = (schoolId: string, gradeId?: string) => db.guardian.findMany({
+  where: { schoolId, anonymizedAt: null, students: { some: { receivesNotifications: true, student: { status: "active", NOT: { admissionNo: { startsWith: REMOVED_PREFIX } }, ...(gradeId ? { gradeId } : {}) } } } },
+  select: { id: true, phone: true }, orderBy: { createdAt: "asc" },
+}).then((rows) => [...new Map(rows.filter((g) => g.phone).map((g) => [g.phone, g])).values()]);
+router.get("/notifications/audience", async (req, res) => {
+  allow(req, admin);
+  const { gradeId } = schemas.GetMessageAudienceQueryParams.parse(req.query);
+  send(res, "GetMessageAudience", { parents: (await audience(req.actor.school.id, gradeId)).length });
+});
+router.post("/notifications/broadcast", async (req, res) => {
+  allow(req, admin);
+  const input = body(schemas.BroadcastSchoolMessageBody.strict(), req.body);
+  const parents = await audience(req.actor.school.id, input.gradeId);
+  if (!parents.length) throw new ApiError(409, "No parents to send to. Link guardians to learners first.");
+  let queued = 0, skipped = 0, reason = "";
+  for (const guardian of parents) {
+    // A parent this channel cannot reach is skipped, not a reason to stop: the rest still get the notice.
+    try {
+      await messageReadiness(req.actor.school.id, input.channel, input.template, guardian.id);
+      await queueMessage(db, req.actor.school.id, { guardianId: guardian.id, phone: guardian.phone, channel: input.channel, template: input.template, content: input.content.trim(), idempotencyKey: `${input.idempotencyKey}:${guardian.id}` });
+      queued++;
+    } catch (error) { skipped++; reason ||= error instanceof ApiError ? error.message : "Could not queue"; }
+  }
+  if (!queued) throw new ApiError(503, `Nothing was sent. ${reason}`);
+  await db.$transaction((tx) => audit(tx, req.actor, "message_broadcast", "school", req.actor.school.id, undefined, { channel: input.channel, template: input.template, gradeId: input.gradeId ?? null, queued, skipped }));
+  send(res, "BroadcastSchoolMessage", { queued, skipped });
 });
 router.post("/notifications", async (req, res) => {
   allow(req, admin);

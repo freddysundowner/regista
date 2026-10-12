@@ -161,6 +161,8 @@ function ChannelRow({ platform, s, ro }: { platform: boolean; s: MessagingChanne
   const [dlg, setDlg] = useState<null | "edit" | "inherit">(null);
   const st = STATUS[s.status] ?? { tone: "left", label: s.status.replace(/_/g, " ") };
   const isInheritingPlatform = !platform && s.mode === "inherit" && s.source === "platform";
+  // A school channel with nothing behind it: say so once instead of in every pill and line.
+  const unset = !platform && !s.provider;
   return (
     <li data-testid={`row-messaging-${s.channel}`} className="flex flex-wrap items-start gap-3 p-5">
       <MessageSquareText className="mt-1 h-4 w-4 text-primary" />
@@ -168,21 +170,21 @@ function ChannelRow({ platform, s, ro }: { platform: boolean; s: MessagingChanne
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold">{CHANNEL_LABEL[s.channel]}</span>
           <Pill tone={st.tone}>{st.label}</Pill>
-          {!platform && <Pill tone={s.source === "school" ? "current" : "left"}>{SOURCE_LABEL[s.source] ?? s.source}</Pill>}
+          {!platform && !unset && <Pill tone={s.source === "school" ? "current" : "left"}>{SOURCE_LABEL[s.source] ?? s.source}</Pill>}
           {s.configured && <Pill tone="current">{s.environment}</Pill>}
         </div>
-        <p className="mt-1 text-sm" data-testid={`text-effective-${s.channel}`}>
-          <span className="text-muted-foreground">Effective provider:</span> <b>{providerLabel(s.provider)}</b>
+        {unset ? <p className="mt-1 text-xs text-muted-foreground" data-testid={`text-effective-${s.channel}`}>Nothing is sent by {CHANNEL_LABEL[s.channel]} yet.</p> : <p className="mt-1 text-sm" data-testid={`text-effective-${s.channel}`}>
+          <span className="text-muted-foreground">Sent through</span> <b>{providerLabel(s.provider)}</b>
           {s.senderId && <span className="font-mono text-xs text-muted-foreground"> · sender {s.senderId}</span>}
           {s.connectionId && <span className="font-mono text-xs text-muted-foreground"> · conn {s.connectionId}</span>}
-        </p>
-        {!platform && <p className="text-xs text-muted-foreground">{s.source === "school" ? "Billed to this school's own account." : s.source === "legacy" ? "Routed via a legacy integration account. Configure an override or use the platform default to migrate." : s.source === "platform" ? "Billed to the shared platform account." : "No account will send on this channel."}</p>}
+        </p>}
+        {!platform && !unset && <p className="text-xs text-muted-foreground">{s.source === "school" ? "Billed to this school's own account." : s.source === "legacy" ? "Routed via a legacy integration account. Configure an override or use the platform default to migrate." : s.source === "platform" ? "Billed to the shared platform account." : "No account will send on this channel."}</p>}
         {s.provider === "blessedtexts" && <p className="mt-1 text-xs font-medium text-red-800">Blessed Text: awaiting API documentation — cannot send until the contract is verified.</p>}
-        {s.reason && <p className="mt-1 text-xs text-amber-800">{s.reason}</p>}
+        {s.reason && !unset && <p className="mt-1 text-xs text-amber-800">{s.reason}</p>}
       </div>
       <div className="flex flex-wrap gap-2">
         {!platform && !isInheritingPlatform && <Btn variant="ghost" disabled={ro} data-testid={`button-inherit-${s.channel}`} onClick={() => setDlg("inherit")}><Undo2 className="h-4 w-4" />Use platform default</Btn>}
-        <Btn variant="outline" disabled={ro} data-testid={`button-configure-${s.channel}`} onClick={() => setDlg("edit")}><Settings2 className="h-4 w-4" />{platform ? (s.configured ? "Edit default" : "Configure default") : s.mode === "override" ? "Edit override" : "Configure override"}</Btn>
+        <Btn variant="outline" disabled={ro} data-testid={`button-configure-${s.channel}`} onClick={() => setDlg("edit")}><Settings2 className="h-4 w-4" />{platform ? (s.configured ? "Edit default" : "Configure default") : s.mode === "override" ? "Edit own account" : "Use own account"}</Btn>
       </div>
       <FormDialog open={dlg === "edit"} onOpenChange={(o) => !o && setDlg(null)} size="lg"
         title={`${platform ? "Platform default" : "School override"} · ${CHANNEL_LABEL[s.channel]}`}
@@ -215,11 +217,11 @@ export default function MessagingSettingsPage({ platform = false, embedded = fal
       ) : (
         <div className="flex flex-wrap items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
           <Plug className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <p className="min-w-0 flex-1">Receipts, reminders, OTPs, absence alerts and WhatsApp fallback all use this routing automatically. The platform default is billed to the platform; an override is billed to your account. Disabled or broken overrides do not use another account for the same channel. WhatsApp-to-SMS fallback follows the school's existing settings.</p>
-          <Link href="/integrations" data-testid="link-legacy-integrations" className="text-xs font-semibold text-primary underline-offset-2 hover:underline">Legacy integrations</Link>
+          <p className="min-w-0 flex-1">Receipts, reminders and alerts go out through these accounts. Use Rejista's shared account, or your school's own, which is billed to you.</p>
+          <Link href="/integrations" data-testid="link-legacy-integrations" className="text-xs font-semibold text-primary underline-offset-2 hover:underline">Older connections</Link>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">No live provider has been verified. "Unverified" means saved, not proven to work. There is no test send.</p>
+      {platform && <p className="text-xs text-muted-foreground">No live provider has been verified. "Unverified" means saved, not proven to work. There is no test send.</p>}
       <Panel>
         {q.isLoading ? <SkeletonRows rows={2} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} />
           : channels.length === 0 ? <Empty icon={<MessageSquareText className="h-5 w-5" />} title="No channels reported" body="The server returned no messaging channels. Retry shortly." />

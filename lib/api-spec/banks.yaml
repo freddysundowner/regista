@@ -1,0 +1,205 @@
+paths:
+  accounts:
+    get:
+      operationId: listBankAccounts
+      summary: The school's bank accounts, without any credentials
+      responses:
+        "200":
+          description: Bank accounts, newest last
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BankAccountView' }
+    post:
+      operationId: createBankAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BankAccountInput' }
+      responses:
+        "200":
+          description: Bank account added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BankAccountView' }
+  account:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: updateBankAccount
+      description: Account details only. Changing the NCBA till or paybill of a requested or live connection is refused; remove the account and add it again instead.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BankAccountInput' }
+      responses:
+        "200":
+          description: Bank account updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BankAccountView' }
+    delete:
+      operationId: deleteBankAccount
+      description: Removes the account and its notification credentials. Notifications that arrive afterwards are refused.
+      responses:
+        "204": { description: Removed }
+  ncbaRequest:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: requestNcbaConnection
+      description: >-
+        Generates fresh notification and STK credentials for this NCBA account, replacing any earlier ones, and
+        returns them once for the activation request letter. They are stored encrypted and never shown again.
+      responses:
+        "200":
+          description: Request letter details, including the one-time credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NcbaRequestLetter' }
+  kcb:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getKcbConnection
+      description: >-
+        The addresses KCB sends this account's payments to. They are created the first time they are asked for and can
+        be shown again later. They are null while the platform has no public HTTPS address.
+      responses:
+        "200":
+          description: Notification addresses
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KcbConnection' }
+    post:
+      operationId: replaceKcbAddresses
+      description: Replaces this account's KCB notification addresses. The old ones stop working at once.
+      responses:
+        "200":
+          description: New notification addresses
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KcbConnection' }
+  kcbLetter:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: downloadKcbLetter
+      description: KCB's partner request letter on the school's letterhead, as a PDF. It holds no address or secret.
+      responses:
+        "200":
+          description: PDF letter
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+  kcbKey:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      operationId: saveKcbSigningKey
+      description: Optional per-account override of the platform's KCB_PUBLIC_KEY. Stores KCB's RSA public key (PEM, at least 2048 bits) encrypted; private keys are refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KcbSigningKeyInput' }
+      responses:
+        "200":
+          description: Key saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BankAccountView' }
+  ncbaNotification:
+    post:
+      operationId: receiveNcbaNotification
+      summary: Receive an NCBA paybill-level push notification
+      description: Server-to-server only. Authenticated by the generated username, password and SHA-256 hash in the body. Acknowledgement means durable receipt, not student allocation.
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NcbaNotification' }
+      responses:
+        "200":
+          description: Notification persisted, or an identical transaction was already received
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NcbaResult' }
+        "400": { description: Invalid notification }
+        "401": { description: Invalid credentials or hash }
+        "403": { description: Till or paybill does not belong to this account }
+components:
+  schemas:
+    BankAccountInput:
+      type: object
+      additionalProperties: false
+      required: [bank, accountName, accountNumber]
+      properties:
+        bank: { type: string, minLength: 2, maxLength: 40 }
+        accountName: { type: string, minLength: 1, maxLength: 120 }
+        accountNumber: { type: string, pattern: '^[0-9A-Za-z-]{4,30}$' }
+        branch: { type: [string, "null"], maxLength: 80 }
+        collectionType: { type: [string, "null"], enum: [ncba_till, paybill, kcb_till, null] }
+        collectionNumber: { type: [string, "null"], pattern: '^[0-9A-Za-z_-]{3,40}$' }
+    BankAccountView:
+      type: object
+      required: [id, bank, accountName, accountNumber, branch, collectionType, collectionNumber, notificationStatus, signingKeySaved, requestedAt, liveAt, lastNotificationAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        bank: { type: string }
+        accountName: { type: string }
+        accountNumber: { type: string }
+        branch: { type: [string, "null"] }
+        collectionType: { type: [string, "null"] }
+        collectionNumber: { type: [string, "null"] }
+        notificationStatus: { type: string, enum: [off, requested, live] }
+        signingKeySaved: { type: boolean, description: KCB only. Whether KCB's signing public key has been saved. }
+        requestedAt: { type: [string, "null"], format: date-time }
+        liveAt: { type: [string, "null"], format: date-time }
+        lastNotificationAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    NcbaRequestLetter:
+      type: object
+      required: [schoolName, accountName, accountNumber, collectionType, collectionNumber, endpointUrl, notificationUsername, notificationPassword, notificationSecretKey, stkUsername, stkSecretKey]
+      properties:
+        schoolName: { type: string }
+        accountName: { type: string }
+        accountNumber: { type: string }
+        branch: { type: [string, "null"] }
+        collectionType: { type: string }
+        collectionNumber: { type: string }
+        endpointUrl: { type: string }
+        notificationUsername: { type: string }
+        notificationPassword: { type: string }
+        notificationSecretKey: { type: string }
+        stkUsername: { type: string }
+        stkSecretKey: { type: string }
+    KcbConnection:
+      type: object
+      required: [accountNotificationUrl, tillNotificationUrl, emailTo]
+      properties:
+        accountNotificationUrl: { type: [string, "null"] }
+        tillNotificationUrl: { type: [string, "null"], description: Only when the account has a KCB till number. }
+        emailTo: { type: string, description: KCB's onboarding address, buni@kcbgroup.com. }
+    KcbSigningKeyInput:
+      type: object
+      additionalProperties: false
+      required: [publicKey]
+      properties:
+        publicKey: { type: string, minLength: 100, maxLength: 10000 }
+    NcbaNotification:
+      type: object
+      description: NCBA's JSON push payload. Validated strictly by the server adapter.
+      additionalProperties: true
+    NcbaResult:
+      type: object
+      required: [ResultCode, ResultDesc]
+      properties:
+        ResultCode: { type: string }
+        ResultDesc: { type: string }

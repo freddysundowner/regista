@@ -1,4 +1,5 @@
 import { db as database, Prisma } from "@workspace/db";
+import { channelLabel } from "./finance/books";
 import type { ReportFilterInput } from "@workspace/api-zod";
 import { ApiError, owned, type Actor, type Tx } from "./core";
 import { metadata } from "./finance/posting";
@@ -6,6 +7,10 @@ import { money, sum, zero } from "./finance/money";
 import { termResults } from "./academics/service";
 import { academicReaders, classAccess } from "./academics/access";
 
+const COLUMN_LABEL: Record<string, string> = {
+  admissionNo: "Adm. no", studentName: "Learner", current: "This term", oneTerm: "1 term ago", twoTerms: "2 terms ago", threePlusTerms: "3+ terms ago",
+  activePlan: "On a plan", broughtForward: "Brought forward", feeItem: "Fee item", type: "Type", requestedBy: "Asked by", approvedBy: "Approved by",
+};
 export const reportTypes = ["collections", "fee-items", "balances", "defaulters", "aged-arrears", "unmatched", "reconciliation", "adjustments", "sponsors", "plans", "statement", "performance", "attendance"] as const;
 type Row = Record<string, string | number | boolean | null>;
 export async function schoolReport(actor: Actor, type: string, input: ReportFilterInput, db: Tx = database) {
@@ -72,7 +77,7 @@ export async function schoolReport(actor: Actor, type: string, input: ReportFilt
         if (entry.type !== "payment" && entry.type !== "refund" && !(entry.type === "reversal" && original?.type === "payment")) continue;
         const record = records.find(r => r.id === (original?.referenceId ?? entry.referenceId));
         const source = record?.kind === "refund" ? records.find(r => r.id === record.parentId) : record;
-        const channel = source ? metadata(source).channel ?? "refund" : "unknown";
+        const channel = record?.kind === "refund" ? "Refund" : source ? channelLabel(metadata(source).channel, metadata(source).provider) : "Other";
         const key = `${entry.createdAt.toISOString().slice(0, 10)}|${channel}`;
         grouped.set(key, (grouped.get(key) ?? zero()).plus(entry.credit.minus(entry.debit)));
       }
@@ -131,6 +136,7 @@ export async function schoolReport(actor: Actor, type: string, input: ReportFilt
       for (const entry of selectedLedger) { balance = balance.plus(entry.debit).minus(entry.credit); rows.push({ date: entry.createdAt.toISOString().slice(0, 10), description: entry.description, debit: entry.debit.toFixed(2), credit: entry.credit.toFixed(2), balance: balance.toFixed(2) }); }
     }
   }
-  const keys = [...new Set(rows.flatMap(row => Object.keys(row)))];
-  return { title: type.replace(/-/g, " "), columns: keys.map(key => ({ key, label: key.replace(/([A-Z])/g, " $1").replace(/^./, c => c.toUpperCase()) })), rows, generatedAt: new Date().toISOString() };
+  // Internal ids stay on the rows (for links) but are not shown as columns or exported.
+  const keys = [...new Set(rows.flatMap(row => Object.keys(row)))].filter(k => k !== "id" && k !== "studentId");
+  return { title: type.replace(/-/g, " "), columns: keys.map(key => ({ key, label: COLUMN_LABEL[key] ?? key.replace(/([A-Z])/g, " $1").replace(/^./, c => c.toUpperCase()) })), rows, generatedAt: new Date().toISOString() };
 }

@@ -4,6 +4,8 @@ import { lock } from "../lib/core";
 import { logger } from "../lib/logger";
 import { createDocument } from "../lib/finance/documents";
 import { registerModuleWorkers } from "./modules";
+import { setPaymentNudger } from "../lib/payments/nudge";
+import { storageConfigured } from "../lib/school-files";
 
 export async function verifyLedger(schoolId: string) {
   return db.$transaction(async tx => {
@@ -29,6 +31,7 @@ export async function startFinanceWorker() {
   boss.on("error", err => logger.error({ err }, "Finance worker failed"));
   await boss.start(); // schema and queues must be installed explicitly, never startup DDL
   await registerModuleWorkers(boss);
+  setPaymentNudger(() => { boss.send("payment-pipeline", {}).catch(err => logger.warn({ err: err instanceof Error ? err.message : err }, "Payment pipeline nudge failed; the minute sweep will run")); });
   await boss.work("finance-nightly", async () => {
     let failed = false;
     for (const school of await db.school.findMany({ where: { status: "active" } })) {
@@ -39,6 +42,8 @@ export async function startFinanceWorker() {
   });
   await boss.work("finance-receipts", async () => {
     // The outbox is the durable handoff. No guardian notifications are sent in phase 2.
+    // Without storage there's nowhere to put receipts: leave them queued instead of failing every run.
+    if (!storageConfigured()) return;
     const pending = await db.$queryRaw<{ schoolId: string; referenceId: string }[]>`
       SELECT p."schoolId",p."referenceId" FROM finance_outbox p
       WHERE p.event='payment.posted' AND NOT EXISTS (
@@ -46,18 +51,22 @@ export async function startFinanceWorker() {
         AND r."referenceId"=p."referenceId" AND r.event='receipt.generated'
       ) ORDER BY p."createdAt" ASC LIMIT 100`;
     for (const event of pending) {
-      const payment = await db.financeRecord.findFirstOrThrow({ where: { id: event.referenceId, schoolId: event.schoolId } });
-      const school = await db.school.findUniqueOrThrow({ where: { id: event.schoolId } });
-      const user = await db.user.findUniqueOrThrow({ where: { id: payment.requestedBy } });
-      const existing = await db.storedFile.findFirst({ where: { schoolId: school.id, entityType: "finance_receipt", entityId: payment.id, status: "ready" } });
-      if (!existing) await createDocument({ school, user }, "receipt", payment.id);
-      // Preserve payment.posted for the later notification consumer. Use a separate marker.
-      await db.financeOutbox.upsert({
-        where: { schoolId_event_referenceId: { schoolId: school.id, event: "receipt.generated", referenceId: payment.id } },
-        create: { schoolId: school.id, event: "receipt.generated", referenceId: payment.id, payload: {}, processedAt: new Date() },
-        update: {},
-      });
+      // One bad receipt must not hold up every other school's: log it and carry on; it's retried next run.
+      try { await receiptFor(event); } catch (err) { logger.warn({ err: err instanceof Error ? err.message : err, schoolId: event.schoolId, paymentId: event.referenceId }, "Receipt generation failed"); }
     }
   });
+  async function receiptFor(event: { schoolId: string; referenceId: string }) {
+    const payment = await db.financeRecord.findFirstOrThrow({ where: { id: event.referenceId, schoolId: event.schoolId } });
+    const school = await db.school.findUniqueOrThrow({ where: { id: event.schoolId } });
+    const user = await db.user.findUniqueOrThrow({ where: { id: payment.requestedBy } });
+    const existing = await db.storedFile.findFirst({ where: { schoolId: school.id, entityType: "finance_receipt", entityId: payment.id, status: "ready" } });
+    if (!existing) await createDocument({ school, user }, "receipt", payment.id);
+    // Preserve payment.posted for the later notification consumer. Use a separate marker.
+    await db.financeOutbox.upsert({
+      where: { schoolId_event_referenceId: { schoolId: school.id, event: "receipt.generated", referenceId: payment.id } },
+      create: { schoolId: school.id, event: "receipt.generated", referenceId: payment.id, payload: {}, processedAt: new Date() },
+      update: {},
+    });
+  }
   return boss;
 }

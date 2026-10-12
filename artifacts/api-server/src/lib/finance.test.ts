@@ -42,9 +42,8 @@ test("finance integration: idempotency, priority, future credit, approvals, tena
       const lunch = await createRecord(tx, maker, { kind: "fee_item", idempotencyKey: "lunch", name: "Lunch", code: "LU", priority: 2, isOptional: false });
       const transport = await createRecord(tx, maker, { kind: "fee_item", idempotencyKey: "transport", name: "Transport", code: "TR", priority: 3, isOptional: true });
       const structure = await createRecord(tx, admin, { kind: "fee_structure", idempotencyKey: "structure", name: "Term fees", academicYearId: year.id, termId: term.id, gradeId: grade.id, lines: [{ feeItemId: lunch.id, amount: "30.00" }, { feeItemId: tuition.id, amount: "100.00" }] });
-      await assert.rejects(decideRecord(tx, admin, structure.id, "approved", "self"), /own request/);
-      await assert.rejects(invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, false), /approved fee structure/);
-      await decideRecord(tx, checker, structure.id, "approved", "Checked");
+      // Nobody has been billed yet, so first-time fee setup applies at once; second approval starts with the first invoice.
+      assert.equal(structure.status, "approved");
       const optional = await createRecord(tx, maker, { kind: "optional_charge", idempotencyKey: "optional", studentId: student.id, feeItemId: transport.id, amount: "20.00", startDate: new Date("2099-01-01") });
       assert.equal(optional.amount.toFixed(2), "20.00");
       const preview = await invoiceBatch(tx, maker, { termId: term.id, dueDate: new Date("2099-02-01") }, false);
@@ -159,6 +158,12 @@ test("finance integration: idempotency, priority, future credit, approvals, tena
       assert.equal((await postedStkStatus(tx, stk)).status, "processing", "raw provider success must not claim ledger posting");
       await postIncoming(tx, maker, stkIncoming.id, [{ studentId: student.id, amount: "10" }], "Verified fixture receipt");
       assert.equal((await postedStkStatus(tx, stk)).status, "paid");
+      // A school that switched off second approval: the bursar's waiver applies as soon as it's saved, and is recorded as approved.
+      const solo: Actor = { ...maker, school: { ...school, settings: { requireSecondApproval: false } } };
+      const balanceBefore = (await tx.studentBalance.findUniqueOrThrow({ where: { studentId: student.id } })).balance;
+      const direct = await createRecord(tx, solo, { kind: "adjustment", idempotencyKey: "direct-waiver", studentId: student.id, amount: "1.00", reason: "Applied directly", adjustmentType: "waiver" });
+      assert.equal(direct.status, "approved");
+      assert.equal((await tx.studentBalance.findUniqueOrThrow({ where: { studentId: student.id } })).balance.toFixed(2), balanceBefore.minus(1).toFixed(2));
       throw rollback;
     }, { timeout: 60000 });
   } catch (error) {

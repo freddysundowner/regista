@@ -5,6 +5,7 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { StaffPermission } from './staffPermission';
 import type { UserRole } from './userRole';
 
 export interface User {
@@ -19,6 +20,8 @@ export interface User {
   /** @nullable */
   phone?: string | null;
   role: UserRole;
+  /** Extra access on top of the role */
+  permissions: StaffPermission[];
   isActive: boolean;
   createdAt: Date;
 }

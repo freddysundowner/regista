@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "set -a; . ./.env.local; set +a; PORT=8080 pnpm --filter @workspace/api-server run dev"],
+      "port": 8080
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "set -a; . ./.env.local; set +a; BASE_PATH=/ API_PORT=8080 pnpm --filter @workspace/school-management run dev"],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}

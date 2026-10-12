@@ -43,7 +43,7 @@ export async function createRecord(tx: Tx, actor: Actor, input: FinanceInput) {
   let parent = input.parentId ? await record(tx, schoolId, input.parentId) : undefined;
   if (parent?.studentId && input.studentId && parent.studentId !== input.studentId) throw new ApiError(400, "Related record belongs to a different student");
   const data: Record<string, any> = { ...normalized, fingerprint };
-  let status = "active", amount = input.amount ? positive(input.amount) : zero();
+  let status = "active", amount = input.amount ? positive(input.amount) : zero(), initialSetup = false;
   let studentId = input.studentId;
   if (input.kind === "fee_item") {
     for (const field of ["name", "code", "priority", "isOptional"] as const) required(input[field], field);
@@ -65,6 +65,17 @@ export async function createRecord(tx: Tx, actor: Actor, input: FinanceInput) {
     if (parent && ["termId", "gradeId", "academicYearId", "boardingStatus"].some(k => metadata(parent!)[k] !== data[k])) throw new ApiError(400, "Versions must retain the original scope");
     data.version = parent ? metadata(parent).version + 1 : 1;
     amount = sum(input.lines!.map(l => money(l.amount))); status = "pending";
+    // Until the school bills anyone, no balance depends on these amounts, so first-time setup
+    // takes effect at once. Second-person approval applies from the first invoice onward.
+    if (!await tx.financeRecord.findFirst({ where: { schoolId, kind: "invoice" }, select: { id: true } })) {
+      status = "approved"; initialSetup = true;
+      data.decision = "approved"; data.decisionReason = "initial_setup_before_billing";
+      const live = await tx.financeRecord.findMany({ where: { schoolId, kind: "fee_structure", termId: input.termId, status: { in: ["approved", "pending"] } } });
+      for (const prior of live) {
+        if (metadata(prior).gradeId !== data.gradeId || metadata(prior).boardingStatus !== data.boardingStatus) continue;
+        await tx.financeRecord.update({ where: { id: prior.id }, data: { status: "archived" } });
+      }
+    }
   } else if (input.kind === "optional_charge") {
     required(studentId, "studentId"); required(input.feeItemId, "feeItemId"); required(input.startDate, "startDate");
     if (!metadata(await record(tx, schoolId, input.feeItemId!, "fee_item")).isOptional) throw new ApiError(400, "Fee item is not optional");
@@ -128,20 +139,32 @@ export async function createRecord(tx: Tx, actor: Actor, input: FinanceInput) {
   const result = await tx.financeRecord.create({ data: {
     schoolId, kind: input.kind, studentId, termId: input.termId, parentId: input.parentId,
     uniqueKey, requestedBy: actor.user.id, status, amount, data: json(data),
+    // No approver is recorded: nobody approved it, and the maker can never be the approver.
+    ...(initialSetup ? { approvedAt: new Date() } : {}),
   } });
+  if (initialSetup) await audit(tx, actor, "approved", input.kind, result.id, undefined, { reason: "initial_setup_before_billing" });
   if (input.kind === "payment") {
     await ledger(tx, actor, { studentId: studentId!, type: "payment", credit: amount, referenceId: result.id, referenceType: "payment", description: data.receiptNo });
     await allocate(tx, actor, studentId!);
     await outbox(tx, schoolId, "payment.posted", result.id, { studentId, receiptNo: data.receiptNo });
   }
   await audit(tx, actor, "created", input.kind, result.id, undefined, view(result));
+  // Schools that switched off second-person approval: the change applies as soon as it's saved, still fully audited.
+  if (result.status === "pending" && !secondApprovalRequired(actor.school)) {
+    return decideRecord(tx, actor, result.id, "approved", "Applied directly: this school doesn't require a second approval", { automatic: true });
+  }
   return result;
 }
 
-export async function decideRecord(tx: Tx, actor: Actor, id: string, decision: "approved" | "rejected", reason: string) {
-  if (!["school_admin", "principal", "super_admin"].includes(actor.user.role)) throw new ApiError(403, "Only principal or school administrator may approve");
+/** Whether money changes wait for a second person. On unless the school switched it off. */
+export function secondApprovalRequired(school: { settings: unknown }) {
+  return (school.settings as { requireSecondApproval?: boolean } | null)?.requireSecondApproval !== false;
+}
+
+export async function decideRecord(tx: Tx, actor: Actor, id: string, decision: "approved" | "rejected", reason: string, options: { automatic?: boolean } = {}) {
+  if (!options.automatic && !["school_admin", "principal", "super_admin"].includes(actor.user.role)) throw new ApiError(403, "Only principal or school administrator may approve");
   const request = await record(tx, actor.school.id, id), data = metadata(request);
-  if (request.requestedBy === actor.user.id) throw new ApiError(403, "Cannot approve or reject your own request");
+  if (!options.automatic && request.requestedBy === actor.user.id) throw new ApiError(403, "Cannot approve or reject your own request");
   if (request.status !== "pending") {
     if (request.approvedBy === actor.user.id && data.decision === decision) return request;
     throw new ApiError(409, "Request has already been decided");
@@ -173,7 +196,8 @@ export async function decideRecord(tx: Tx, actor: Actor, id: string, decision: "
     }
   }
   const updated = await tx.financeRecord.update({ where: { id }, data: {
-    status: decision, approvedBy: actor.user.id, approvedAt: new Date(), data: json({ ...data, decision, decisionReason: reason }),
+    // Applied directly (second approval off): no approver is recorded, because nobody else approved it.
+    status: decision, approvedBy: options.automatic ? null : actor.user.id, approvedAt: new Date(), data: json({ ...data, decision, decisionReason: reason }),
   } });
   await audit(tx, actor, decision, request.kind, id, view(request), view(updated));
   return updated;

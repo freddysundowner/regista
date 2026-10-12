@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Pager } from "@/components/pager";
 import { Link } from "wouter";
 import { useGetPlatformSubscriptions, getGetPlatformSubscriptionsQueryKey, type SubscriptionInvoiceRow, type SubscriptionPaymentRow } from "@workspace/api-client-react";
 import { Ban, Banknote, ChevronLeft, ChevronRight, FileText, ReceiptText, Search, Undo2, Wallet } from "lucide-react";
@@ -12,20 +13,6 @@ import "./platform-subscriptions.css";
 type Tab = "payments" | "invoices";
 type Dlg = { kind: "view" | "pay" | "void"; inv: SubscriptionInvoiceRow } | { kind: "reverse"; pay: SubscriptionPaymentRow } | { kind: "reverse-inv"; inv: SubscriptionInvoiceRow; paymentId: string } | null;
 
-function Pager({ page, total, size, onPage, testid }: { page: number; total: number; size: number; onPage: (p: number) => void; testid: string }) {
-  const pages = Math.max(1, Math.ceil(total / Math.max(1, size)));
-  const from = total ? (page - 1) * size + 1 : 0, to = Math.min(total, page * size);
-  return (
-    <div className="flex items-center justify-between gap-3 border-t border-border/60 px-4 py-2.5 text-xs text-muted-foreground sm:px-5">
-      <span data-testid={`text-${testid}-range`}>{from}–{to} of {total}</span>
-      <div className="flex items-center gap-1">
-        <Btn variant="ghost" className="h-8 px-2" aria-label="Previous page" data-testid={`button-${testid}-prev`} disabled={page <= 1} onClick={() => onPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Btn>
-        <span className="px-1 font-mono">{page} / {pages}</span>
-        <Btn variant="ghost" className="h-8 px-2" aria-label="Next page" data-testid={`button-${testid}-next`} disabled={page >= pages} onClick={() => onPage(page + 1)}><ChevronRight className="h-4 w-4" /></Btn>
-      </div>
-    </div>
-  );
-}
 
 export default function PlatformSubscriptions() {
   const [tab, setTab] = useState<Tab>("payments");
@@ -92,7 +79,7 @@ export default function PlatformSubscriptions() {
                 ))}</tbody>
               </table>
             </CardTable>
-            <Pager page={paymentPage} total={d.paymentTotal} size={d.pageSize} onPage={setPaymentPage} testid="payments-page" />
+            <Pager page={paymentPage} total={d.paymentTotal} size={d.pageSize} onPage={setPaymentPage} />
           </>
         ) : (
           !d.invoices.length ? <Empty icon={<ReceiptText className="h-5 w-5" />} title={search ? "No matching invoices" : "No invoices yet"} body={search ? "Try a different school, code or invoice number." : "Invoices appear here when schools request renewals or you issue an invoice from a school's page."} /> : <>
@@ -117,7 +104,7 @@ export default function PlatformSubscriptions() {
                 ))}</tbody>
               </table>
             </CardTable>
-            <Pager page={invoicePage} total={d.invoiceTotal} size={d.pageSize} onPage={setInvoicePage} testid="invoices-page" />
+            <Pager page={invoicePage} total={d.invoiceTotal} size={d.pageSize} onPage={setInvoicePage} />
           </>
         )}
       </Panel>

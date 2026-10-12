@@ -9,7 +9,7 @@ import type { PlatformConfirmation } from './platformConfirmation';
 
 export type PlatformPasswordInput = PlatformConfirmation & {
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;

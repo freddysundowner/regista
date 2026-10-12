@@ -1,17 +1,19 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useState, type FormEvent, type ReactNode } from "react";
+import { Link, useLocation } from "wouter";
+import { Pager, usePaged } from "@/components/pager";
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import {
   useListAcademicYears, useCreateAcademicYear, useUpdateAcademicYear, useListTerms, useCreateTerm, useUpdateTerm,
-  useListGrades, useCreateGrade, useUpdateGrade, useListStreams, useCreateStream, useUpdateStream, useListUsers,
+  useListGrades, useCreateGrade, useUpdateGrade, useListStreams, useCreateStream, useUpdateStream, useDeleteGrade, useDeleteStream, useListUsers,
   getListAcademicYearsQueryKey, getListTermsQueryKey, getListGradesQueryKey, getListStreamsQueryKey, getListUsersQueryKey, getGetDashboardSummaryQueryKey, getListStudentsQueryKey,
   LevelBand, type AcademicYear, type Term, type Grade, type Stream,
 } from "@workspace/api-client-react";
-import { CalendarRange, Check, Layers, Loader2, Pencil, Plus } from "lucide-react";
+import { ChevronRight, Layers, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
 import { errMsg, fmtDate } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
-import { PromotionsPanel } from "@/components/promotions";
-import { TeacherAssignmentsPanel } from "@/components/teacher-assignments";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ClassesStep } from "@/pages/term-setup";
 import { FormDialog } from "@/components/form-dialog";
 
 function useInv() {
@@ -45,77 +47,10 @@ function PeriodForm({ initial, label, pending, err, onSubmit, onCancel, extra }:
   );
 }
 
-function Years() {
-  const q = useListAcademicYears({ query: { queryKey: getListAcademicYearsQueryKey() } });
-  const create = useCreateAcademicYear();
-  const upd = useUpdateAcademicYear();
-  const inv = useInv();
-  const { toast } = useToast();
-  const [mode, setMode] = useState<"new" | AcademicYear | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const yr = new Date().getFullYear();
-  const done = () => { inv(getListAcademicYearsQueryKey(), getListTermsQueryKey(), getGetDashboardSummaryQueryKey()); setMode(null); setErr(null); };
-  return (
-    <Panel title="Academic years" note="One year is current at a time." action={<Btn variant="outline" className="h-8" data-testid="button-new-year" onClick={() => setMode("new")}><Plus className="h-3.5 w-3.5" /> Year</Btn>}>
-      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) { setMode(null); setErr(null); } }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Create academic year" : mode ? `Edit academic year ${mode.name}` : "Academic year"} description="One year is current at a time; marking this current unmarks the others.">
-      {mode === "new" && <PeriodForm label="Create year" initial={{ name: String(yr), startDate: `${yr}-01-06`, endDate: `${yr}-11-28`, isCurrent: !q.data?.length }} pending={create.isPending} err={err} onCancel={() => { setMode(null); setErr(null); }}
-        onSubmit={(v) => create.mutate({ data: v }, { onSuccess: () => { toast({ title: "Academic year created" }); done(); }, onError: (x) => setErr(errMsg(x)) })} />}
-      {mode && mode !== "new" && <PeriodForm key={mode.id} label="Save year" initial={{ name: mode.name, startDate: mode.startDate.slice(0, 10), endDate: mode.endDate.slice(0, 10), isCurrent: mode.isCurrent }} pending={upd.isPending} err={err} onCancel={() => setMode(null)}
-        onSubmit={(v) => upd.mutate({ yearId: mode.id, data: v }, { onSuccess: () => { toast({ title: "Academic year updated" }); done(); }, onError: (x) => setErr(errMsg(x)) })} />}
-      </FormDialog>
-      {q.isLoading ? <SkeletonRows rows={2} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<CalendarRange className="h-5 w-5" />} title="No academic year" body="Start with the current calendar year — Kenyan schools typically run January to November." /> : (
-        <ul className="divide-y divide-border/60">{q.data.map((y) => (
-          <li key={y.id} data-testid={`row-year-${y.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 md:px-5">
-            <span className="font-display text-xl font-semibold">{y.name}</span>{y.isCurrent && <Pill tone="current">Current</Pill>}
-            <span className="font-mono text-xs max-md:order-last max-md:basis-full md:ml-auto text-muted-foreground">{fmtDate(y.startDate)} – {fmtDate(y.endDate)}</span>
-            <button data-testid={`button-edit-year-${y.id}`} aria-label={`Edit ${y.name}`} onClick={() => setMode(y)} className="rounded p-1.5 text-muted-foreground opacity-60 max-md:border max-md:border-border max-md:p-3 max-md:opacity-100 hover:bg-muted hover:text-foreground group-hover:opacity-100"><Pencil className="h-3.5 w-3.5" /></button>
-          </li>))}</ul>
-      )}
-    </Panel>
-  );
-}
-
-function Terms() {
-  const years = useListAcademicYears({ query: { queryKey: getListAcademicYearsQueryKey() } });
-  const [yearId, setYearId] = useState("");
-  const params = yearId ? { academicYearId: yearId } : undefined;
-  const q = useListTerms(params, { query: { queryKey: getListTermsQueryKey(params) } });
-  const create = useCreateTerm();
-  const upd = useUpdateTerm();
-  const inv = useInv();
-  const { toast } = useToast();
-  const [mode, setMode] = useState<"new" | Term | null>(null);
-  const [newYear, setNewYear] = useState("");
-  const [err, setErr] = useState<string | null>(null);
-  const done = () => { inv(getListTermsQueryKey(), getGetDashboardSummaryQueryKey()); setMode(null); setErr(null); };
-  const defaultYear = years.data?.find((y) => y.isCurrent)?.id ?? years.data?.[0]?.id ?? "";
-  return (
-    <Panel title="Terms" note="Usually three per year." action={<div className="flex gap-2">
-      <NativeSelect data-testid="filter-term-year" value={yearId} onChange={(e) => setYearId(e.target.value)} className="w-full text-xs sm:h-8 sm:w-32"><option value="">All years</option>{years.data?.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}</NativeSelect>
-      {<Btn variant="outline" className="h-8" data-testid="button-new-term" disabled={!years.data?.length} onClick={() => { setNewYear(yearId || defaultYear); setMode("new"); }}><Plus className="h-3.5 w-3.5" /> Term</Btn>}
-    </div>}>
-      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) { setMode(null); setErr(null); } }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Create term" : mode ? `Edit ${mode.name} ${mode.academicYearName}` : "Term"} description="Term dates drive invoicing periods and attendance.">
-      {mode === "new" && <PeriodForm label="Create term" initial={{ name: `Term ${(q.data?.length ?? 0) + 1}`, startDate: "", endDate: "", isCurrent: false }} pending={create.isPending} err={err} onCancel={() => setMode(null)}
-        extra={<Field label="Academic year" required><NativeSelect data-testid="select-term-year" value={newYear} onChange={(e) => setNewYear(e.target.value)}>{years.data?.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}</NativeSelect></Field>}
-        onSubmit={(v) => create.mutate({ data: { ...v, academicYearId: newYear } }, { onSuccess: () => { toast({ title: "Term created" }); done(); }, onError: (x) => setErr(errMsg(x)) })} />}
-      {mode && mode !== "new" && <PeriodForm key={mode.id} label="Save term" initial={{ name: mode.name, startDate: mode.startDate.slice(0, 10), endDate: mode.endDate.slice(0, 10), isCurrent: mode.isCurrent }} pending={upd.isPending} err={err} onCancel={() => setMode(null)}
-        onSubmit={(v) => upd.mutate({ termId: mode.id, data: v }, { onSuccess: () => { toast({ title: "Term updated" }); done(); }, onError: (x) => setErr(errMsg(x)) })} />}
-      </FormDialog>
-      {q.isLoading ? <SkeletonRows rows={3} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<CalendarRange className="h-5 w-5" />} title="No terms" body={years.data?.length ? "Add Term 1, 2 and 3 for the current year." : "Create an academic year first."} /> : (
-        <ul className="divide-y divide-border/60">{q.data.map((t) => (
-          <li key={t.id} data-testid={`row-term-${t.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 md:px-5">
-            <span className="font-semibold">{t.name}</span><span className="text-xs text-muted-foreground">{t.academicYearName}</span>{t.isCurrent && <Pill tone="current">Current</Pill>}
-            <span className="font-mono text-xs max-md:order-last max-md:basis-full md:ml-auto text-muted-foreground">{fmtDate(t.startDate)} – {fmtDate(t.endDate)}</span>
-            <button data-testid={`button-edit-term-${t.id}`} aria-label="Edit term" onClick={() => setMode(t)} className="rounded p-1.5 text-muted-foreground opacity-60 max-md:border max-md:border-border max-md:p-3 max-md:opacity-100 hover:bg-muted hover:text-foreground group-hover:opacity-100"><Pencil className="h-3.5 w-3.5" /></button>
-          </li>))}</ul>
-      )}
-    </Panel>
-  );
-}
-
 const BAND_LABEL: Record<string, string> = { pre_primary: "Pre-primary", lower_primary: "Lower primary", upper_primary: "Upper primary", junior: "Junior school", senior: "Senior school", other: "Other" };
 
-function GradesStreams() {
+/** Grades in teaching order, folded by default. A grade with classes opens to list them; a class (or a grade with none) opens its own page. */
+export function GradesStreams() {
   const grades = useListGrades({ query: { queryKey: getListGradesQueryKey() } });
   const streams = useListStreams(undefined, { query: { queryKey: getListStreamsQueryKey() } });
   const users = useListUsers({ query: { queryKey: getListUsersQueryKey() } });
@@ -123,6 +58,13 @@ function GradesStreams() {
   const cs = useCreateStream();
   const ug = useUpdateGrade();
   const us = useUpdateStream();
+  const dg = useDeleteGrade();
+  const ds = useDeleteStream();
+  const [del, setDel] = useState<{ kind: "grade" | "stream"; id: string; label: string } | null>(null);
+  const removing = dg.isPending || ds.isPending;
+  const [, navigate] = useLocation();
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const toggle = (id: string) => setOpen((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [editId, setEditId] = useState<string | null>(null);
   const editGrade = (x: Grade) => { setG({ name: x.name, levelBand: x.levelBand, order: String(x.order) }); setEditId(x.id); setErr(null); setMode("grade"); };
   const editStream = (x: Stream) => { setS({ gradeId: x.gradeId, name: x.name, classTeacherUserId: x.classTeacherUserId ?? "" }); setEditId(x.id); setErr(null); setMode("stream"); };
@@ -137,13 +79,13 @@ function GradesStreams() {
   const cancel = () => { setMode(null); setEditId(null); setErr(null); };
 
   return (
-    <Panel title="Grades & streams" note="Grades in teaching order; streams split a grade into classes." action={<div className="flex gap-2">
+    <Panel title="Grades and classes" action={<div className="flex gap-2">
       <Btn variant="outline" className="h-8" data-testid="button-new-grade" onClick={() => { setEditId(null); setErr(null); setG({ name: "", levelBand: "lower_primary", order: String((grades.data?.length ?? 0) + 1) }); setMode("grade"); }}><Plus className="h-3.5 w-3.5" /> Grade</Btn>
-      <Btn variant="outline" className="h-8" data-testid="button-new-stream" disabled={!grades.data?.length} onClick={() => { setEditId(null); setErr(null); setS({ gradeId: grades.data?.[0]?.id ?? "", name: "", classTeacherUserId: "" }); setMode("stream"); }}><Plus className="h-3.5 w-3.5" /> Stream</Btn>
+      <Btn variant="outline" className="h-8" data-testid="button-new-stream" disabled={!grades.data?.length} onClick={() => { setEditId(null); setErr(null); setS({ gradeId: grades.data?.[0]?.id ?? "", name: "", classTeacherUserId: "" }); setMode("stream"); }}><Plus className="h-3.5 w-3.5" /> Class</Btn>
     </div>}>
-      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) cancel(); }} busy={cg.isPending || ug.isPending || cs.isPending || us.isPending}
-        title={mode === "grade" ? (editId ? "Edit grade" : "Create grade") : editId ? "Edit stream" : "Create stream"}
-        description={mode === "grade" ? "Grades are listed in teaching order." : "Streams split a grade into classes; the class teacher can be reassigned here."}>
+      <FormDialog phonePage open={!!mode} onOpenChange={(o) => { if (!o) cancel(); }} busy={cg.isPending || ug.isPending || cs.isPending || us.isPending}
+        title={mode === "grade" ? (editId ? "Edit grade" : "Add a grade") : editId ? "Edit class" : "Add a class"}
+        description={mode === "grade" ? "Grades are listed in teaching order." : "A class is one stream of a grade, e.g. Grade 4 East."}>
       {mode === "grade" && <Inline label={editId ? "Save grade" : "Create grade"} pending={cg.isPending || ug.isPending} err={err} onCancel={cancel} onSubmit={() => {
         const data = { name: g.name.trim(), levelBand: g.levelBand, order: Number(g.order) || 1 };
         const opts = { onSuccess: () => { toast({ title: editId ? "Grade updated" : "Grade created" }); inv(getListStudentsQueryKey()); done(); }, onError: (x: unknown) => setErr(errMsg(x)) };
@@ -153,41 +95,102 @@ function GradesStreams() {
         <Field label="Level band"><NativeSelect data-testid="select-band" value={g.levelBand} onChange={(e) => setG({ ...g, levelBand: e.target.value as LevelBand })}>{Object.values(LevelBand).map((b) => <option key={b} value={b}>{BAND_LABEL[b]}</option>)}</NativeSelect></Field>
         <Field label="Order" required><TextInput data-testid="input-grade-order" type="number" min={1} required value={g.order} onChange={(e) => setG({ ...g, order: e.target.value })} /></Field>
       </Inline>}
-      {mode === "stream" && <Inline label={editId ? "Save stream" : "Create stream"} pending={cs.isPending || us.isPending} err={err} onCancel={cancel} onSubmit={() => {
+      {mode === "stream" && <Inline label={editId ? "Save class" : "Add class"} pending={cs.isPending || us.isPending} err={err} onCancel={cancel} onSubmit={() => {
         const data = { gradeId: s.gradeId, name: s.name.trim(), classTeacherUserId: s.classTeacherUserId || null };
-        const opts = { onSuccess: () => { toast({ title: editId ? "Stream updated" : "Stream created" }); inv(getListStudentsQueryKey()); done(); }, onError: (x: unknown) => setErr(errMsg(x)) };
+        const opts = { onSuccess: () => { toast({ title: editId ? "Class saved" : "Class added" }); inv(getListStudentsQueryKey()); done(); }, onError: (x: unknown) => setErr(errMsg(x)) };
         if (editId) us.mutate({ streamId: editId, data }, opts); else cs.mutate({ data }, opts);
       }}>
         <Field label="Grade" required><NativeSelect data-testid="select-stream-grade" value={s.gradeId} onChange={(e) => setS({ ...s, gradeId: e.target.value })}>{grades.data?.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</NativeSelect></Field>
-        <Field label="Stream name" required><TextInput data-testid="input-stream-name" required value={s.name} onChange={(e) => setS({ ...s, name: e.target.value })} placeholder="East" /></Field>
+        <Field label="Class (stream) name" required><TextInput data-testid="input-stream-name" required value={s.name} onChange={(e) => setS({ ...s, name: e.target.value })} placeholder="East" /></Field>
         <Field label="Class teacher" hint={teachers.length ? undefined : "Add teachers in Staff"}><NativeSelect data-testid="select-class-teacher" value={s.classTeacherUserId} onChange={(e) => setS({ ...s, classTeacherUserId: e.target.value })}><option value="">None yet</option>{teachers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</NativeSelect></Field>
       </Inline>}
       </FormDialog>
-      {grades.isLoading ? <SkeletonRows rows={4} cols={3} /> : grades.isError ? <ErrorState msg={errMsg(grades.error)} onRetry={() => grades.refetch()} /> : !grades.data?.length ? <Empty icon={<Layers className="h-5 w-5" />} title="No grades yet" body="Create grades from PP1 upward, then add streams such as East, West or Blue." /> : (
-        <ul className="divide-y divide-border/60">{[...grades.data].sort((a, b) => a.order - b.order).map((gr) => {
-          const ss = streams.data?.filter((x) => x.gradeId === gr.id) ?? [];
-          return (
-            <li key={gr.id} data-testid={`row-grade-${gr.id}`} className="grid gap-2 px-5 py-3 md:grid-cols-[2.5rem_1fr_2fr] md:items-center">
-              <span className="font-mono text-xs text-muted-foreground">{String(gr.order).padStart(2, "0")}</span>
-              <div className="group/g flex items-start gap-1"><div><div className="font-semibold">{gr.name}</div><div className="text-[11px] text-muted-foreground">{BAND_LABEL[gr.levelBand]} · {gr.studentCount} learners</div></div><button data-testid={`button-edit-grade-${gr.id}`} title="Edit grade" onClick={() => editGrade(gr)} className="rounded p-1 text-muted-foreground opacity-50 hover:bg-muted hover:text-foreground group-hover/g:opacity-100"><Pencil className="h-3 w-3" /></button></div>
-              <div className="flex flex-wrap gap-1.5">{ss.length === 0 ? <span className="text-xs text-muted-foreground">Single class</span> : ss.map((x) => (
-                <button key={x.id} data-testid={`button-edit-stream-${x.id}`} title="Edit stream / reassign class teacher" onClick={() => editStream(x)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/70 px-2 py-1 text-xs transition hover:border-primary/50 hover:bg-accent/40"><span className="font-semibold">{x.name}</span><span className="text-muted-foreground">{x.studentCount}</span>{x.classTeacherName && <span className="border-l border-border pl-1.5 text-muted-foreground">{x.classTeacherName}</span>}<Pencil className="h-2.5 w-2.5 text-muted-foreground" /></button>
-              ))}</div>
-            </li>);
-        })}</ul>
+      <FormDialog open={!!del} onOpenChange={(o) => { if (!o && !removing) setDel(null); }} busy={removing} size="sm"
+        title={del?.kind === "grade" ? `Delete ${del.label}?` : `Delete class ${del?.label ?? ""}?`}
+        description={del?.kind === "grade" ? "The grade and its starter curriculum are removed. A grade with classes, learners, assessments or fees cannot be deleted." : "A class with learners, attendance or subject teachers cannot be deleted."}>
+        <div className="space-y-4 p-5">
+          <FormError msg={err} />
+          <FormActions>
+            <Btn variant="danger" disabled={removing} data-testid="button-confirm-delete" onClick={() => {
+              if (!del) return;
+              const opts = { onSuccess: () => { toast({ title: del.kind === "grade" ? "Grade deleted" : "Class deleted" }); inv(getListStudentsQueryKey()); done(); setDel(null); }, onError: (x: unknown) => setErr(errMsg(x)) };
+              if (del.kind === "grade") dg.mutate({ gradeId: del.id }, opts); else ds.mutate({ streamId: del.id }, opts);
+            }}>{removing && <Loader2 className="h-4 w-4 animate-spin" />}Delete</Btn>
+            <Btn variant="ghost" disabled={removing} onClick={() => setDel(null)}>Keep</Btn>
+          </FormActions>
+        </div>
+      </FormDialog>
+      {grades.isLoading ? <SkeletonRows rows={4} cols={3} /> : grades.isError ? <ErrorState msg={errMsg(grades.error)} onRetry={() => grades.refetch()} /> : !grades.data?.length ? <Empty icon={<Layers className="h-5 w-5" />} title="No grades yet" body="Add grades from PP1 upward, then classes such as East, West or Blue." /> : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead className="border-b border-border/60 bg-muted/40 text-left text-xs text-muted-foreground">
+              <tr><th className="px-5 py-2.5 font-medium">Grade</th><th className="px-3 py-2.5 font-medium">Classes</th><th className="px-3 py-2.5 font-medium">Class teacher</th><th className="px-3 py-2.5 text-right font-medium">Learners</th><th className="w-20 px-3 py-2.5"><span className="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody>{[...grades.data].sort((a, b) => a.order - b.order).map((gr) => {
+              const ss = streams.data?.filter((x) => x.gradeId === gr.id) ?? [];
+              const isOpen = open.has(gr.id);
+              const addClass = () => { setEditId(null); setErr(null); setS({ gradeId: gr.id, name: "", classTeacherUserId: "" }); setMode("stream"); };
+              // A grade with classes folds open; one without is itself the class and opens its page.
+              const activate = () => ss.length ? toggle(gr.id) : navigate(`/classes/grade/${gr.id}`);
+              return (
+                <Fragment key={gr.id}>
+                  <tr data-testid={`row-grade-${gr.id}`} className="cursor-pointer border-b border-border/60 hover:bg-muted/30" onClick={activate}>
+                    <td className="px-5 py-3">
+                      <button type="button" className="flex items-center gap-2 text-left font-semibold" aria-expanded={ss.length ? isOpen : undefined} onClick={(e) => { e.stopPropagation(); activate(); }} data-testid={`button-open-grade-${gr.id}`}>
+                        {ss.length ? <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} /> : <span className="w-4" />}
+                        {gr.name}
+                      </button>
+                      <span className="ml-6 block text-xs text-muted-foreground">{BAND_LABEL[gr.levelBand] ?? gr.levelBand}</span>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">{ss.length ? `${ss.length} ${ss.length === 1 ? "class" : "classes"}` : "Single class"}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{ss.length === 1 ? ss[0].classTeacherName ?? "Not set" : ss.length ? "" : "—"}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{gr.studentCount}</td>
+                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild><button type="button" aria-label={`Actions for ${gr.name}`} data-testid={`button-actions-grade-${gr.id}`} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-44">
+                          <DropdownMenuItem onSelect={addClass} data-testid={`button-add-stream-${gr.id}`}><Plus className="h-4 w-4" />Add a class</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => editGrade(gr)} data-testid={`button-edit-grade-${gr.id}`}><Pencil className="h-4 w-4" />Rename {gr.name}</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => { setErr(null); setDel({ kind: "grade", id: gr.id, label: gr.name }); }} className="text-destructive focus:text-destructive" data-testid={`button-delete-grade-${gr.id}`}><Trash2 className="h-4 w-4" />Delete {gr.name}</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                  {isOpen && ss.map((x) => (
+                    <tr key={x.id} data-testid={`row-stream-${x.id}`} className="cursor-pointer border-b border-border/40 bg-muted/15 hover:bg-muted/40" onClick={() => navigate(`/classes/stream/${x.id}`)}>
+                      <td className="py-2.5 pl-11 pr-3"><Link href={`/classes/stream/${x.id}`} onClick={(e) => e.stopPropagation()} className="font-medium hover:underline" data-testid={`link-stream-${x.id}`}>{gr.name} {x.name}</Link></td>
+                      <td className="px-3 py-2.5" />
+                      <td className="px-3 py-2.5">{x.classTeacherName ?? <span className="text-muted-foreground">Not set</span>}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{x.studentCount}</td>
+                      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end">
+                          <button type="button" onClick={() => editStream(x)} aria-label={`Edit ${gr.name} ${x.name} or its class teacher`} data-testid={`button-edit-stream-${x.id}`} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                          <button type="button" onClick={() => { setErr(null); setDel({ kind: "stream", id: x.id, label: `${gr.name} ${x.name}` }); }} aria-label={`Delete ${gr.name} ${x.name}`} data-testid={`button-delete-stream-${x.id}`} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {isOpen && (
+                    <tr className="border-b border-border/60 bg-muted/15"><td colSpan={5} className="py-2 pl-11"><button type="button" onClick={addClass} data-testid={`link-add-stream-${gr.id}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"><Plus className="h-3.5 w-3.5" />Add class to {gr.name}</button></td></tr>
+                  )}
+                </Fragment>
+              );
+            })}</tbody>
+          </table>
+        </div>
       )}
     </Panel>
   );
 }
 
-export default function Academics() {
+/** The Classes tab: every class in one table. A school with none starts with the quick level-and-stream setup. */
+export default function ClassesPage() {
+  const grades = useListGrades({ query: { queryKey: getListGradesQueryKey() } });
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="School calendar & classes" title="Academics" meta={<span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-primary" /> Structure used for admission and import matching</span>} />
-      <div className="grid gap-6 lg:grid-cols-2"><Years /><Terms /></div>
-      <GradesStreams />
-      <TeacherAssignmentsPanel />
-      <PromotionsPanel />
+      <PageHeader title="Classes" meta="Your grades, the classes (streams) in each, and their class teachers." />
+      {grades.isLoading ? <SkeletonRows rows={4} cols={4} /> : (grades.data?.length ?? 0) > 0 ? <GradesStreams />
+        : <Panel title="Add your classes"><div className="p-5"><ClassesStep embedded onNext={() => undefined} /></div></Panel>}
     </div>
   );
 }

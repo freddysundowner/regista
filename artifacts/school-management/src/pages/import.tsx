@@ -1,10 +1,12 @@
 import { useRef, useState, type DragEvent } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePreviewStudentImport, useCommitStudentImport, getListStudentsQueryKey, getListGuardiansQueryKey, getListFamiliesQueryKey, getGetDashboardSummaryQueryKey, getListGradesQueryKey, getListStreamsQueryKey, getListAuditLogsQueryKey, type StudentImportRow, type StudentImportPreview, type StudentImportResult } from "@workspace/api-client-react";
 import { CheckCircle2, Download, FileSpreadsheet, Loader2, RotateCcw, Upload } from "lucide-react";
 import { PageHeader, Panel, Btn, FormError, Pill, CardTable } from "@/components/kit";
 import { errMsg } from "@/lib/session";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const COLS: (keyof StudentImportRow)[] = ["admissionNo", "firstName", "middleName", "lastName", "gender", "dateOfBirth", "gradeName", "streamName", "boardingStatus", "admissionDate", "guardianName", "guardianPhone", "guardianRelationship"];
@@ -56,7 +58,8 @@ function toRows(grid: string[][]): { rows: StudentImportRow[]; missing: string[]
   return { rows, missing };
 }
 
-export default function ImportPage() {
+/** `embedded`: inside the setup flow, without the page header or links out of the flow. */
+export default function ImportPage({ embedded = false, onDone }: { embedded?: boolean; onDone?: () => void } = {}) {
   const qc = useQueryClient();
   const preview = usePreviewStudentImport();
   const commit = useCommitStudentImport();
@@ -119,6 +122,8 @@ export default function ImportPage() {
   const doCommit = () => commit.mutate({ data: { rows } }, {
     onSuccess: (r) => {
       setResult(r);
+      // In first-time setup the flow moves on, so say what was imported before the result screen goes.
+      if (onDone) { toast({ title: `${r.createdStudents} learner${r.createdStudents === 1 ? "" : "s"} added`, description: `${r.linkedGuardians} parent(s) linked${r.skippedRows ? ` · ${r.skippedRows} row(s) skipped` : ""}.` }); onDone(); }
       [getListStudentsQueryKey(), getListGuardiansQueryKey(), getListFamiliesQueryKey(), getGetDashboardSummaryQueryKey(), getListGradesQueryKey(), getListStreamsQueryKey(), getListAuditLogsQueryKey()].forEach((k) => qc.invalidateQueries({ queryKey: k }));
     },
     onError: (x) => setErr(errMsg(x, "Import failed")),
@@ -127,21 +132,30 @@ export default function ImportPage() {
   const onDrop = (e: DragEvent) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); };
   const step = result ? 3 : pv ? 2 : 1;
   const shown = pv?.rows.filter((r) => filter === "all" || r.status === filter) ?? [];
+  const { rows: pageRows, pager } = usePaged(shown, [filter, file], 50);
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Bulk admission" title="Import register" meta="Upload the class lists you already keep in Excel. Nothing is saved until you confirm.">
-        <Btn data-testid="button-download-template" variant="outline" disabled={tplBusy} onClick={downloadTemplate}>{tplBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Template (.xlsx)</Btn>
-      </PageHeader>
+      {embedded ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          <span className="min-w-0 flex-1">Fill in the template, then upload it. Add each parent's phone number.</span>
+          <Btn data-testid="button-download-template" variant="outline" disabled={tplBusy} onClick={downloadTemplate}>{tplBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Template (.xlsx)</Btn>
+        </div>
+      ) : (
+        <PageHeader eyebrow="Bulk admission" title="Import register" meta="Upload the class lists you already keep in Excel. Nothing is saved until you confirm.">
+          <Btn data-testid="button-download-template" variant="outline" disabled={tplBusy} onClick={downloadTemplate}>{tplBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Template (.xlsx)</Btn>
+        </PageHeader>
+      )}
 
-      <ol className="rise rise-1 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-card-border bg-border text-sm">
+      {/* Inside the setup flow, the outer steps are enough: no second progress row. */}
+      {!embedded && <ol className="rise rise-1 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-card-border bg-border text-sm">
         {["Choose file", "Review validation", "Committed"].map((s, i) => (
           <li key={s} className={cn("flex items-center gap-2.5 bg-card px-4 py-3", step === i + 1 && "bg-accent/40")}>
             <span className={cn("flex h-6 w-6 items-center justify-center rounded-full border font-mono text-xs", step > i + 1 ? "border-primary bg-primary text-primary-foreground" : step === i + 1 ? "border-amber-600 text-amber-800" : "border-input text-muted-foreground")}>{i + 1}</span>
             <span className={cn("hidden sm:inline", step >= i + 1 ? "font-semibold" : "text-muted-foreground")}>{s}</span>
           </li>
         ))}
-      </ol>
+      </ol>}
 
       {result ? (
         <Panel className="rise">
@@ -153,7 +167,7 @@ export default function ImportPage() {
                 <div key={k as string} className="bg-card px-5 py-3"><div data-testid={`result-${k}`} className="font-display text-2xl font-semibold tabular-nums">{v}</div><div className="text-[11px] text-muted-foreground">{k}</div></div>
               ))}
             </div>
-            <div className="mt-4 flex gap-2"><Link href="/students" className="inline-flex h-9 items-center rounded-md bg-primary px-3.5 text-sm font-semibold text-primary-foreground">View students</Link><Btn variant="outline" data-testid="button-import-another" onClick={reset}>Import another file</Btn></div>
+            <div className="mt-4 flex gap-2">{!embedded && <Link href="/students" className="inline-flex h-9 items-center rounded-md bg-primary px-3.5 text-sm font-semibold text-primary-foreground">View students</Link>}<Btn variant="outline" data-testid="button-import-another" onClick={reset}>Import another file</Btn></div>
           </div>
         </Panel>
       ) : !pv ? (
@@ -161,8 +175,11 @@ export default function ImportPage() {
           <div onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={onDrop} onClick={() => fileRef.current?.click()} data-testid="dropzone"
             className={cn("m-4 flex cursor-pointer flex-col items-center gap-3 rounded-md border-2 border-dashed px-6 py-14 text-center transition", drag ? "scale-[1.01] border-primary bg-primary/5" : "border-input hover:border-primary/50 hover:bg-accent/20")}>
             {parsing || preview.isPending ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Upload className="h-8 w-8 text-primary" />}
-            <div className="font-display text-xl font-semibold">{parsing ? `Reading ${file}…` : preview.isPending ? `Validating ${rows.length} rows…` : "Drop your .xlsx or .csv here"}</div>
-            <p className="max-w-md text-sm text-muted-foreground">First row must be the template headings. Required: <span className="font-mono text-xs">admissionNo, firstName, lastName</span>. Grades and streams match by name.</p>
+            {/* A phone has nothing to drag, so it is asked to upload; a computer can drop the file or choose it. */}
+            <div className="font-display text-xl font-semibold">{parsing ? `Reading ${file}…` : preview.isPending ? `Validating ${rows.length} rows…` : <><span className="md:hidden">Upload your .xlsx or .csv</span><span className="max-md:hidden">Drop your .xlsx or .csv here</span></>}</div>
+            <p className="max-w-md text-sm text-muted-foreground">Use the template's headings. Admission number and names are required.</p>
+            {/* The whole box opens the file picker; the button just makes that obvious. */}
+            {!parsing && !preview.isPending && <div className="flex items-center gap-3 text-sm text-muted-foreground"><span className="max-md:hidden">or</span><Btn type="button" variant="outline" data-testid="button-choose-file"><Upload className="h-4 w-4" /><span className="md:hidden">Choose file</span><span className="max-md:hidden">Choose a file to upload</span></Btn></div>}
             <input ref={fileRef} data-testid="input-file" type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           </div>
           {err && <div className="px-4 pb-4"><FormError msg={err} /></div>}
@@ -181,7 +198,7 @@ export default function ImportPage() {
           <div className="max-h-[60dvh] overflow-auto md:max-h-[480px]">
             <CardTable><table className="w-full text-sm">
               <thead className="sticky top-0 bg-card text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2">Row</th><th className="px-3 py-2">Adm. no</th><th className="px-3 py-2">Student</th><th className="hidden px-3 py-2 md:table-cell">Guardian phone</th><th className="px-3 py-2">Result</th></tr></thead>
-              <tbody>{shown.map((r) => (
+              <tbody>{pageRows.map((r) => (
                 <tr key={r.rowNumber} data-testid={`row-preview-${r.rowNumber}`} className={cn("border-b border-border/40 align-top", r.status === "error" && "bg-destructive/[0.03]")}>
                   <td className="px-5 py-2 font-mono text-xs text-muted-foreground">{r.rowNumber}</td>
                   <td className="px-3 py-2 font-mono text-xs">{r.admissionNo || "—"}</td>
@@ -194,6 +211,7 @@ export default function ImportPage() {
                 </tr>))}</tbody>
             </table></CardTable>
           </div>
+          <Pager {...pager} />
           <div className="space-y-3 border-t border-border/70 p-5">
             <FormError msg={err} />
             <div className="flex flex-wrap items-center gap-2">

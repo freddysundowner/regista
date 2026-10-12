@@ -8,5 +8,7 @@
 
 export interface LicenceRenewalInput {
   requestId: string;
-  planId: string;
+  planId?: string;
+  /** Move to a bigger package now, for the rest of the current licence, paying only the difference for the days left. */
+  upgrade?: boolean;
 }

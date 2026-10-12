@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { financeBoss } from "../jobs/finance";
 import { sendDelivery } from "../lib/integrations/messages";
 import { renderFinancePdf } from "../lib/finance/documents";
-import { storedObject } from "../lib/school-files";
+import { readUrl, storedObject, usesLocalStorage } from "../lib/school-files";
 
 if (process.env.NODE_ENV !== "development" || process.env.REPLIT_DEPLOYMENT === "1") throw new Error("Development-only controlled verification");
 const school = await db.school.create({ data: { code: `SERVICE-VERIFY-${randomUUID()}`, name: "Disposable service verification", type: "primary", status: "suspended" } });
@@ -34,12 +34,11 @@ try {
   await storedObject(objectKey).save(bytes, { contentType: "application/pdf", resumable: false }); objectCreated = true;
   const [download] = await storedObject(objectKey).download();
   assert.deepEqual(download, bytes);
-  const object = storedObject(objectKey);
-  const sign = await fetch("http://127.0.0.1:1106/object-storage/signed-object-url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bucket_name: object.bucket.name, object_name: object.name, method: "GET", expires_at: new Date(Date.now() + 60000).toISOString() }) });
-  assert.equal(sign.ok, true, "Private storage signing");
-  const { signed_url } = await sign.json() as { signed_url: string };
-  const fetched = await fetch(signed_url);
-  assert.equal(fetched.ok, true); assert.deepEqual(Buffer.from(await fetched.arrayBuffer()), bytes);
+  if (!usesLocalStorage()) {
+    const { downloadUrl } = await readUrl(objectKey, "");
+    const fetched = await fetch(downloadUrl);
+    assert.equal(fetched.ok, true, "Private storage signing"); assert.deepEqual(Buffer.from(await fetched.arrayBuffer()), bytes);
+  }
   console.log("PASS: real PDF upload, private object download and signed URL download; synthetic object will be removed");
 } finally {
   if (objectCreated) await storedObject(objectKey).delete({ ignoreNotFound: true });

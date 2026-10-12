@@ -12,7 +12,7 @@ export type StudentFormValues = {
 
 export function toPayload(v: StudentFormValues) {
   return {
-    admissionNo: v.admissionNo.trim(), firstName: v.firstName.trim(), middleName: blank(v.middleName), lastName: v.lastName.trim(),
+    admissionNo: v.admissionNo.trim() || undefined, firstName: v.firstName.trim(), middleName: blank(v.middleName), lastName: v.lastName.trim(),
     gender: (v.gender || null) as StudentInputGender, dateOfBirth: blank(v.dateOfBirth), gradeId: blank(v.gradeId), streamId: blank(v.streamId),
     status: v.status, boardingStatus: v.boardingStatus, admissionDate: blank(v.admissionDate), upi: blank(v.upi),
     pathway: blank(v.pathway), transportRouteId: blank(v.transportRouteId),
@@ -41,7 +41,7 @@ export function StudentForm({ initial, withGuardian, submitLabel, pending, error
   return (
     <form onSubmit={submit} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Admission no." required><TextInput data-testid="input-admission-no" required className="font-mono" value={v.admissionNo} onChange={set("admissionNo")} placeholder="ADM/2025/014" /></Field>
+        <Field label="Admission no." required={!!initial.admissionNo} hint={initial.admissionNo ? undefined : "Leave blank to number automatically"}><TextInput data-testid="input-admission-no" required={!!initial.admissionNo} className="font-mono" value={v.admissionNo} onChange={set("admissionNo")} placeholder={initial.admissionNo ? "ADM/2025/014" : "Next number"} /></Field>
         <Field label="First name" required><TextInput data-testid="input-first-name" required value={v.firstName} onChange={set("firstName")} /></Field>
         <Field label="Middle name"><TextInput data-testid="input-middle-name" value={v.middleName} onChange={set("middleName")} /></Field>
         <Field label="Last name" required><TextInput data-testid="input-last-name" required value={v.lastName} onChange={set("lastName")} /></Field>

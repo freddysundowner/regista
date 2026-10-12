@@ -15,7 +15,7 @@ function PasswordForm() {
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
-    if (f.next.length < 10) return setErr("New password must be at least 10 characters.");
+    if (f.next.length < 6) return setErr("New password must be at least 6 characters.");
     if (f.next !== f.confirm) return setErr("New passwords do not match.");
     if (f.next === f.current) return setErr("Choose a password different from the current one.");
     m.mutate({ data: { currentPassword: f.current, newPassword: f.next } }, {
@@ -31,7 +31,7 @@ function PasswordForm() {
     <form onSubmit={submit} className="space-y-5 p-5">
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Current password" required><TextInput data-testid="input-current-password" type="password" autoComplete="current-password" required maxLength={128} value={f.current} onChange={set("current")} /></Field>
-        <Field label="New password" required hint="At least 10 characters"><TextInput data-testid="input-new-password" type="password" autoComplete="new-password" required minLength={10} maxLength={128} value={f.next} onChange={set("next")} /></Field>
+        <Field label="New password" required hint="At least 6 characters"><TextInput data-testid="input-new-password" type="password" autoComplete="new-password" required minLength={6} maxLength={128} value={f.next} onChange={set("next")} /></Field>
         <Field label="Confirm new password" required><TextInput data-testid="input-confirm-password" type="password" autoComplete="new-password" required value={f.confirm} onChange={set("confirm")} /></Field>
       </div>
       <FormError msg={err} />

@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -481,7 +480,7 @@ body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
 .app-main .overflow-x-auto,.dialog-body .overflow-x-auto,.app-main .overflow-auto{-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 
 /* ---------- Native-style mobile components ---------- */
-.fab{bottom:calc(4.75rem + env(safe-area-inset-bottom))}
+.fab{bottom:calc(4.25rem + env(safe-area-inset-bottom))}
 @media (max-width: 767px){
   /* A reserved action lane keeps floating controls off record content at every
      scroll position, not just at the end of the document. */
@@ -517,3 +516,142 @@ body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
   /* Inner-page header collapses fully when its only actions are desktop-only (FAB takes over). */
   .page-header-inner:not(:has(.page-actions > :not(.max-md\:hidden))){display:none}
 }
+
+/* Printing (e.g. a fee structure): only the .print-area appears on paper, one .print-page per sheet. */
+@media print {
+  @page { size: A4; margin: 0; }
+  body:has(.print-area) * { visibility: hidden; }
+  body:has(.print-area) .print-area, body:has(.print-area) .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; overflow: visible !important; }
+  .print-page { box-shadow: none !important; max-width: none !important; break-after: page; }
+  .print-page:last-child { break-after: auto; }
+}
+
+/* The support chat window springs up from its button rather than just appearing. */
+@keyframes chat-pop{0%{opacity:0;transform:translateY(16px) scale(.92)}60%{opacity:1;transform:translateY(-3px) scale(1.015)}100%{opacity:1;transform:none}}
+.chat-pop{transform-origin:bottom right;animation:chat-pop .32s cubic-bezier(.2,.9,.3,1.2) both}
+@media (prefers-reduced-motion: reduce){.chat-pop{animation:none}}
+
+/* On a phone the app should feel like an app: taps act at once, menus and bars are not selectable text, and a
+   page installed to the home screen keeps clear of the status bar and home indicator. */
+@media (max-width: 767px){
+  html{touch-action:manipulation}
+  nav,header,.fab,[role="tablist"]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  input,select,textarea{font-size:max(16px,1em)}
+}
+@media (display-mode: standalone){
+  body{overscroll-behavior:none}
+  a,button{-webkit-touch-callout:none}
+}
+
+/* Questions that take turns above the closed chat button. */
+@keyframes chat-teaser{0%{opacity:0;transform:translateY(8px)}12%,88%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-4px)}}
+.chat-teaser{animation:chat-teaser 3.8s ease both}
+@media (prefers-reduced-motion: reduce){.chat-teaser{animation:none}}
+/* During the full-screen school setup on a phone the bottom of the screen belongs to the step's main button, so the floating help button steps aside. */
+@media (max-width: 767.98px){body:has([data-setup-flow]) [data-chat-fab]{display:none}}
+/* The helper's spark in the phone top bar gives a small shimmer now and then, so it reads as alive rather than as a menu icon. */
+@keyframes help-spark{0%,86%,100%{transform:none}90%{transform:rotate(-14deg) scale(1.12)}95%{transform:rotate(10deg) scale(1.08)}}
+.help-spark{animation:help-spark 7s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.help-spark{animation:none}}
+
+/* ---------- Compact phone layout ----------
+   One place that tightens every page inside the app on a phone: less air between blocks, slimmer cards and
+   headings, slightly shorter controls. Pages are written with roomy desktop spacing; these rules pull the
+   common spacing steps in so a phone shows more of the page at once. Anything a page needs different on a
+   phone can still be set on that page. */
+@media (max-width: 767.98px){
+  .app-main{padding-top:.5rem}
+  /* Space between stacked blocks and between cards in a grid. */
+  .app-main :is(.space-y-8,.space-y-6,.space-y-5) > :not(:last-child){margin-block-end:.75rem}
+  .app-main .space-y-4 > :not(:last-child){margin-block-end:.625rem}
+  .app-main :is(.gap-8,.gap-6,.gap-5){gap:.75rem}
+  .app-main .gap-4{gap:.625rem}
+  .app-main :is(.mb-8,.mb-6,.mb-5){margin-bottom:.75rem}
+  .app-main :is(.mt-8,.mt-6,.mt-5){margin-top:.75rem}
+  /* Padding inside cards and rows. */
+  .app-main :is(.p-8,.p-6,.p-5){padding:.875rem}
+  .app-main :is(.px-8,.px-6,.px-5){padding-inline:.875rem}
+  .app-main :is(.py-8,.py-6,.py-5){padding-block:.75rem}
+  .app-main :is(.py-10,.py-12,.py-14,.py-16){padding-block:1.5rem}
+  /* The "nothing here yet" sketch keeps its full height and heading: it is meant to fill the space, not shrink. */
+  .app-main .ruled{padding-block:3.5rem}
+  .app-main .ruled h3.text-lg{font-size:1.125rem;line-height:1.75rem}
+  /* Headings step down a size. */
+  .app-main h2.text-lg,.app-main h3.text-lg{font-size:1rem;line-height:1.35}
+  .app-main :is(h1,h2).text-2xl{font-size:1.25rem;line-height:1.3}
+  .app-main :is(h1,h2).text-xl{font-size:1.125rem;line-height:1.3}
+  /* Controls: still comfortable to tap, but not oversized. */
+  .app-main button,.app-main [role="tab"],.dialog-body button{min-height:2.5rem}
+  .app-main :is(button,a,input,select).h-11{height:2.5rem}
+  /* A row of filter pills slides sideways on one line, not wrapping into a block. */
+  .app-main [role="radiogroup"].flex-wrap{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .app-main [role="radiogroup"].flex-wrap::-webkit-scrollbar{display:none}
+  .app-main [role="radiogroup"].flex-wrap > *{flex-shrink:0;white-space:nowrap}
+  /* The pickers above a class page keep to one slim row. */
+  [data-testid="class-bar"] select,[data-testid="marks-toolbar"] select{font-size:15px;height:2.5rem}
+  /* iPhones draw a date box wider than its space unless its own look is switched off. */
+  .app-main input[type="date"],.dialog-body input[type="date"]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%}
+  /* A page's own actions (export, new...) are small buttons on the right, not full-width bars. */
+  .app-main .page-actions{justify-content:flex-end;gap:.375rem}
+  .app-main .page-actions > button,.app-main .page-actions > a{flex:0 0 auto;height:2.125rem;min-height:2.125rem;padding-inline:.75rem;font-size:.8125rem}
+  /* Big headline numbers come down a size. */
+  .app-main .text-3xl{font-size:1.375rem;line-height:1.25}
+  /* The tabs under the top bar. */
+  [data-testid="section-tabs"]{margin-bottom:.75rem}
+  [data-testid="section-tabs"] > a{padding:.5rem .75rem;font-size:.8125rem}
+}
+/* The phone filter sheet slides up from the bottom edge. */
+@keyframes sheet-up{from{transform:translateY(100%)}to{transform:none}}
+.filter-sheet{animation:sheet-up .22s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion: reduce){.filter-sheet{animation:none}}
+
+/* ---------- Compact pop-up forms on a phone ----------
+   The same tightening as the pages get, for forms that open on top of them: short fields sit two to a row,
+   with less air between rows, so most forms fit without scrolling. */
+@media (max-width: 639.98px){
+  .dialog-body .grid.sm\:grid-cols-2,.dialog-body .grid.sm\:grid-cols-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dialog-body .grid.sm\:grid-cols-2 > *,.dialog-body .grid.sm\:grid-cols-3 > *{min-width:0}
+  .dialog-body :is(.sm\:col-span-2,.sm\:col-span-3,.col-span-full){grid-column:1 / -1}
+  /* A field with a long note under it, or anything that is not a plain field, takes the whole row. */
+  .dialog-body .grid.sm\:grid-cols-2 > :is(fieldset,div,section,p),.dialog-body .grid.sm\:grid-cols-3 > :is(fieldset,div,section,p){grid-column:1 / -1}
+  .dialog-body :is(.space-y-8,.space-y-6,.space-y-5) > :not(:last-child){margin-block-end:.75rem}
+  .dialog-body .space-y-4 > :not(:last-child){margin-block-end:.625rem}
+  .dialog-body :is(.gap-6,.gap-5,.gap-4){gap:.625rem}
+  .dialog-body :is(.p-6,.p-5){padding:.875rem}
+  .dialog-body :is(.py-6,.py-5){padding-block:.75rem}
+  .dialog-body :is(button,a,input,select).h-11{height:2.5rem}
+  .dialog-body button{min-height:2.5rem}
+  .dialog-body input[type="date"]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%}
+  .dialog-body h3.text-xl{font-size:1.0625rem}
+}
+
+/* ---------- Lists on a phone: slim rows, not tall cards ----------
+   A table row used to become a card with one labelled line per column, so a register of learners was five lines
+   each and a long scroll. Now a row is two short lines: the name on top, and the rest in small print under it, each with its column name in front. */
+@media (max-width: 767px){
+  .rt-cards tbody tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:.1rem .75rem;padding:.55rem .875rem}
+  .rt-cards tbody td{display:inline-flex !important;flex:0 1 auto;align-items:baseline;justify-content:flex-start;gap:.3rem;text-align:left;font-size:.8125rem;line-height:1.35;color:hsl(var(--muted-foreground))}
+  .rt-cards tbody td::before{flex:none;max-width:none;padding-top:0;font-size:9.5px;letter-spacing:.06em;opacity:.8}
+  /* The name line: the cell CardTable marks as the row's title. */
+  .rt-cards tbody td[data-title]{display:block !important;order:-1;flex:1 0 100%;font-size:.9375rem;color:hsl(var(--foreground));padding-bottom:0 !important}
+  .rt-cards tbody td[data-title]::before{display:none}
+  /* A first cell that is not the title is an ordinary detail. */
+  .rt-cards tbody td:first-child:not([data-title]){display:inline-flex !important;font-size:.8125rem;padding-bottom:0 !important}
+  .rt-cards tbody td:first-child:not([data-title])::before{display:inline;margin-bottom:0}
+  /* Buttons for the row sit at the end of the second line. */
+  .rt-cards tbody td:not([data-label]):not([data-title]){margin-left:auto;padding-top:0 !important;flex-wrap:nowrap}
+  .rt-cards tbody td[colspan]{flex:1 0 100%}
+  .rt-cards td .flex-col.items-start{justify-content:flex-start}
+}
+
+/* A form opened as a full page on a phone: its Save bar rests at the bottom on the page's own colour, with the
+   main button taking most of the row. */
+@media (max-width: 639.98px){
+  .phone-page .dialog-body .form-actions{background:hsl(var(--background));box-shadow:none;border-top:0;padding-top:.5rem;margin-top:.75rem}
+  .phone-page .dialog-body .form-actions > button:first-child{flex:3 1 0;height:2.875rem;font-size:.9375rem}
+  .phone-page .dialog-body .form-actions > button:not(:first-child){flex:1 1 0;height:2.875rem}
+  .phone-page .dialog-body > form{min-height:100%;display:flex;flex-direction:column}
+  .phone-page .dialog-body .form-actions{margin-top:auto}
+}
+

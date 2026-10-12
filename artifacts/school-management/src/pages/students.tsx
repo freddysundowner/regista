@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { Link, useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListStudents, useCreateStudent, useListGrades, getListStudentsQueryKey, getGetDashboardSummaryQueryKey, getListGuardiansQueryKey, getListFamiliesQueryKey, getListGradesQueryKey, StudentStatus, type ListStudentsParams } from "@workspace/api-client-react";
-import { GraduationCap, Plus, Search, Users } from "lucide-react";
+import { ChevronRight, GraduationCap, Plus, Search, Users } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Pill, Btn, NativeSelect, CardTable, Filters, Fab } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
 import { StudentAdmissionWizard } from "@/components/student-admission-wizard";
@@ -22,6 +23,7 @@ export default function Students() {
 
   const params: ListStudentsParams = { ...(debounced && { search: debounced }), ...(gradeId && { gradeId }), ...(status && { status: status as StudentStatus }) };
   const q = useListStudents(params, { query: { queryKey: getListStudentsQueryKey(params) } });
+  const { rows, pager } = usePaged(q.data, params);
   const grades = useListGrades({ query: { queryKey: getListGradesQueryKey() } });
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -70,14 +72,34 @@ export default function Students() {
             body={debounced || gradeId || status ? "Try a different name, admission number or filter." : p.writeStudents ? "Admit your first learner or import the whole register from Excel." : "No learners have been assigned to you yet."}>
             {p.importStudents && !debounced && <Link href="/import" className="text-sm font-semibold text-primary hover:underline">Import from Excel</Link>}
           </Empty>
-        ) : (
+        ) : (<>
+          {/* Phone: one slim row per learner. The full name on top; under it the admission number, class and
+              boarding in three columns that line up down the list like a table; View opens the learner's page. */}
+          <ul className="divide-y divide-border/60 md:hidden" data-testid="list-students">
+            {rows.map((s) => (
+              <li key={s.id}>
+                <Link href={`/students/${s.id}`} data-testid={`row-student-${s.id}`} className="flex items-center gap-3 px-4 py-2.5 active:bg-accent/40">
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2"><span className="text-[15px] font-semibold leading-snug [overflow-wrap:anywhere]">{s.fullName}</span>{s.status !== "active" && <Pill tone={s.status}>{s.status}</Pill>}</span>
+                    <span className="mt-0.5 grid grid-cols-[4.75rem_minmax(0,1fr)_5.5rem] gap-2 text-xs text-muted-foreground">
+                      <span className="truncate font-mono">{s.admissionNo}</span>
+                      <span className="truncate">{s.gradeName ? `${s.gradeName}${s.streamName ? ` ${s.streamName}` : ""}` : "Unassigned"}</span>
+                      <span className="truncate">{s.boardingStatus === "boarder" ? "Boarder" : "Day scholar"}</span>
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-primary">View<ChevronRight className="h-4 w-4" /></span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="max-md:hidden">
           <CardTable testid="table-students">
             <table className="w-full text-sm">
               <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                 <tr className="border-b border-border/70"><th className="px-5 py-2.5 font-semibold">Adm. no</th><th className="px-3 py-2.5 font-semibold">Name</th><th className="px-3 py-2.5 font-semibold">Class</th><th className="hidden px-3 py-2.5 font-semibold md:table-cell">Guardian</th><th className="px-3 py-2.5 font-semibold">Status</th></tr>
               </thead>
               <tbody>
-                {q.data.map((s) => (
+                {rows.map((s) => (
                   <tr key={s.id} data-testid={`row-student-${s.id}`} onClick={() => nav(`/students/${s.id}`)} className="group cursor-pointer border-b border-border/50 transition-colors last:border-0 hover:bg-accent/40">
                     <td className="px-5 py-3 font-mono text-xs text-foreground/80">{s.admissionNo}</td>
                     <td className="px-3 py-3">
@@ -92,7 +114,9 @@ export default function Students() {
               </tbody>
             </table>
           </CardTable>
-        )}
+          </div>
+        </>)}
+        <Pager {...pager} />
       </Panel>
       {p.writeStudents && <Fab testid="fab-new-student" label="Admit student" icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)} />}
     </div>

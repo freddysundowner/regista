@@ -23,9 +23,9 @@ export function ModuleDashboard() {
           <Stat k="Collected today" v={<Money v={f.todayCollected ?? "0"} />} sub={Object.entries(f.channels ?? {}).map(([c, v]) => `${c} ${v}`).join(" · ") || undefined} href="/payments" />
           <Stat k="Term billed" v={<Money v={f.termBilled ?? "0"} />} href="/invoices" />
           <Stat k="Term collected" v={<Money v={f.termCollected ?? "0"} />} />
-          <Stat k="Unmatched" v={f.unmatchedCount ?? 0} sub="payments to resolve" href="/reconciliation" />
+          <Stat k="Unmatched" v={f.unmatchedCount ?? 0} sub="payments to resolve" href="/payments?show=unmatched" />
           <Stat k="Defaulters" v={f.defaulterCount ?? 0} href="/reports" />
-          <Stat k="Last reconciliation" v={f.reconciliation ? <Pill tone={f.reconciliation.status === "completed" ? "active" : "current"}>{f.reconciliation.status}</Pill> : "\u2014"} sub={f.reconciliation ? `${f.reconciliation.provider ?? ""} ${fmtDateTime(f.reconciliation.createdAt)}` : "None run"} href="/reconciliation" />
+          <Stat k="Last reconciliation" v={f.reconciliation ? <Pill tone={f.reconciliation.status === "completed" ? "active" : "current"}>{f.reconciliation.status}</Pill> : "\u2014"} sub={f.reconciliation ? `${f.reconciliation.provider ?? ""} ${fmtDateTime(f.reconciliation.createdAt)}` : "None run"} href="/payments?show=unmatched" />
         </div>
       </Panel>}
       <Panel title="Academics" note={d.termId ? "Current term" : "No current term"}>

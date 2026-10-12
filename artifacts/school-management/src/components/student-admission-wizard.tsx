@@ -37,6 +37,7 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
   const [v, setV] = useState<StudentFormValues>(() => fromStudent());
   const [guardians, setGuardians] = useState<GuardianDraft[]>([]);
   const [skipGuardians, setSkipGuardians] = useState(false);
+  const [finding, setFinding] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [moreOpen, setMoreOpen] = useState(false);
   const rootRef = useRef<HTMLFormElement>(null);
@@ -61,7 +62,6 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
   const validate = (i: number): Errors => {
     const e: Errors = {};
     if (i === 0) {
-      if (!v.admissionNo.trim()) e.admissionNo = "Enter the admission number.";
       if (!v.firstName.trim()) e.firstName = "Enter the first name.";
       if (!v.lastName.trim()) e.lastName = "Enter the last name.";
       if (v.dateOfBirth && v.dateOfBirth > localToday()) e.dateOfBirth = "Date of birth cannot be in the future.";
@@ -152,16 +152,16 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
   return (
     <form ref={rootRef} onSubmit={submit} onKeyDown={onKey} onChange={() => { if (error) onClearError(); }} noValidate aria-busy={pending} className="flex min-h-full flex-col" data-testid="form-admission-wizard">
       {/* Progress */}
-      <nav aria-label="Admission steps" className="sticky top-0 z-10 border-b border-border/70 bg-card/95 px-4 pb-3 pt-3 backdrop-blur sm:px-6">
+      <nav aria-label="Admission steps" className="sticky top-0 z-10 border-b border-border/70 bg-card/95 px-4 pb-3 pt-3 backdrop-blur max-sm:border-0 max-sm:bg-background max-sm:pb-0 max-sm:pt-1 sm:px-6">
         <ol className="grid grid-cols-4 gap-1.5">
           {STEPS.map((s, i) => {
             const done = i < step, cur = i === step;
             return (
               <li key={s.key}>
                 <button type="button" onClick={() => goto(i)} disabled={pending} aria-current={cur ? "step" : undefined} data-testid={`step-${s.key}`}
-                  className="group flex w-full min-w-0 flex-col items-start gap-1.5 text-left disabled:cursor-not-allowed">
+                  className="group flex w-full min-w-0 flex-col items-start gap-1.5 text-left disabled:cursor-not-allowed max-sm:!min-h-0 max-sm:py-2">
                   <span className={cn("h-1 w-full rounded-full transition-colors", done ? "bg-primary" : cur ? "bg-sidebar-primary" : "bg-muted")} />
-                  <span className={cn("flex min-w-0 items-center gap-1.5 text-[11px] font-semibold sm:text-xs", cur ? "text-foreground" : done ? "text-primary" : "text-muted-foreground")}>
+                  <span className={cn("flex min-w-0 items-center gap-1.5 text-[11px] font-semibold max-sm:hidden sm:text-xs", cur ? "text-foreground" : done ? "text-primary" : "text-muted-foreground")}>
                     <span className={cn("hidden h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] min-[400px]:flex", done ? "border-primary bg-primary text-primary-foreground" : cur ? "border-sidebar-primary bg-sidebar-primary/15 text-foreground" : "border-border")}>
                       {done ? <Check className="h-3 w-3" /> : i + 1}
                     </span>
@@ -174,26 +174,28 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
         </ol>
       </nav>
 
-      <div className="flex-1 space-y-5 px-4 py-5 sm:px-6">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700/80">Step {step + 1} of {STEPS.length}</div>
-          <h3 ref={headRef} tabIndex={-1} className="scroll-mt-24 font-display text-xl font-semibold outline-none">
+      <div className="flex-1 space-y-5 px-4 py-5 max-sm:pb-3 max-sm:pt-2 sm:px-6">
+        {/* Phone: no heading at all; the bars above show the step and the fields speak for themselves. */}
+        <div className="max-sm:hidden">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700/80 max-sm:order-2 max-sm:shrink-0 max-sm:text-xs max-sm:font-medium max-sm:normal-case max-sm:tracking-normal max-sm:text-muted-foreground"><span className="max-sm:hidden">Step </span>{step + 1} of {STEPS.length}</div>
+          <h3 ref={headRef} tabIndex={-1} className="scroll-mt-24 font-display text-xl font-semibold outline-none max-sm:!text-lg">
             {["Who is joining?", "Where will they learn?", "Who looks after them?", "Check and save"][step]}
           </h3>
         </div>
 
         {step === 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Admission no." required className="sm:col-span-2 sm:max-w-xs">
-              <TextInput data-testid="input-admission-no" data-err="admissionNo" aria-invalid={!!errors.admissionNo} className={cn("font-mono", inv("admissionNo"))} value={v.admissionNo} onChange={set("admissionNo")} placeholder="ADM/2025/014" autoFocus autoComplete="off" />
-              {err("admissionNo")}
-            </Field>
-            <Field label="First name" required><TextInput data-testid="input-first-name" data-err="firstName" aria-invalid={!!errors.firstName} className={inv("firstName")} value={v.firstName} onChange={set("firstName")} autoComplete="off" autoCapitalize="words" />{err("firstName")}</Field>
+            <Field label="First name" required><TextInput data-testid="input-first-name" data-err="firstName" aria-invalid={!!errors.firstName} className={inv("firstName")} value={v.firstName} onChange={set("firstName")} autoFocus autoComplete="off" autoCapitalize="words" />{err("firstName")}</Field>
             <Field label="Last name" required><TextInput data-testid="input-last-name" data-err="lastName" aria-invalid={!!errors.lastName} className={inv("lastName")} value={v.lastName} onChange={set("lastName")} autoComplete="off" autoCapitalize="words" />{err("lastName")}</Field>
             <Field label="Middle name"><TextInput data-testid="input-middle-name" value={v.middleName} onChange={set("middleName")} autoComplete="off" autoCapitalize="words" /></Field>
             <Field label="Gender"><NativeSelect data-testid="select-gender" value={v.gender} onChange={set("gender")}><option value="">Not set</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></NativeSelect></Field>
             <Field label="Date of birth"><TextInput data-testid="input-dob" data-err="dateOfBirth" type="date" className={inv("dateOfBirth")} value={v.dateOfBirth} onChange={set("dateOfBirth")} />{err("dateOfBirth")}</Field>
             <Field label="UPI" hint="NEMIS unique personal identifier"><TextInput data-testid="input-upi" className="font-mono" value={v.upi} onChange={set("upi")} autoComplete="off" /></Field>
+            {/* Given automatically, so it sits last and quiet: only a school with its own numbering types one. */}
+            <Field label="Admission no.">
+              <TextInput data-testid="input-admission-no" data-err="admissionNo" aria-invalid={!!errors.admissionNo} className={cn("font-mono", inv("admissionNo"))} value={v.admissionNo} onChange={set("admissionNo")} placeholder="Automatic" autoComplete="off" />
+              {err("admissionNo")}
+            </Field>
           </div>
         )}
 
@@ -232,10 +234,6 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
 
         {step === 2 && (
           <div className="space-y-5">
-            <p className="text-sm text-muted-foreground">Guardians are linked when you save. A phone number already on file connects that guardian; their details are not changed.</p>
-            {canSearchGuardians && <GuardianPicker taken={guardians} disabled={pending || guardians.length >= MAX_GUARDIANS}
-              onPick={(g) => add({ source: "existing", guardianId: g.id, name: g.name, phone: g.phone, relationship: g.relationship && RELATIONSHIPS.includes(g.relationship) ? g.relationship : "Guardian", receivesNotifications: true })} />}
-
             {guardians.length > 0 && (
               <ul className="divide-y divide-border/70 border-y border-border/70" data-testid="list-wizard-guardians">
                 {guardians.map((g) => (
@@ -277,8 +275,12 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
                 onClick={() => { add({ source: "new", name: "", phone: "", relationship: "Mother", receivesNotifications: true }); requestAnimationFrame(() => { const els = rootRef.current?.querySelectorAll<HTMLInputElement>('[data-testid="input-guardian-name"]'); els?.[els.length - 1]?.focus(); }); }}>
                 <Plus className="h-4 w-4" />Add new guardian
               </Btn>
+              {/* Most guardians are new; one already on file (a sibling's parent) is the alternative, a tap away. */}
+              {canSearchGuardians && guardians.length < MAX_GUARDIANS && <button type="button" disabled={pending} aria-expanded={finding} onClick={() => setFinding((x) => !x)} data-testid="link-find-guardian" className="px-1 text-sm font-semibold text-primary hover:underline">{finding ? "Hide search" : "or find one on file"}</button>}
               {guardians.length >= MAX_GUARDIANS && <span className="text-xs text-muted-foreground">Up to {MAX_GUARDIANS} guardians.</span>}
             </div>
+            {canSearchGuardians && finding && <GuardianPicker taken={guardians} disabled={pending || guardians.length >= MAX_GUARDIANS}
+              onPick={(g) => { add({ source: "existing", guardianId: g.id, name: g.name, phone: g.phone, relationship: g.relationship && RELATIONSHIPS.includes(g.relationship) ? g.relationship : "Guardian", receivesNotifications: true }); setFinding(false); }} />}
 
             {!guardians.length && (
               <label className="flex cursor-pointer items-start gap-3 rounded-md border border-dashed border-border px-3 py-3 text-sm">
@@ -293,7 +295,7 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
         {step === 3 && (
           <div className="space-y-6" data-testid="wizard-review">
             <ReviewBlock title="Learner" onEdit={() => goto(0)} disabled={pending} rows={[
-              ["Name", [v.firstName, v.middleName, v.lastName].filter((x) => x.trim()).join(" ")], ["Admission no.", v.admissionNo, true], ["Gender", v.gender ? v.gender[0].toUpperCase() + v.gender.slice(1) : "Not set"],
+              ["Name", [v.firstName, v.middleName, v.lastName].filter((x) => x.trim()).join(" ")], ["Admission no.", v.admissionNo.trim() || "Next number, assigned on save", !!v.admissionNo.trim()], ["Gender", v.gender ? v.gender[0].toUpperCase() + v.gender.slice(1) : "Not set"],
               ["Date of birth", v.dateOfBirth || "Not set"], ["UPI", v.upi || "Not set", true],
             ]} />
             <ReviewBlock title="Placement" onEdit={() => goto(1)} disabled={pending} rows={[
@@ -323,14 +325,16 @@ export function StudentAdmissionWizard({ pending, error, canSearchGuardians, onS
       </div>
 
       {/* Footer */}
-      <div className="form-actions sticky bottom-0 z-10 mt-auto flex items-center gap-2 border-t border-border bg-card px-4 py-3 sm:px-6">
+      <div className="form-actions sticky bottom-0 z-10 mt-auto flex items-center gap-2 border-t border-border bg-card px-4 py-3 max-sm:border-0 max-sm:!bg-background max-sm:py-2 max-sm:!shadow-none sm:px-6">
         {step === 0
-          ? <Btn type="button" variant="ghost" onClick={onCancel} disabled={pending} data-testid="button-cancel">Cancel</Btn>
-          : <Btn type="button" variant="outline" onClick={back} disabled={pending} data-testid="button-wizard-back"><ChevronLeft className="h-4 w-4" />Back</Btn>}
+          // Phone: the first step has no Cancel here (the arrow in the top bar leaves the form); later steps get a
+          // plain back arrow, so the main button takes the row.
+          ? <Btn type="button" variant="ghost" onClick={onCancel} disabled={pending} data-testid="button-cancel" className="max-sm:hidden">Cancel</Btn>
+          : <Btn type="button" variant="outline" onClick={back} disabled={pending} aria-label="Back" data-testid="button-wizard-back" className="max-sm:!h-12 max-sm:!w-12 max-sm:!flex-none max-sm:!px-0"><ChevronLeft className="h-4 w-4 max-sm:h-5 max-sm:w-5" /><span className="max-sm:hidden">Back</span></Btn>}
         <span className="hidden flex-1 text-xs text-muted-foreground sm:block">{last ? "Nothing is saved until you press Save." : "Press Enter to continue."}</span>
         {last
-          ? <Btn key="save" type="submit" data-action="save" disabled={pending} data-testid="button-save-student" className="sm:ml-auto">{pending && <Loader2 className="h-4 w-4 animate-spin" />}{pending ? "Saving" : "Save student"}</Btn>
-          : <Btn key="next" type="button" onClick={(e) => { e.preventDefault(); next(); }} disabled={pending} data-testid="button-wizard-next" className="sm:ml-auto">Next<ChevronRight className="h-4 w-4" /></Btn>}
+          ? <Btn key="save" type="submit" data-action="save" disabled={pending} data-testid="button-save-student" className="max-sm:!h-12 max-sm:!flex-1 max-sm:text-[15px] sm:ml-auto">{pending && <Loader2 className="h-4 w-4 animate-spin" />}{pending ? "Saving" : "Save student"}</Btn>
+          : <Btn key="next" type="button" onClick={(e) => { e.preventDefault(); next(); }} disabled={pending} data-testid="button-wizard-next" className="max-sm:!h-12 max-sm:!flex-1 max-sm:text-[15px] sm:ml-auto">Next<ChevronRight className="h-4 w-4" /></Btn>}
       </div>
     </form>
   );

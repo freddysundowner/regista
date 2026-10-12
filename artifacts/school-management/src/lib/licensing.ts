@@ -2,7 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { getGetPlatformLicensingQueryKey, getGetSchoolSubscriptionQueryKey, getListLicencePlansQueryKey, getListPlatformAuditQueryKey, getGetPlatformSchoolQueryKey, getListPlatformSchoolsQueryKey, getGetPlatformOverviewQueryKey, type SchoolLicence } from "@workspace/api-client-react";
 
 export const DAY_MS = 86_400_000;
-export const LIC_TONE: Record<string, string> = { active: "active", scheduled: "duplicate", expired: "inactive", revoked: "error", unmanaged: "inactive" };
+export const LIC_TONE: Record<string, string> = { trial: "duplicate", active: "active", scheduled: "duplicate", expired: "inactive", revoked: "error", unmanaged: "inactive" };
 export const ORDER_TONE: Record<string, string> = { pending: "inactive", partial: "duplicate", paid: "active", cancelled: "error" };
 export const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
 

@@ -9,10 +9,13 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "jobs:install:dev": "tsx install-finance-jobs.ts",
+    "jobs:install": "tsx install-finance-jobs.ts --production",
     "backup:verify-restore": "tsx verify-backup-restore.ts",
-    "test": "tsx --test src/lib/*.test.ts"
+    "test": "tsx --test src/lib/*.test.ts",
+    "licence:keygen": "tsx licence-keygen.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@google-cloud/storage": "^8.2.0",
     "@prisma/client": "6.19.3",
     "@workspace/api-zod": "workspace:*",

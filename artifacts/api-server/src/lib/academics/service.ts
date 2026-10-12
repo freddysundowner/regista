@@ -186,7 +186,11 @@ export async function saveAttendance(actor: Actor, input: AttendanceInput) {
         if (guardian) {
           const time = (actor.school.settings as Record<string, any>).absenceAlertTime ?? "10:00";
           if (!/^\d{2}:\d{2}$/.test(time)) throw new ApiError(400, "Absence alert time must be HH:mm");
-          await queueMessage(tx, schoolId, { guardianId: guardian.guardianId, phone: guardian.guardian.phone, channel: "whatsapp", template: "absence_alert", content: `${student.firstName} was marked absent on ${new Date(input.date).toISOString().slice(0, 10)}`, idempotencyKey: `absence:${result.id}`, scheduledAt: new Date(`${new Date(input.date).toISOString().slice(0, 10)}T${time}:00+03:00`) });
+          const day = new Date(input.date).toISOString().slice(0, 10);
+          const alert = { guardianId: guardian.guardianId, phone: guardian.guardian.phone, template: "absence_alert", content: `${student.firstName} was marked absent on ${day}`, scheduledAt: new Date(`${day}T${time}:00+03:00`) };
+          // Absence goes out on both WhatsApp and SMS, so the family hears even without WhatsApp.
+          await queueMessage(tx, schoolId, { ...alert, channel: "whatsapp", idempotencyKey: `absence:${result.id}` });
+          await queueMessage(tx, schoolId, { ...alert, channel: "sms", idempotencyKey: `absence-sms:${result.id}` });
         }
       }
       await audit(tx, actor, prior ? "updated" : "created", "attendance", result.id, prior, result);

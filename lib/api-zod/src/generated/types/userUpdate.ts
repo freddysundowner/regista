@@ -5,6 +5,7 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { StaffPermission } from './staffPermission';
 import type { UserRole } from './userRole';
 
 export interface UserUpdate {
@@ -22,5 +23,7 @@ export interface UserUpdate {
      */
   phone?: string | null;
   role?: UserRole;
+  /** @maxItems 10 */
+  permissions?: StaffPermission[];
   isActive?: boolean;
 }

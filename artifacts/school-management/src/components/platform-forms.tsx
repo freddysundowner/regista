@@ -42,7 +42,7 @@ export function ProvisionForm({ onDone, onCancel }: { onDone: (s: School, signIn
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
     if (!f.email.trim() && !f.phone.trim()) return setErr("The school administrator needs an email or phone to sign in.");
-    if (f.password.length < 10 || f.password.length > 128) return setErr("Initial password must be 10 to 128 characters.");
+    if (f.password.length < 6 || f.password.length > 128) return setErr("Initial password must be 6 to 128 characters.");
     const signIn = f.email.trim() || f.phone.trim();
     // Submitting Provision school confirms creation; retain the API audit metadata
     // without asking the user to repeat the action in a separate confirmation section.
@@ -64,7 +64,7 @@ export function ProvisionForm({ onDone, onCancel }: { onDone: (s: School, signIn
         <Field label="Full name" required><TextInput data-testid="input-new-admin-name" required minLength={2} value={f.adminName} onChange={set("adminName")} /></Field>
         <Field label="Email" hint="Email or phone required"><TextInput data-testid="input-new-admin-email" type="email" value={f.email} onChange={set("email")} /></Field>
         <Field label="Phone"><TextInput data-testid="input-new-admin-phone" type="tel" value={f.phone} onChange={set("phone")} /></Field>
-        <Field label="Initial password" required hint="Share privately; 10 to 128 characters"><TextInput data-testid="input-new-admin-password" type="password" autoComplete="new-password" required value={f.password} onChange={set("password")} /></Field>
+        <Field label="Initial password" required hint="Share privately; 6 to 128 characters"><TextInput data-testid="input-new-admin-password" type="password" autoComplete="new-password" required value={f.password} onChange={set("password")} /></Field>
       </div>
       <FormError msg={err} />
       <FormActions>
@@ -149,7 +149,7 @@ export function AdminForm({ schoolId, admin, onDone }: { schoolId: string; admin
     e.preventDefault(); setErr(null);
     if (f.name.trim().length < 2) return setErr("Name needs at least 2 characters.");
     if (!f.email.trim() && !f.phone.trim()) return setErr("An email or phone is needed to sign in.");
-    if (!admin && (f.password.length < 10 || f.password.length > 128)) return setErr("Initial password must be 10 to 128 characters.");
+    if (!admin && (f.password.length < 6 || f.password.length > 128)) return setErr("Initial password must be 6 to 128 characters.");
     const base = { name: f.name.trim(), email: f.email.trim() || null, phone: f.phone.trim() || null, ...platformAction(admin ? "Administrator details updated from platform console" : "Administrator added from platform console") };
     const ok = (u: User) => { refresh(schoolId); toast({ title: admin ? `${u.name} updated` : `${u.name} added as school administrator` }); onDone(); };
     if (admin) edit.mutate({ schoolId, userId: admin.id, data: base }, { onSuccess: ok, onError: (x) => setErr(errMsg(x)) });
@@ -161,7 +161,7 @@ export function AdminForm({ schoolId, admin, onDone }: { schoolId: string; admin
         <Field label="Full name" required className="sm:col-span-2"><TextInput data-testid="input-admin-name" required minLength={2} maxLength={160} value={f.name} onChange={set("name")} /></Field>
         <Field label="Email" hint="Email or phone required"><TextInput data-testid="input-admin-email" type="email" value={f.email} onChange={set("email")} /></Field>
         <Field label="Phone"><TextInput data-testid="input-admin-phone" type="tel" value={f.phone} onChange={set("phone")} /></Field>
-        {!admin && <Field label="Initial password" required className="sm:col-span-2" hint="10 to 128 characters; share privately"><TextInput data-testid="input-admin-password" type="password" autoComplete="new-password" required value={f.password} onChange={set("password")} /></Field>}
+        {!admin && <Field label="Initial password" required className="sm:col-span-2" hint="6 to 128 characters; share privately"><TextInput data-testid="input-admin-password" type="password" autoComplete="new-password" required value={f.password} onChange={set("password")} /></Field>}
       </div>
       <p className="text-xs text-muted-foreground">Role is fixed to school administrator.</p>
       <FormError msg={err} />
@@ -208,7 +208,7 @@ export function ResetPasswordForm({ schoolId, admin, admins, onDone }: { schoolI
   const target = admins?.find((a) => a.id === selectedId) ?? admin;
   const submit = (e: FormEvent) => {
     e.preventDefault(); setErr(null);
-    if (pw.next.length < 10 || pw.next.length > 128) return setErr("Password must be 10 to 128 characters.");
+    if (pw.next.length < 6 || pw.next.length > 128) return setErr("Password must be 6 to 128 characters.");
     if (pw.next !== pw.again) return setErr("Passwords do not match.");
     m.mutate({ schoolId, userId: target.id, data: { password: pw.next, ...platformAction("Administrator password reset from platform console") } }, {
       onSuccess: () => { setPw({ next: "", again: "" }); refresh(schoolId); toast({ title: `Password reset for ${target.name}`, description: "All their existing sessions have been signed out. Share the new password privately." }); onDone(); },
@@ -223,7 +223,7 @@ export function ResetPasswordForm({ schoolId, admin, admins, onDone }: { schoolI
         </NativeSelect>
       </Field>}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="New password" required hint="10 to 128 characters"><TextInput data-testid="input-reset-password" type="password" autoComplete="new-password" required value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
+        <Field label="New password" required hint="6 to 128 characters"><TextInput data-testid="input-reset-password" type="password" autoComplete="new-password" required value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
         <Field label="Repeat password" required><TextInput data-testid="input-reset-password-again" type="password" autoComplete="new-password" required value={pw.again} onChange={(e) => setPw({ ...pw, again: e.target.value })} /></Field>
       </div>
       <p className="text-xs text-muted-foreground">This resets {target.name}'s password and signs out all their existing sessions. Share the new password privately.{!target.isActive && " This account remains disabled; resetting its password does not enable it."}</p>

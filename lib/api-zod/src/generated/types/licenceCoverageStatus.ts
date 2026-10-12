@@ -11,6 +11,7 @@ export type LicenceCoverageStatus = typeof LicenceCoverageStatus[keyof typeof Li
 
 export const LicenceCoverageStatus = {
   unmanaged: 'unmanaged',
+  trial: 'trial',
   active: 'active',
   scheduled: 'scheduled',
   expired: 'expired',

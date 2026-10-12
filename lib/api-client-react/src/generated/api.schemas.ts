@@ -5,6 +5,223 @@
  * School Management System API
  * OpenAPI spec version: 0.1.0
  */
+export interface StudentRemovalInput {
+  /** @minLength 1 */
+  confirmAdmissionNo: string;
+}
+
+export type StudentRemovalMode = typeof StudentRemovalMode[keyof typeof StudentRemovalMode];
+
+
+export const StudentRemovalMode = {
+  delete: 'delete',
+  anonymize: 'anonymize',
+} as const;
+
+export interface StudentRemoval {
+  mode: StudentRemovalMode;
+  admissionNo: string;
+  name: string;
+  attendance: number;
+  marks: number;
+  ratings: number;
+  reportCards: number;
+  files: number;
+  guardiansRemoved: number;
+  guardiansKept: number;
+  financeRecords: number;
+}
+
+export type StaffProfileStats = {
+  classes: number;
+  learners: number;
+  subjects: number;
+  attendanceMarked: number;
+  registersMarked: number;
+  assessments: number;
+  actions: number;
+  lastActivityAt: string | null;
+};
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
+
+
+export const UserRole = {
+  super_admin: 'super_admin',
+  school_admin: 'school_admin',
+  principal: 'principal',
+  bursar: 'bursar',
+  teacher: 'teacher',
+  class_teacher: 'class_teacher',
+  storekeeper: 'storekeeper',
+  librarian: 'librarian',
+} as const;
+
+/**
+ * Extra access a school admin can give one person on top of their role.
+ */
+export type StaffPermission = typeof StaffPermission[keyof typeof StaffPermission];
+
+
+export const StaffPermission = {
+  expenses: 'expenses',
+  procurement: 'procurement',
+  approve_lpo: 'approve_lpo',
+  store: 'store',
+  library: 'library',
+} as const;
+
+export interface User {
+  id: string;
+  /** @nullable */
+  schoolId: string | null;
+  /** @nullable */
+  lastLoginAt?: string | null;
+  name: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  role: UserRole;
+  /** Extra access on top of the role */
+  permissions: StaffPermission[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type StaffAssignmentKind = typeof StaffAssignmentKind[keyof typeof StaffAssignmentKind];
+
+
+export const StaffAssignmentKind = {
+  class_teacher: 'class_teacher',
+  stream_access: 'stream_access',
+  subject: 'subject',
+} as const;
+
+export interface StaffAssignment {
+  id: string;
+  kind: StaffAssignmentKind;
+  recordId: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  userActive: boolean;
+  gradeId: string;
+  gradeName: string;
+  streamId: string;
+  streamName: string;
+  subject: string | null;
+  termName: string | null;
+  isCurrentTerm: boolean;
+  assignedAt: string;
+}
+
+/**
+ * @nullable
+ */
+export type AuditLogBefore = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type AuditLogAfter = { [key: string]: unknown } | null;
+
+export interface AuditLog {
+  /** @nullable */
+  before?: AuditLogBefore;
+  /** @nullable */
+  after?: AuditLogAfter;
+  /** @nullable */
+  ip?: string | null;
+  /** @nullable */
+  userAgent?: string | null;
+  id: string;
+  /** @nullable */
+  userName?: string | null;
+  action: string;
+  entityType: string;
+  /** @nullable */
+  entityId?: string | null;
+  createdAt: string;
+}
+
+export interface StaffProfile {
+  user: User;
+  assignments: StaffAssignment[];
+  stats: StaffProfileStats;
+  activity: AuditLog[];
+}
+
+export type ClassSummaryKind = typeof ClassSummaryKind[keyof typeof ClassSummaryKind];
+
+
+export const ClassSummaryKind = {
+  stream: 'stream',
+  grade: 'grade',
+} as const;
+
+export type ClassSummaryClassTeacher = {
+  id: string;
+  name: string;
+} | null;
+
+export type ClassSummaryTeachersItem = {
+  id: string;
+  name: string;
+  subjects: string[];
+};
+
+export type ClassSummaryLearners = {
+  total: number;
+  male: number;
+  female: number;
+  other: number;
+  boarders: number;
+  day: number;
+  former: number;
+};
+
+export type ClassSummaryAttendance = {
+  days: number;
+  records: number;
+  percent: string | null;
+  todayMarked: number;
+  todayPresent: number;
+  todayAbsent: number;
+};
+
+export type ClassSummaryFees = {
+  outstanding: string;
+  credit: string;
+  owing: number;
+} | null;
+
+export type ClassSummaryStudentsItem = {
+  id: string;
+  admissionNo: string;
+  fullName: string;
+  gender: string | null;
+  boardingStatus: string;
+  balance: string | null;
+  attendancePercent: string | null;
+};
+
+export interface ClassSummary {
+  kind: ClassSummaryKind;
+  id: string;
+  name: string;
+  gradeId: string;
+  gradeName: string;
+  levelBand: string;
+  streamName: string | null;
+  classTeacher: ClassSummaryClassTeacher;
+  teachers: ClassSummaryTeachersItem[];
+  learners: ClassSummaryLearners;
+  attendance: ClassSummaryAttendance;
+  fees: ClassSummaryFees;
+  students: ClassSummaryStudentsItem[];
+}
+
 export interface WhatsappSetupState {
   platformKeyConfigured: boolean;
   hasOwnConnection: boolean;
@@ -173,17 +390,39 @@ export const SchoolType = {
   other: 'other',
 } as const;
 
-export type UserRole = typeof UserRole[keyof typeof UserRole];
+export type OnboardingStepId = typeof OnboardingStepId[keyof typeof OnboardingStepId];
 
 
-export const UserRole = {
-  super_admin: 'super_admin',
-  school_admin: 'school_admin',
-  principal: 'principal',
-  bursar: 'bursar',
-  teacher: 'teacher',
-  class_teacher: 'class_teacher',
+export const OnboardingStepId = {
+  profile: 'profile',
+  calendar: 'calendar',
+  classes: 'classes',
+  learners: 'learners',
+  staff: 'staff',
+  fees: 'fees',
+  invoices: 'invoices',
+  collections: 'collections',
+  curriculum: 'curriculum',
+  parents: 'parents',
 } as const;
+
+export type OnboardingStepsItem = {
+  id: OnboardingStepId;
+  done: boolean;
+  skipped: boolean;
+  optional: boolean;
+};
+
+export interface Onboarding {
+  dismissed: boolean;
+  steps: OnboardingStepsItem[];
+}
+
+export interface OnboardingInput {
+  dismissed?: boolean;
+  skip?: OnboardingStepId;
+  unskip?: OnboardingStepId;
+}
 
 export type StudentStatus = typeof StudentStatus[keyof typeof StudentStatus];
 
@@ -281,6 +520,120 @@ export const SchoolSettingsSiblingFallbackRule = {
   oldest_arrears_first: 'oldest_arrears_first',
   leave_in_queue: 'leave_in_queue',
 } as const;
+
+/**
+ * How often school administrators get a status message on their phone. Weekly when not set.
+ */
+export type SchoolSettingsStatusDigest = typeof SchoolSettingsStatusDigest[keyof typeof SchoolSettingsStatusDigest];
+
+
+export const SchoolSettingsStatusDigest = {
+  off: 'off',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+/**
+ * SMS when not set. WhatsApp needs an approved template named school_digest.
+ */
+export type SchoolSettingsStatusDigestChannel = typeof SchoolSettingsStatusDigestChannel[keyof typeof SchoolSettingsStatusDigestChannel];
+
+
+export const SchoolSettingsStatusDigestChannel = {
+  sms: 'sms',
+  whatsapp: 'whatsapp',
+} as const;
+
+/**
+ * The current term
+ */
+export type FeeStructureTemplatePeriod = typeof FeeStructureTemplatePeriod[keyof typeof FeeStructureTemplatePeriod];
+
+
+export const FeeStructureTemplatePeriod = {
+  current: 'current',
+  year: 'year',
+} as const;
+
+export type FeeStructureTemplateWho = typeof FeeStructureTemplateWho[keyof typeof FeeStructureTemplateWho];
+
+
+export const FeeStructureTemplateWho = {
+  both: 'both',
+  day: 'day',
+  boarder: 'boarder',
+} as const;
+
+export type FeeStructureTemplateExtrasItem = {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /** @maxLength 120 */
+  amount?: string;
+};
+
+export type FeeStructureTemplateSectionsItem = {
+  /** @maxLength 120 */
+  heading: string;
+  /** @maxLength 4000 */
+  body: string;
+};
+
+/**
+ * A saved fee structure printout. Every layout field is optional; missing ones use the defaults.
+ */
+export interface FeeStructureTemplate {
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  id?: string;
+  /** @maxLength 80 */
+  name?: string;
+  /**
+     * A grade id
+     * @maxLength 40
+     */
+  grade?: string;
+  /** The current term */
+  period?: FeeStructureTemplatePeriod;
+  who?: FeeStructureTemplateWho;
+  /** @maxLength 120 */
+  title?: string;
+  /**
+     * Motto or a line under the school name.
+     * @maxLength 200
+     */
+  subtitle?: string;
+  showLogo?: boolean;
+  showContacts?: boolean;
+  showYearTotal?: boolean;
+  showExtras?: boolean;
+  showPayment?: boolean;
+  showSignatures?: boolean;
+  /**
+     * Paybill
+     * @maxLength 2000
+     */
+  payment?: string;
+  /**
+     * Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.
+     * @maxItems 30
+     */
+  extras?: FeeStructureTemplateExtrasItem[];
+  /** @maxItems 10 */
+  sections?: FeeStructureTemplateSectionsItem[];
+  /**
+     * @maxItems 4
+     * @items.minLength 1
+     * @items.maxLength 60
+     */
+  signatories?: string[];
+  /** @maxLength 400 */
+  footer?: string;
+}
 
 export type SchoolSettingsMatchingScores = {
   /**
@@ -382,8 +735,19 @@ export interface SchoolSettings {
      */
   defaultAfterMissedInstallments?: number;
   absenceAlertsEnabled?: boolean;
+  /** How often school administrators get a status message on their phone. Weekly when not set. */
+  statusDigest?: SchoolSettingsStatusDigest;
+  /** SMS when not set. WhatsApp needs an approved template named school_digest. */
+  statusDigestChannel?: SchoolSettingsStatusDigestChannel;
   /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
   absenceAlertTime?: string;
+  /** When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited. */
+  requireSecondApproval?: boolean;
+  /**
+     * Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.
+     * @maxItems 20
+     */
+  feeStructureTemplates?: FeeStructureTemplate[];
 }
 
 export type LicenceCoverageStatus = typeof LicenceCoverageStatus[keyof typeof LicenceCoverageStatus];
@@ -391,6 +755,7 @@ export type LicenceCoverageStatus = typeof LicenceCoverageStatus[keyof typeof Li
 
 export const LicenceCoverageStatus = {
   unmanaged: 'unmanaged',
+  trial: 'trial',
   active: 'active',
   scheduled: 'scheduled',
   expired: 'expired',
@@ -462,7 +827,7 @@ export interface InitialSetupInput {
      */
   phone?: string;
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
@@ -470,11 +835,12 @@ export interface InitialSetupInput {
 
 export interface SchoolRegistrationInput {
   /**
+     * Optional; the school is named on the dashboard after sign-up.
      * @minLength 2
      * @maxLength 180
      */
-  schoolName: string;
-  schoolType: SchoolType;
+  schoolName?: string;
+  schoolType?: SchoolType;
   /**
      * @minLength 2
      * @maxLength 160
@@ -483,10 +849,66 @@ export interface SchoolRegistrationInput {
   /** @maxLength 180 */
   email: string;
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
+  /** The person ticked the box agreeing to the Terms and Privacy Policy. Recorded with the account. */
+  acceptedTerms?: boolean;
+}
+
+export interface MessageAudience {
+  parents: number;
+}
+
+export type BroadcastInputChannel = typeof BroadcastInputChannel[keyof typeof BroadcastInputChannel];
+
+
+export const BroadcastInputChannel = {
+  whatsapp: 'whatsapp',
+  sms: 'sms',
+} as const;
+
+export interface BroadcastInput {
+  channel: BroadcastInputChannel;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  template: string;
+  /**
+     * @minLength 5
+     * @maxLength 1000
+     */
+  content: string;
+  /** Only this grade's parents. Left out */
+  gradeId?: string;
+  /**
+     * @minLength 8
+     * @maxLength 80
+     */
+  idempotencyKey: string;
+}
+
+export interface BroadcastResult {
+  queued: number;
+  /** Parents who could not be sent to on this channel (for WhatsApp */
+  skipped: number;
+}
+
+export interface GeneratedDocument {
+  id: string;
+  downloadUrl: string;
+  expiresAt?: string;
+}
+
+export interface EmailAvailabilityInput {
+  /** @maxLength 180 */
+  email: string;
+}
+
+export interface EmailAvailability {
+  available: boolean;
 }
 
 export type SchoolRegistrationReviewDecision = typeof SchoolRegistrationReviewDecision[keyof typeof SchoolRegistrationReviewDecision];
@@ -517,22 +939,6 @@ export interface LoginInput {
      * @maxLength 128
      */
   password: string;
-}
-
-export interface User {
-  id: string;
-  /** @nullable */
-  schoolId: string | null;
-  /** @nullable */
-  lastLoginAt?: string | null;
-  name: string;
-  /** @nullable */
-  email?: string | null;
-  /** @nullable */
-  phone?: string | null;
-  role: UserRole;
-  isActive: boolean;
-  createdAt: string;
 }
 
 export type AuthSessionMode = typeof AuthSessionMode[keyof typeof AuthSessionMode];
@@ -618,21 +1024,219 @@ export interface PlatformAdminUpdate {
 
 export type PlatformAdminInput = PlatformAdminUpdate & {
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
 } & Required<Pick<PlatformAdminUpdate & {
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
 }, 'name'>>;
 
+export interface SupportMessage {
+  id: string;
+  body: string;
+  fromSupport: boolean;
+  /** Written by the assistant rather than a person */
+  byAi: boolean;
+  senderName: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export type SunpayConnectionType = typeof SunpayConnectionType[keyof typeof SunpayConnectionType] | null;
+
+
+export const SunpayConnectionType = {
+  till: 'till',
+  paybill: 'paybill',
+} as const;
+
+export interface SunpayConnection {
+  /** The platform's SunPay account is switched on */
+  available: boolean;
+  connected: boolean;
+  feePercent: string;
+  /** SunPay's paybill that parents pay into */
+  collectionPaybill: string | null;
+  type: SunpayConnectionType;
+  shortcode: string | null;
+  merchantRef: string | null;
+  connectedAt: string | null;
+}
+
+export type SunpayConnectInputType = typeof SunpayConnectInputType[keyof typeof SunpayConnectInputType];
+
+
+export const SunpayConnectInputType = {
+  till: 'till',
+  paybill: 'paybill',
+} as const;
+
+export interface SunpayConnectInput {
+  type: SunpayConnectInputType;
+  /** @pattern ^[0-9]{4,9}$ */
+  shortcode: string;
+  /** @maxLength 20 */
+  phone?: string;
+}
+
+export interface SupportStarter {
+  id: string;
+  question: string;
+}
+
+/**
+ * Website visitors, signed-in school staff, or both
+ */
+export type KnowledgeAudience = typeof KnowledgeAudience[keyof typeof KnowledgeAudience];
+
+
+export const KnowledgeAudience = {
+  all: 'all',
+  visitors: 'visitors',
+  staff: 'staff',
+} as const;
+
+export interface KnowledgeArticle {
+  id: string;
+  question: string;
+  answer: string;
+  isPublished: boolean;
+  isStarter: boolean;
+  audience: KnowledgeAudience;
+  position: number;
+  updatedAt: string;
+}
+
+export interface KnowledgeArticleInput {
+  /**
+     * @minLength 3
+     * @maxLength 200
+     */
+  question: string;
+  /**
+     * @minLength 3
+     * @maxLength 4000
+     */
+  answer: string;
+  isPublished: boolean;
+  isStarter: boolean;
+  audience: KnowledgeAudience;
+  /**
+     * @minimum 0
+     * @maximum 9999
+     */
+  position?: number;
+}
+
+export interface KnowledgeBase {
+  aiConfigured: boolean;
+  model: string;
+  articles: KnowledgeArticle[];
+  /** Ready-made articles not in the knowledge base yet */
+  missingStarters: number;
+}
+
+export type KnowledgeAnswerSource = typeof KnowledgeAnswerSource[keyof typeof KnowledgeAnswerSource];
+
+
+export const KnowledgeAnswerSource = {
+  article: 'article',
+  assistant: 'assistant',
+  unavailable: 'unavailable',
+} as const;
+
+export interface KnowledgeAnswer {
+  answer: string;
+  /** False when the knowledge base did not cover the question */
+  answered: boolean;
+  source: KnowledgeAnswerSource;
+}
+
+export interface SupportMessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  body: string;
+}
+
+export interface SupportUnread {
+  count: number;
+}
+
+export type SupportThreadKind = typeof SupportThreadKind[keyof typeof SupportThreadKind];
+
+
+export const SupportThreadKind = {
+  staff: 'staff',
+  visitor: 'visitor',
+} as const;
+
+export interface SupportThread {
+  threadId: string;
+  kind: SupportThreadKind;
+  name: string;
+  /** Role and school for staff; the contact a visitor left, if any */
+  detail: string;
+  lastBody: string;
+  lastAt: string;
+  lastFromSupport: boolean;
+  unread: number;
+}
+
+export interface VisitorChatInput {
+  /**
+     * Optional; visitors are numbered when they give none
+     * @minLength 2
+     * @maxLength 80
+     */
+  name?: string;
+  /**
+     * Phone or email, so support can follow up
+     * @maxLength 120
+     */
+  contact?: string;
+}
+
+export interface VisitorChat {
+  token: string;
+  name: string;
+}
+
+export interface PasswordResetRequest {
+  /** @maxLength 180 */
+  email: string;
+}
+
+export interface PasswordResetInput {
+  /**
+     * @minLength 20
+     * @maxLength 100
+     */
+  token: string;
+  /**
+     * @minLength 6
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface StaffPasswordInput {
+  /**
+     * @minLength 6
+     * @maxLength 128
+     */
+  password: string;
+}
+
 export type PlatformPasswordInput = PlatformConfirmation & {
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
@@ -719,11 +1323,13 @@ export interface UserInput {
      */
   phone?: string | null;
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;
   role: UserRole;
+  /** @maxItems 10 */
+  permissions?: StaffPermission[];
 }
 
 export interface UserUpdate {
@@ -741,36 +1347,9 @@ export interface UserUpdate {
      */
   phone?: string | null;
   role?: UserRole;
+  /** @maxItems 10 */
+  permissions?: StaffPermission[];
   isActive?: boolean;
-}
-
-/**
- * @nullable
- */
-export type AuditLogBefore = { [key: string]: unknown } | null;
-
-/**
- * @nullable
- */
-export type AuditLogAfter = { [key: string]: unknown } | null;
-
-export interface AuditLog {
-  /** @nullable */
-  before?: AuditLogBefore;
-  /** @nullable */
-  after?: AuditLogAfter;
-  /** @nullable */
-  ip?: string | null;
-  /** @nullable */
-  userAgent?: string | null;
-  id: string;
-  /** @nullable */
-  userName?: string | null;
-  action: string;
-  entityType: string;
-  /** @nullable */
-  entityId?: string | null;
-  createdAt: string;
 }
 
 export interface DashboardSummary {
@@ -1066,7 +1645,7 @@ export interface StudentInput {
      * @minLength 1
      * @maxLength 60
      */
-  admissionNo: string;
+  admissionNo?: string;
   /**
      * @minLength 1
      * @maxLength 100
@@ -1446,7 +2025,7 @@ export interface PasswordChangeInput {
      */
   currentPassword: string;
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   newPassword: string;
@@ -1537,14 +2116,19 @@ export const FileUploadInputContentType = {
   'image/jpeg': 'image/jpeg',
   'image/png': 'image/png',
   'image/webp': 'image/webp',
+  'application/pdf': 'application/pdf',
 } as const;
 
+/**
+ * finance_document: a receipt or invoice scan; entityId is the school
+ */
 export type FileUploadInputPurpose = typeof FileUploadInputPurpose[keyof typeof FileUploadInputPurpose];
 
 
 export const FileUploadInputPurpose = {
   school_logo: 'school_logo',
   student_photo: 'student_photo',
+  finance_document: 'finance_document',
 } as const;
 
 export interface FileUploadInput {
@@ -1559,6 +2143,7 @@ export interface FileUploadInput {
      */
   size: number;
   contentType: FileUploadInputContentType;
+  /** finance_document: a receipt or invoice scan; entityId is the school */
   purpose: FileUploadInputPurpose;
   entityId: string;
 }
@@ -1687,13 +2272,27 @@ export interface MessagingSettings {
 
 export interface LicenceIssueInput {
   requestId: string;
-  planId: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  durationDays: number;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  maxLearners: number | null;
+  /** @maxLength 100 */
+  label?: string;
   startsAt?: string;
 }
 
 export interface LicenceRenewalInput {
   requestId: string;
-  planId: string;
+  planId?: string;
+  /** Move to a bigger package now, for the rest of the current licence, paying only the difference for the days left. */
+  upgrade?: boolean;
 }
 
 export interface LicencePlanInput {
@@ -1713,7 +2312,44 @@ export interface LicencePlanInput {
   price: string;
   /** @pattern ^[0-9]{1,10}(\.[0-9]{1,2})?$ */
   subscriptionPrice: string;
+  /**
+     * Most active learners the package covers; null covers any number.
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  maxLearners?: number | null;
   isActive: boolean;
+}
+
+/**
+ * A package as one school sees it.
+ */
+export interface SubscriptionPackage {
+  id: string;
+  name: string;
+  description: string;
+  durationDays: number;
+  price: string;
+  /** @nullable */
+  maxLearners: number | null;
+  /** Covers the school's active learners today. */
+  fits: boolean;
+  /** The package the school's current licence is on. */
+  current: boolean;
+  /**
+     * What moving to it now costs for the days left; null when it is not an upgrade.
+     * @nullable
+     */
+  upgradePrice: string | null;
+}
+
+export interface PublicPackage {
+  name: string;
+  durationDays: number;
+  price: string;
+  /** @nullable */
+  maxLearners: number | null;
 }
 
 export type LicencePlanCurrency = typeof LicencePlanCurrency[keyof typeof LicencePlanCurrency];
@@ -1724,6 +2360,8 @@ export const LicencePlanCurrency = {
 } as const;
 
 export interface LicencePlan {
+  /** @nullable */
+  maxLearners: number | null;
   id: string;
   name: string;
   description: string;
@@ -1740,6 +2378,7 @@ export type SchoolLicenceSource = typeof SchoolLicenceSource[keyof typeof School
 export const SchoolLicenceSource = {
   admin: 'admin',
   payment: 'payment',
+  key: 'key',
 } as const;
 
 export type SchoolLicenceStatus = typeof SchoolLicenceStatus[keyof typeof SchoolLicenceStatus];
@@ -1755,7 +2394,10 @@ export const SchoolLicenceStatus = {
 export interface SchoolLicence {
   id: string;
   schoolId: string;
-  planId: string;
+  /** @nullable */
+  planId: string | null;
+  /** @nullable */
+  maxLearners: number | null;
   planName: string;
   durationDays: number;
   price: string;
@@ -1791,6 +2433,12 @@ export interface LicenceOrder {
   createdAt: string;
 }
 
+export type SchoolSubscriptionLearners = {
+  active: number;
+  /** @nullable */
+  max: number | null;
+};
+
 export type SchoolSubscriptionPaymentMethodsItemId = typeof SchoolSubscriptionPaymentMethodsItemId[keyof typeof SchoolSubscriptionPaymentMethodsItemId];
 
 
@@ -1808,7 +2456,31 @@ export type SchoolSubscriptionPaymentMethodsItem = {
   reason: string;
 };
 
+export type PricingSettingsCurrency = typeof PricingSettingsCurrency[keyof typeof PricingSettingsCurrency];
+
+
+export const PricingSettingsCurrency = {
+  KES: 'KES',
+} as const;
+
+export interface PricingSettings {
+  configured: boolean;
+  currency: PricingSettingsCurrency;
+  price: string;
+  periodDays: number;
+  periodLabel: string;
+  /** @nullable */
+  maxLearners: number | null;
+  trialDays: number;
+  highlights: string[];
+}
+
 export interface SchoolSubscription {
+  packages: SubscriptionPackage[];
+  /** @nullable */
+  trialEndsAt: string | null;
+  pricing: PricingSettings;
+  learners: SchoolSubscriptionLearners;
   managed: boolean;
   accessAllowed: boolean;
   status: LicenceCoverageStatus;
@@ -1818,6 +2490,297 @@ export interface SchoolSubscription {
   licences: SchoolLicence[];
   orders: LicenceOrder[];
   paymentMethods: SchoolSubscriptionPaymentMethodsItem[];
+}
+
+export type InstallationMode = typeof InstallationMode[keyof typeof InstallationMode];
+
+
+export const InstallationMode = {
+  hosted: 'hosted',
+  standalone: 'standalone',
+} as const;
+
+/**
+ * @nullable
+ */
+export type InstallationLicensing = typeof InstallationLicensing[keyof typeof InstallationLicensing] | null;
+
+
+export const InstallationLicensing = {
+  licensed: 'licensed',
+  open: 'open',
+} as const;
+
+export type InstalledLicenceStatus = typeof InstalledLicenceStatus[keyof typeof InstalledLicenceStatus];
+
+
+export const InstalledLicenceStatus = {
+  active: 'active',
+  expired: 'expired',
+  missing: 'missing',
+  invalid: 'invalid',
+  unconfigured: 'unconfigured',
+} as const;
+
+export interface InstalledLicence {
+  status: InstalledLicenceStatus;
+  /** @nullable */
+  schoolName: string | null;
+  /** @nullable */
+  expiresAt: string | null;
+  /** @nullable */
+  maxLearners: number | null;
+  /** @nullable */
+  issuedAt: string | null;
+}
+
+export interface Installation {
+  mode: InstallationMode;
+  /** @nullable */
+  licensing: InstallationLicensing;
+  licence: InstalledLicence | null;
+}
+
+export interface InstallLicenceInput {
+  /**
+     * @minLength 20
+     * @maxLength 4000
+     */
+  licence: string;
+}
+
+export interface StandaloneLicenceInput {
+  requestId: string;
+  /**
+     * @minLength 2
+     * @maxLength 180
+     */
+  schoolName: string;
+  /** @nullable */
+  expiresAt?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  maxLearners: number | null;
+  /** @maxLength 200 */
+  note?: string;
+}
+
+export interface StandaloneLicence {
+  id: string;
+  schoolName: string;
+  /** @nullable */
+  maxLearners: number | null;
+  issuedAt: string;
+  /** @nullable */
+  expiresAt: string | null;
+  note: string;
+  licence: string;
+}
+
+export interface RegistrationSettings {
+  requireApproval: boolean;
+}
+
+export type PaymentProvider = typeof PaymentProvider[keyof typeof PaymentProvider];
+
+
+export const PaymentProvider = {
+  mpesa: 'mpesa',
+  stripe: 'stripe',
+  paystack: 'paystack',
+} as const;
+
+export interface PricingSettingsInput {
+  /** @pattern ^[0-9]{1,10}(\.[0-9]{1,2})?$ */
+  price: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  periodDays: number;
+  /**
+     * @minLength 2
+     * @maxLength 30
+     */
+  periodLabel: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  maxLearners: number | null;
+  /**
+     * @minimum 0
+     * @maximum 90
+     */
+  trialDays: number;
+  /**
+     * @maxItems 12
+     * @items.minLength 2
+     * @items.maxLength 120
+     */
+  highlights: string[];
+}
+
+export type PublicPricingPaymentMethodsItem = {
+  id: PaymentProvider;
+  name: string;
+};
+
+export type PublicPricing = PricingSettings & {
+  requireApproval: boolean;
+  packages: PublicPackage[];
+  paymentMethods: PublicPricingPaymentMethodsItem[];
+};
+
+export type PaymentGatewayEnvironment = typeof PaymentGatewayEnvironment[keyof typeof PaymentGatewayEnvironment];
+
+
+export const PaymentGatewayEnvironment = {
+  sandbox: 'sandbox',
+  live: 'live',
+} as const;
+
+export type PaymentGatewayPublicConfig = {[key: string]: string};
+
+export interface PaymentGateway {
+  provider: PaymentProvider;
+  name: string;
+  enabled: boolean;
+  environment: PaymentGatewayEnvironment;
+  publicConfig: PaymentGatewayPublicConfig;
+  configured: boolean;
+  savedCredentials: string[];
+  /** @nullable */
+  webhookUrl: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export type PaymentGatewayInputEnvironment = typeof PaymentGatewayInputEnvironment[keyof typeof PaymentGatewayInputEnvironment];
+
+
+export const PaymentGatewayInputEnvironment = {
+  sandbox: 'sandbox',
+  live: 'live',
+} as const;
+
+export type PaymentGatewayInputPublicConfig = {[key: string]: string};
+
+export type PaymentGatewayInputCredentials = {[key: string]: string};
+
+export interface PaymentGatewayInput {
+  enabled: boolean;
+  environment: PaymentGatewayInputEnvironment;
+  publicConfig: PaymentGatewayInputPublicConfig;
+  credentials?: PaymentGatewayInputCredentials;
+}
+
+export type LicenceKeyStatus = typeof LicenceKeyStatus[keyof typeof LicenceKeyStatus];
+
+
+export const LicenceKeyStatus = {
+  available: 'available',
+  redeemed: 'redeemed',
+  revoked: 'revoked',
+} as const;
+
+export interface LicenceKey {
+  id: string;
+  batchId: string;
+  maskedCode: string;
+  durationDays: number;
+  price: string;
+  /** @nullable */
+  maxLearners: number | null;
+  note: string;
+  status: LicenceKeyStatus;
+  /** @nullable */
+  redeemedAt: string | null;
+  /** @nullable */
+  redeemedSchoolId: string | null;
+  /** @nullable */
+  redeemedSchoolName: string | null;
+  createdAt: string;
+}
+
+export interface LicenceKeyBatchInput {
+  requestId: string;
+  /**
+     * @minimum 1
+     * @maximum 200
+     */
+  quantity: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  durationDays: number;
+  /** @pattern ^[0-9]{1,10}(\.[0-9]{1,2})?$ */
+  price: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  maxLearners: number | null;
+  /** @maxLength 200 */
+  note?: string;
+}
+
+export interface LicenceKeyCode {
+  id: string;
+  code: string;
+}
+
+export interface LicenceKeyBatch {
+  batchId: string;
+  keys: LicenceKeyCode[];
+}
+
+export interface CheckoutInput {
+  requestId: string;
+  method: PaymentProvider;
+  /** @maxLength 20 */
+  phone?: string;
+  /** @maxLength 200 */
+  email?: string;
+}
+
+export type CheckoutStatus = typeof CheckoutStatus[keyof typeof CheckoutStatus];
+
+
+export const CheckoutStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface Checkout {
+  id: string;
+  orderId: string;
+  provider: PaymentProvider;
+  status: CheckoutStatus;
+  amount: string;
+  currency: string;
+  /** @nullable */
+  redirectUrl: string | null;
+  /** @nullable */
+  receipt: string | null;
+  message: string;
+  createdAt: string;
+}
+
+export interface RedeemKeyInput {
+  /**
+     * @minLength 8
+     * @maxLength 40
+     */
+  code: string;
 }
 
 export type MessageDeliveryGatewayInputStatus = typeof MessageDeliveryGatewayInputStatus[keyof typeof MessageDeliveryGatewayInputStatus];
@@ -2202,6 +3165,8 @@ export type CurriculumViewLearningAreasItem = {
   gradeId: string;
   name: string;
   code: string;
+  isCore?: boolean;
+  pathway?: string | null;
 };
 
 export type CurriculumViewStrandsItem = {
@@ -2800,6 +3765,123 @@ export interface KcbTillNotification {
   requestPayload: KcbTillNotificationRequestPayload;
 }
 
+/**
+ * @nullable
+ */
+export type BankAccountInputCollectionType = typeof BankAccountInputCollectionType[keyof typeof BankAccountInputCollectionType] | null;
+
+
+export const BankAccountInputCollectionType = {
+  ncba_till: 'ncba_till',
+  paybill: 'paybill',
+  kcb_till: 'kcb_till',
+} as const;
+
+export interface BankAccountInput {
+  /**
+     * @minLength 2
+     * @maxLength 40
+     */
+  bank: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  accountName: string;
+  /** @pattern ^[0-9A-Za-z-]{4,30}$ */
+  accountNumber: string;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  branch?: string | null;
+  /** @nullable */
+  collectionType?: BankAccountInputCollectionType;
+  /**
+     * @nullable
+     * @pattern ^[0-9A-Za-z_-]{3,40}$
+     */
+  collectionNumber?: string | null;
+}
+
+export type BankAccountViewNotificationStatus = typeof BankAccountViewNotificationStatus[keyof typeof BankAccountViewNotificationStatus];
+
+
+export const BankAccountViewNotificationStatus = {
+  off: 'off',
+  requested: 'requested',
+  live: 'live',
+} as const;
+
+export interface BankAccountView {
+  id: string;
+  bank: string;
+  accountName: string;
+  accountNumber: string;
+  /** @nullable */
+  branch: string | null;
+  /** @nullable */
+  collectionType: string | null;
+  /** @nullable */
+  collectionNumber: string | null;
+  notificationStatus: BankAccountViewNotificationStatus;
+  /** KCB only. Whether KCB's signing public key has been saved. */
+  signingKeySaved: boolean;
+  /** @nullable */
+  requestedAt: string | null;
+  /** @nullable */
+  liveAt: string | null;
+  /** @nullable */
+  lastNotificationAt: string | null;
+  createdAt: string;
+}
+
+export interface NcbaRequestLetter {
+  schoolName: string;
+  accountName: string;
+  accountNumber: string;
+  /** @nullable */
+  branch?: string | null;
+  collectionType: string;
+  collectionNumber: string;
+  endpointUrl: string;
+  notificationUsername: string;
+  notificationPassword: string;
+  notificationSecretKey: string;
+  stkUsername: string;
+  stkSecretKey: string;
+}
+
+export interface KcbConnection {
+  /** @nullable */
+  accountNotificationUrl: string | null;
+  /**
+     * Only when the account has a KCB till number.
+     * @nullable
+     */
+  tillNotificationUrl: string | null;
+  /** KCB's onboarding address */
+  emailTo: string;
+}
+
+export interface KcbSigningKeyInput {
+  /**
+     * @minLength 100
+     * @maxLength 10000
+     */
+  publicKey: string;
+}
+
+/**
+ * NCBA's JSON push payload. Validated strictly by the server adapter.
+ */
+export interface NcbaNotification { [key: string]: unknown }
+
+export interface NcbaResult {
+  ResultCode: string;
+  ResultDesc: string;
+}
+
 export interface FinanceUpdateInput {
   /** @minLength 1 */
   name?: string;
@@ -2997,7 +4079,320 @@ export interface InvoiceBatchResult {
   invoices: InvoiceProposal[];
 }
 
+export type ExpenseInputCategory = typeof ExpenseInputCategory[keyof typeof ExpenseInputCategory];
+
+
+export const ExpenseInputCategory = {
+  salaries: 'salaries',
+  statutory: 'statutory',
+  food: 'food',
+  transport: 'transport',
+  fuel: 'fuel',
+  supplies: 'supplies',
+  stationery: 'stationery',
+  books: 'books',
+  cleaning: 'cleaning',
+  uniforms: 'uniforms',
+  medical: 'medical',
+  exams: 'exams',
+  events: 'events',
+  utilities: 'utilities',
+  repairs: 'repairs',
+  furniture: 'furniture',
+  rent: 'rent',
+  bank_charges: 'bank_charges',
+  other: 'other',
+} as const;
+
+export type ExpenseInputMethod = typeof ExpenseInputMethod[keyof typeof ExpenseInputMethod];
+
+
+export const ExpenseInputMethod = {
+  cash: 'cash',
+  mpesa: 'mpesa',
+  bank: 'bank',
+  cheque: 'cheque',
+} as const;
+
+export interface ExpenseInput {
+  date: string;
+  category: ExpenseInputCategory;
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  description: string;
+  /** @pattern ^\d{1,10}(\.\d{1,2})?$ */
+  amount: string;
+  method: ExpenseInputMethod;
+  /** @maxLength 120 */
+  payee?: string;
+  /** @maxLength 80 */
+  reference?: string;
+  /** The supplier paid; payee is filled from it */
+  supplierId?: string;
+  /**
+     * Receipt scan: /api/storage/files/<id> from a finance_document upload
+     * @maxLength 120
+     */
+  attachmentUrl?: string;
+}
+
+export interface ExpenseVoidInput {
+  /**
+     * @minLength 3
+     * @maxLength 200
+     */
+  reason: string;
+}
+
+export type ExpenseStatus = typeof ExpenseStatus[keyof typeof ExpenseStatus];
+
+
+export const ExpenseStatus = {
+  active: 'active',
+  voided: 'voided',
+} as const;
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: Money;
+  method: string;
+  payee?: string | null;
+  reference?: string | null;
+  status: ExpenseStatus;
+  voidReason?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  supplierInvoiceId?: string | null;
+  supplierInvoiceNo?: string | null;
+  attachmentUrl?: string | null;
+  recordedBy: string;
+  recordedByName?: string | null;
+  createdAt: string;
+}
+
+export interface PaymentPromiseInput {
+  studentId: string;
+  /** @pattern ^\d{1,10}(\.\d{1,2})?$ */
+  amount: string;
+  promisedFor: string;
+  /** @maxLength 200 */
+  note?: string;
+}
+
+/**
+ * Worked out from payments made since the promise
+ */
+export type PaymentPromiseState = typeof PaymentPromiseState[keyof typeof PaymentPromiseState];
+
+
+export const PaymentPromiseState = {
+  due: 'due',
+  kept: 'kept',
+  broken: 'broken',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PaymentPromise {
+  id: string;
+  studentId: string;
+  amount: Money;
+  promisedFor: string;
+  note?: string | null;
+  /** Worked out from payments made since the promise */
+  state: PaymentPromiseState;
+  createdAt: string;
+}
+
+export interface MoneyLine {
+  label: string;
+  amount: Money;
+}
+
+export interface ClassMoney {
+  className: string;
+  learners: number;
+  billed: Money;
+  paid: Money;
+  owed: Money;
+  percentPaid: number;
+}
+
+export interface AdjustmentFlag {
+  id: string;
+  /** discount */
+  kind: string;
+  studentId?: string | null;
+  studentName?: string | null;
+  amount: Money;
+  reason?: string | null;
+  /** Plain reason it is worth a look */
+  why: string;
+  requestedBy?: string | null;
+  approvedBy?: string | null;
+  status?: string | null;
+  at: string;
+}
+
+export type FinanceSummaryExpected = {
+  billed: Money;
+  /** Discounts */
+  discounts: Money;
+  /** Billed less discounts; the money that should come in */
+  toCollect: Money;
+  paid: Money;
+  percentPaid: number;
+  stillToCollect: Money;
+};
+
+export type FinanceSummaryReceived = {
+  total: Money;
+  byChannel: MoneyLine[];
+};
+
+export type FinanceSummaryOwed = {
+  total: Money;
+  learners: number;
+  fromPastTerms: Money;
+  promisesDue: number;
+  promisesBroken: number;
+  promisedAmount: Money;
+};
+
+export type FinanceSummarySpent = {
+  total: Money;
+  byCategory: MoneyLine[];
+};
+
+export type FinanceSummaryHealthVerdict = typeof FinanceSummaryHealthVerdict[keyof typeof FinanceSummaryHealthVerdict];
+
+
+export const FinanceSummaryHealthVerdict = {
+  healthy: 'healthy',
+  tight: 'tight',
+  deficit: 'deficit',
+  no_expenses: 'no_expenses',
+} as const;
+
+export type FinanceSummaryHealth = {
+  received: Money;
+  spent: Money;
+  /** Received minus spent; negative means more was spent than received */
+  left: string;
+  verdict: FinanceSummaryHealthVerdict;
+};
+
+export type FinanceSummaryAdjustments = {
+  discounts: Money;
+  discountsCount: number;
+  reversals: number;
+  refunds: Money;
+  flagged: AdjustmentFlag[];
+};
+
+export interface FinanceSummary {
+  termId?: string | null;
+  termName: string | null;
+  from?: string | null;
+  to?: string | null;
+  expected: FinanceSummaryExpected;
+  received: FinanceSummaryReceived;
+  owed: FinanceSummaryOwed;
+  spent: FinanceSummarySpent;
+  health: FinanceSummaryHealth;
+  classes: ClassMoney[];
+  adjustments: FinanceSummaryAdjustments;
+}
+
+export interface ArrearsRow {
+  studentId: string;
+  admissionNo: string;
+  studentName: string;
+  gradeName?: string | null;
+  streamName?: string | null;
+  balance: Money;
+  current: Money;
+  oneTerm: Money;
+  twoTerms: Money;
+  threePlusTerms: Money;
+  lastPaidAt?: string | null;
+  lastPaidAmount?: string | null;
+  onPlan: boolean;
+  sponsored: boolean;
+  billedThisTerm: boolean;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
+  lastReminderAt?: string | null;
+  /** The latest promise to pay */
+  promise?: PaymentPromise | null;
+}
+
+export interface ArrearsView {
+  termName: string | null;
+  rows: ArrearsRow[];
+  /** Active learners with no invoice for the current term */
+  notBilled: number;
+}
+
+export type FeeReminderInputChannel = typeof FeeReminderInputChannel[keyof typeof FeeReminderInputChannel];
+
+
+export const FeeReminderInputChannel = {
+  whatsapp: 'whatsapp',
+  sms: 'sms',
+} as const;
+
+export interface FeeReminderInput {
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  studentIds: string[];
+  channel?: FeeReminderInputChannel;
+}
+
+export type FeeReminderResultSkippedItem = {
+  studentId: string;
+  reason: string;
+};
+
+export interface FeeReminderResult {
+  queued: number;
+  skipped: FeeReminderResultSkippedItem[];
+}
+
+/**
+ * The current term's billing and collections; null when no term is current.
+ */
+export type FinanceOverviewTerm = {
+  name: string;
+  billed: Money;
+  /** Discounts, waivers and bursaries applied to this term's invoices; billed less this is what should come in. */
+  discounts: Money;
+  /** Money (not discounts) allocated to this term's invoices; excludes credit held for later. */
+  paid: Money;
+  collected: Money;
+} | null;
+
+export type FinanceOverviewTodayChannelsItem = {
+  channel: string;
+  amount: Money;
+  count: number;
+};
+
+export type FinanceOverviewToday = {
+  total: Money;
+  channels: FinanceOverviewTodayChannelsItem[];
+};
+
 export interface FinanceOverview {
+  /** The current term's billing and collections; null when no term is current. */
+  term: FinanceOverviewTerm;
+  today: FinanceOverviewToday;
   invoiced: Money;
   collected: Money;
   outstanding: Money;
@@ -3022,6 +4417,7 @@ export type FinanceDocumentInputType = typeof FinanceDocumentInputType[keyof typ
 export const FinanceDocumentInputType = {
   receipt: 'receipt',
   statement: 'statement',
+  invoice: 'invoice',
 } as const;
 
 export interface FinanceDocumentInput {
@@ -3033,6 +4429,734 @@ export interface FinanceDocument {
   id: string;
   downloadUrl: string;
   expiresAt: string;
+}
+
+/**
+ * Exact KES decimal, never a JSON number.
+ * @pattern ^-?\d{1,12}(\.\d{1,2})?$
+ */
+export type ProcMoney = string;
+
+/**
+ * A calendar day, YYYY-MM-DD.
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+export type ProcDay = string;
+
+export interface ProcReasonInput {
+  /**
+     * @minLength 3
+     * @maxLength 200
+     */
+  reason: string;
+}
+
+export interface SupplierInput {
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  /** @maxLength 120 */
+  contactPerson?: string;
+  /** @maxLength 20 */
+  phone?: string;
+  /** @maxLength 160 */
+  email?: string;
+  /** @maxLength 20 */
+  kraPin?: string;
+  /** @maxLength 200 */
+  address?: string;
+}
+
+export interface SupplierUpdate {
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name?: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  contactPerson?: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  kraPin?: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  address?: string | null;
+  isActive?: boolean;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  /** @nullable */
+  contactPerson?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  kraPin?: string | null;
+  /** @nullable */
+  address?: string | null;
+  isActive: boolean;
+  owed: ProcMoney;
+  openOrders: number;
+  createdAt: string;
+}
+
+export type PurchaseOrderStatus = typeof PurchaseOrderStatus[keyof typeof PurchaseOrderStatus];
+
+
+export const PurchaseOrderStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  partly_received: 'partly_received',
+  received: 'received',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PurchaseOrderLineInput {
+  /** Store item this line tops up when received */
+  storeItemId?: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  description: string;
+  /** @maxLength 30 */
+  unit?: string;
+  /** @pattern ^\d{1,8}(\.\d{1,2})?$ */
+  quantity: string;
+  /** @pattern ^\d{1,10}(\.\d{1,2})?$ */
+  unitPrice: string;
+}
+
+export interface PurchaseOrderInput {
+  supplierId: string;
+  date: ProcDay;
+  neededBy?: ProcDay;
+  /** @maxLength 500 */
+  notes?: string;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  lines: PurchaseOrderLineInput[];
+}
+
+export type PurchaseOrderDecisionDecision = typeof PurchaseOrderDecisionDecision[keyof typeof PurchaseOrderDecisionDecision];
+
+
+export const PurchaseOrderDecisionDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface PurchaseOrderDecision {
+  decision: PurchaseOrderDecisionDecision;
+  /** @maxLength 200 */
+  note?: string;
+}
+
+export interface PurchaseOrderLine {
+  id: string;
+  /** @nullable */
+  storeItemId?: string | null;
+  /** @nullable */
+  storeItemName?: string | null;
+  description: string;
+  /** @nullable */
+  unit?: string | null;
+  quantity: string;
+  unitPrice: ProcMoney;
+  amount: ProcMoney;
+  receivedQty: string;
+}
+
+export type GoodsReceiptLinesItem = {
+  lineId: string;
+  description: string;
+  quantity: string;
+};
+
+export interface GoodsReceipt {
+  id: string;
+  date: string;
+  /** @nullable */
+  deliveryNote?: string | null;
+  /** @nullable */
+  note?: string | null;
+  /** @nullable */
+  receivedByName: string | null;
+  lines: GoodsReceiptLinesItem[];
+  createdAt: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  number: number;
+  /** Printed LPO number, e.g. LPO-0007 */
+  reference: string;
+  supplierId: string;
+  supplierName: string;
+  date: string;
+  /** @nullable */
+  neededBy?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  status: PurchaseOrderStatus;
+  total: ProcMoney;
+  invoiced: ProcMoney;
+  createdBy: string;
+  /** @nullable */
+  createdByName?: string | null;
+  /** @nullable */
+  decidedByName?: string | null;
+  /** @nullable */
+  decidedAt?: string | null;
+  /** @nullable */
+  decisionNote?: string | null;
+  createdAt: string;
+  lines: PurchaseOrderLine[];
+  receipts: GoodsReceipt[];
+}
+
+export type GoodsReceiptInputLinesItem = {
+  lineId: string;
+  /** @pattern ^\d{1,8}(\.\d{1,2})?$ */
+  quantity: string;
+};
+
+export interface GoodsReceiptInput {
+  date: ProcDay;
+  /** @maxLength 60 */
+  deliveryNote?: string;
+  /** @maxLength 200 */
+  note?: string;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  lines: GoodsReceiptInputLinesItem[];
+}
+
+export interface SupplierInvoiceInput {
+  supplierId: string;
+  orderId?: string;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  invoiceNo: string;
+  date: ProcDay;
+  dueDate?: ProcDay;
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  description: string;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     */
+  category: string;
+  /** @pattern ^\d{1,10}(\.\d{1,2})?$ */
+  amount: string;
+  /** @maxLength 120 */
+  attachmentUrl?: string;
+}
+
+export type SupplierInvoiceStatus = typeof SupplierInvoiceStatus[keyof typeof SupplierInvoiceStatus];
+
+
+export const SupplierInvoiceStatus = {
+  active: 'active',
+  voided: 'voided',
+} as const;
+
+/**
+ * Worked out from payments and the due date
+ */
+export type SupplierInvoiceState = typeof SupplierInvoiceState[keyof typeof SupplierInvoiceState];
+
+
+export const SupplierInvoiceState = {
+  unpaid: 'unpaid',
+  part_paid: 'part_paid',
+  paid: 'paid',
+  overdue: 'overdue',
+  voided: 'voided',
+} as const;
+
+export type SupplierInvoicePaymentsItem = {
+  expenseId: string;
+  date: string;
+  amount: ProcMoney;
+  method: string;
+  /** @nullable */
+  reference?: string | null;
+  status: string;
+};
+
+export interface SupplierInvoice {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  /** @nullable */
+  orderId?: string | null;
+  /** @nullable */
+  orderReference?: string | null;
+  invoiceNo: string;
+  date: string;
+  /** @nullable */
+  dueDate?: string | null;
+  description: string;
+  category: string;
+  amount: ProcMoney;
+  paid: ProcMoney;
+  balance: ProcMoney;
+  /** @nullable */
+  attachmentUrl?: string | null;
+  status: SupplierInvoiceStatus;
+  /** Worked out from payments and the due date */
+  state: SupplierInvoiceState;
+  /** @nullable */
+  voidReason?: string | null;
+  /** @nullable */
+  createdByName?: string | null;
+  createdAt: string;
+  payments: SupplierInvoicePaymentsItem[];
+}
+
+export type SupplierPaymentInputMethod = typeof SupplierPaymentInputMethod[keyof typeof SupplierPaymentInputMethod];
+
+
+export const SupplierPaymentInputMethod = {
+  cash: 'cash',
+  mpesa: 'mpesa',
+  bank: 'bank',
+  cheque: 'cheque',
+} as const;
+
+export interface SupplierPaymentInput {
+  date: ProcDay;
+  /** @pattern ^\d{1,10}(\.\d{1,2})?$ */
+  amount: string;
+  method: SupplierPaymentInputMethod;
+  /** @maxLength 80 */
+  reference?: string;
+  /** @maxLength 120 */
+  attachmentUrl?: string;
+}
+
+/**
+ * @pattern ^\d{1,8}(\.\d{1,2})?$
+ */
+export type StoreQty = string;
+
+export type StockMovementType = typeof StockMovementType[keyof typeof StockMovementType];
+
+
+export const StockMovementType = {
+  receive: 'receive',
+  issue: 'issue',
+  return: 'return',
+  adjust: 'adjust',
+} as const;
+
+export interface StoreItemInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  name: string;
+  /** @maxLength 40 */
+  sku?: string;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     */
+  category: string;
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  unit: string;
+  reorderLevel?: StoreQty;
+  /** @pattern ^\d{1,10}(\.\d{1,2})?$ */
+  unitCost?: string;
+  /** @maxLength 60 */
+  location?: string;
+  openingQuantity?: StoreQty;
+}
+
+export interface StoreItemUpdate {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  name?: string;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  sku?: string | null;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     */
+  category?: string;
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  unit?: string;
+  reorderLevel?: StoreQty;
+  /**
+     * @nullable
+     * @pattern ^\d{1,10}(\.\d{1,2})?$
+     */
+  unitCost?: string | null;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  location?: string | null;
+  isActive?: boolean;
+}
+
+export interface StoreItem {
+  id: string;
+  name: string;
+  /** @nullable */
+  sku?: string | null;
+  category: string;
+  unit: string;
+  quantity: string;
+  reorderLevel: string;
+  /** At or below the reorder level */
+  low: boolean;
+  /** @nullable */
+  unitCost?: string | null;
+  /**
+     * Quantity times last unit cost
+     * @nullable
+     */
+  value?: string | null;
+  /** @nullable */
+  location?: string | null;
+  isActive: boolean;
+  /** @nullable */
+  lastMovementAt?: string | null;
+  createdAt: string;
+}
+
+export interface StockMovementInput {
+  itemId: string;
+  type: StockMovementType;
+  quantity: StoreQty;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  date: string;
+  /** @pattern ^\d{1,10}(\.\d{1,2})?$ */
+  unitCost?: string;
+  /**
+     * Department or person receiving an issue
+     * @maxLength 120
+     */
+  issuedTo?: string;
+  /** @maxLength 60 */
+  reference?: string;
+  /** @maxLength 200 */
+  note?: string;
+}
+
+export interface StockMovement {
+  id: string;
+  itemId: string;
+  itemName: string;
+  unit: string;
+  type: StockMovementType;
+  /** Signed; negative is stock going out */
+  quantity: string;
+  balanceAfter: string;
+  /** @nullable */
+  unitCost?: string | null;
+  date: string;
+  /** @nullable */
+  issuedTo?: string | null;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  note?: string | null;
+  /** @nullable */
+  orderId?: string | null;
+  /** @nullable */
+  createdByName?: string | null;
+  createdAt: string;
+}
+
+export interface LibrarySummary {
+  titles: number;
+  copies: number;
+  onShelf: number;
+  out: number;
+  overdue: number;
+  lost: number;
+}
+
+export interface LibraryBookInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title: string;
+  /** @maxLength 160 */
+  author?: string;
+  /** @maxLength 20 */
+  isbn?: string;
+  /** @maxLength 120 */
+  publisher?: string;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     */
+  category: string;
+  /** @maxLength 60 */
+  subject?: string;
+  /** @maxLength 40 */
+  level?: string;
+  /** @maxLength 30 */
+  shelf?: string;
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  copies: number;
+  /**
+     * Numbers already written in the books; left out, the next free numbers are used
+     * @maxItems 500
+     * @items.minLength 1
+     * @items.maxLength 30
+     */
+  accessionNumbers?: string[];
+}
+
+export interface LibraryBookUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title?: string;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  author?: string | null;
+  /**
+     * @maxLength 20
+     * @nullable
+     */
+  isbn?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  publisher?: string | null;
+  /**
+     * @minLength 2
+     * @maxLength 40
+     */
+  category?: string;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  subject?: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  level?: string | null;
+  /**
+     * @maxLength 30
+     * @nullable
+     */
+  shelf?: string | null;
+}
+
+export interface LibraryCopiesInput {
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  count: number;
+  /**
+     * @maxItems 500
+     * @items.minLength 1
+     * @items.maxLength 30
+     */
+  accessionNumbers?: string[];
+}
+
+export type LibraryCopyUpdateStatus = typeof LibraryCopyUpdateStatus[keyof typeof LibraryCopyUpdateStatus];
+
+
+export const LibraryCopyUpdateStatus = {
+  available: 'available',
+  damaged: 'damaged',
+  lost: 'lost',
+  withdrawn: 'withdrawn',
+} as const;
+
+export interface LibraryCopyUpdate {
+  status: LibraryCopyUpdateStatus;
+}
+
+export type LibraryCopyStatus = typeof LibraryCopyStatus[keyof typeof LibraryCopyStatus];
+
+
+export const LibraryCopyStatus = {
+  available: 'available',
+  on_loan: 'on_loan',
+  lost: 'lost',
+  damaged: 'damaged',
+  withdrawn: 'withdrawn',
+} as const;
+
+export interface LibraryCopy {
+  id: string;
+  accessionNo: string;
+  status: LibraryCopyStatus;
+  /** @nullable */
+  borrowerName?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
+}
+
+export interface LibraryBook {
+  id: string;
+  title: string;
+  /** @nullable */
+  author?: string | null;
+  /** @nullable */
+  isbn?: string | null;
+  /** @nullable */
+  publisher?: string | null;
+  category: string;
+  /** @nullable */
+  subject?: string | null;
+  /** @nullable */
+  level?: string | null;
+  /** @nullable */
+  shelf?: string | null;
+  available: number;
+  onLoan: number;
+  copies: LibraryCopy[];
+  createdAt: string;
+}
+
+export interface LibraryLoanInput {
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  accessionNo: string;
+  studentId?: string;
+  userId?: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  dueDate: string;
+}
+
+export interface LibraryReturnInput {
+  /** The borrower lost the book; the copy leaves the shelf count */
+  lost?: boolean;
+  damaged?: boolean;
+  /** @maxLength 200 */
+  note?: string;
+}
+
+export type LibraryLoanBorrowerKind = typeof LibraryLoanBorrowerKind[keyof typeof LibraryLoanBorrowerKind];
+
+
+export const LibraryLoanBorrowerKind = {
+  learner: 'learner',
+  staff: 'staff',
+} as const;
+
+export type LibraryLoanStatus = typeof LibraryLoanStatus[keyof typeof LibraryLoanStatus];
+
+
+export const LibraryLoanStatus = {
+  out: 'out',
+  returned: 'returned',
+  lost: 'lost',
+} as const;
+
+export interface LibraryLoan {
+  id: string;
+  copyId: string;
+  accessionNo: string;
+  bookId: string;
+  title: string;
+  /** @nullable */
+  studentId?: string | null;
+  /** @nullable */
+  userId?: string | null;
+  borrowerName: string;
+  borrowerKind: LibraryLoanBorrowerKind;
+  /**
+     * Admission number and class
+     * @nullable
+     */
+  borrowerDetail?: string | null;
+  issuedAt: string;
+  dueDate: string;
+  /** @nullable */
+  returnedAt?: string | null;
+  status: LibraryLoanStatus;
+  overdue: boolean;
+  daysOverdue: number;
+  /** @nullable */
+  returnNote?: string | null;
+  /** @nullable */
+  issuedByName?: string | null;
+  createdAt: string;
+}
+
+export type LibraryBorrowerKind = typeof LibraryBorrowerKind[keyof typeof LibraryBorrowerKind];
+
+
+export const LibraryBorrowerKind = {
+  learner: 'learner',
+  staff: 'staff',
+} as const;
+
+export interface LibraryBorrower {
+  id: string;
+  kind: LibraryBorrowerKind;
+  name: string;
+  /** @nullable */
+  detail?: string | null;
+  booksOut?: number;
 }
 
 export type SendPlatformTestEmail200 = {
@@ -3172,7 +5296,98 @@ search?: string;
 id?: string;
 };
 
+export type GetFinanceSummaryParams = {
+termId?: string;
+};
+
+export type ListExpensesParams = {
+/**
+ * First day, YYYY-MM-DD
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+from?: string;
+/**
+ * Last day, YYYY-MM-DD
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+to?: string;
+category?: string;
+};
+
 export type ListFailedFinanceJobs200Item = { [key: string]: unknown };
+
+export type ListPurchaseOrdersParams = {
+status?: PurchaseOrderStatus;
+supplierId?: string;
+};
+
+export type ListSupplierInvoicesParams = {
+supplierId?: string;
+state?: ListSupplierInvoicesState;
+};
+
+export type ListSupplierInvoicesState = typeof ListSupplierInvoicesState[keyof typeof ListSupplierInvoicesState];
+
+
+export const ListSupplierInvoicesState = {
+  unpaid: 'unpaid',
+  paid: 'paid',
+  voided: 'voided',
+} as const;
+
+export type ListStockMovementsParams = {
+itemId?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+from?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+to?: string;
+type?: StockMovementType;
+};
+
+export type ListLibraryLoansParams = {
+state?: ListLibraryLoansState;
+studentId?: string;
+};
+
+export type ListLibraryLoansState = typeof ListLibraryLoansState[keyof typeof ListLibraryLoansState];
+
+
+export const ListLibraryLoansState = {
+  out: 'out',
+  overdue: 'overdue',
+  returned: 'returned',
+  lost: 'lost',
+  all: 'all',
+} as const;
+
+export type SearchLibraryBorrowersParams = {
+/**
+ * @minLength 2
+ * @maxLength 60
+ */
+q: string;
+};
+
+export type AskKnowledgeBaseParams = {
+audience?: AskKnowledgeBaseAudience;
+};
+
+export type AskKnowledgeBaseAudience = typeof AskKnowledgeBaseAudience[keyof typeof AskKnowledgeBaseAudience];
+
+
+export const AskKnowledgeBaseAudience = {
+  visitors: 'visitors',
+  staff: 'staff',
+} as const;
+
+export type GetClassSummaryParams = {
+streamId?: string;
+gradeId?: string;
+};
 
 export type ListTermsParams = {
 academicYearId?: string;
@@ -3189,6 +5404,10 @@ streamId?: string;
 status?: StudentStatus;
 };
 
+export type GetMessageAudienceParams = {
+gradeId?: string;
+};
+
 export type ListGuardiansParams = {
 search?: string;
 };
@@ -3199,5 +5418,20 @@ export type ListAuditLogsParams = {
  * @maximum 100
  */
 limit?: number;
+/**
+ * 1-based page of `limit` entries, newest first.
+ * @minimum 1
+ */
+page?: number;
+/**
+ * Words to find in the action, record type or the person's name.
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * Only entries about this kind of record.
+ * @maxLength 60
+ */
+entityType?: string;
 };
 

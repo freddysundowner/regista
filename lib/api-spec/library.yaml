@@ -1,0 +1,275 @@
+paths:
+  summary:
+    get:
+      operationId: getLibrarySummary
+      responses:
+        '200':
+          description: Counts for the library front page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibrarySummary' }
+  books:
+    get:
+      operationId: listLibraryBooks
+      summary: The catalogue, with copies and how many are on the shelf
+      responses:
+        '200':
+          description: Books by title
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/LibraryBook' } }
+    post:
+      operationId: createLibraryBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryBookInput' }
+      responses:
+        '200':
+          description: Book catalogued with its copies numbered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryBook' }
+  book:
+    delete:
+      operationId: deleteLibraryBook
+      summary: Remove a book and its copies, if no copy was ever lent
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204':
+          description: Book removed
+    patch:
+      operationId: updateLibraryBook
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryBookUpdate' }
+      responses:
+        '200':
+          description: Book updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryBook' }
+  bookCopies:
+    post:
+      operationId: addLibraryCopies
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryCopiesInput' }
+      responses:
+        '200':
+          description: Copies added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryBook' }
+  copy:
+    delete:
+      operationId: deleteLibraryCopy
+      summary: Remove one copy that was never lent, e.g. added by mistake
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Copy removed; the book as it is now
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryBook' }
+    patch:
+      operationId: updateLibraryCopy
+      summary: Mark a copy damaged, lost, withdrawn, or back on the shelf
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryCopyUpdate' }
+      responses:
+        '200':
+          description: Copy updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryBook' }
+  loans:
+    get:
+      operationId: listLibraryLoans
+      parameters:
+        - { name: state, in: query, schema: { type: string, enum: [out, overdue, returned, lost, all] } }
+        - { name: studentId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Loans, most recent first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/LibraryLoan' } }
+    post:
+      operationId: issueLibraryBook
+      summary: Lend a copy, found by accession number, to a learner or staff member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryLoanInput' }
+      responses:
+        '200':
+          description: Book issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryLoan' }
+  loanReturn:
+    post:
+      operationId: returnLibraryBook
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LibraryReturnInput' }
+      responses:
+        '200':
+          description: Book returned, or recorded as lost
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LibraryLoan' }
+  borrowers:
+    get:
+      operationId: searchLibraryBorrowers
+      summary: Find a learner or staff member to lend to
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 60 } }
+      responses:
+        '200':
+          description: Up to 20 matches
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/LibraryBorrower' } }
+components:
+  schemas:
+    LibrarySummary:
+      type: object
+      required: [titles, copies, onShelf, out, overdue, lost]
+      properties:
+        titles: { type: integer }
+        copies: { type: integer }
+        onShelf: { type: integer }
+        out: { type: integer }
+        overdue: { type: integer }
+        lost: { type: integer }
+    LibraryBookInput:
+      type: object
+      required: [title, category, copies]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        author: { type: string, maxLength: 160 }
+        isbn: { type: string, maxLength: 20 }
+        publisher: { type: string, maxLength: 120 }
+        category: { type: string, minLength: 2, maxLength: 40 }
+        subject: { type: string, maxLength: 60 }
+        level: { type: string, maxLength: 40 }
+        shelf: { type: string, maxLength: 30 }
+        copies: { type: integer, minimum: 1, maximum: 500 }
+        accessionNumbers: { type: array, maxItems: 500, items: { type: string, minLength: 1, maxLength: 30 }, description: 'Numbers already written in the books; left out, the next free numbers are used' }
+    LibraryBookUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        author: { type: [string, 'null'], maxLength: 160 }
+        isbn: { type: [string, 'null'], maxLength: 20 }
+        publisher: { type: [string, 'null'], maxLength: 120 }
+        category: { type: string, minLength: 2, maxLength: 40 }
+        subject: { type: [string, 'null'], maxLength: 60 }
+        level: { type: [string, 'null'], maxLength: 40 }
+        shelf: { type: [string, 'null'], maxLength: 30 }
+    LibraryCopiesInput:
+      type: object
+      required: [count]
+      properties:
+        count: { type: integer, minimum: 1, maximum: 500 }
+        accessionNumbers: { type: array, maxItems: 500, items: { type: string, minLength: 1, maxLength: 30 } }
+    LibraryCopyUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [available, damaged, lost, withdrawn] }
+    LibraryCopy:
+      type: object
+      required: [id, accessionNo, status]
+      properties:
+        id: { type: string, format: uuid }
+        accessionNo: { type: string }
+        status: { type: string, enum: [available, on_loan, lost, damaged, withdrawn] }
+        borrowerName: { type: [string, 'null'] }
+        dueDate: { type: [string, 'null'] }
+    LibraryBook:
+      type: object
+      required: [id, title, category, copies, available, onLoan, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        author: { type: [string, 'null'] }
+        isbn: { type: [string, 'null'] }
+        publisher: { type: [string, 'null'] }
+        category: { type: string }
+        subject: { type: [string, 'null'] }
+        level: { type: [string, 'null'] }
+        shelf: { type: [string, 'null'] }
+        available: { type: integer }
+        onLoan: { type: integer }
+        copies: { type: array, items: { $ref: '#/components/schemas/LibraryCopy' } }
+        createdAt: { type: string, format: date-time }
+    LibraryLoanInput:
+      type: object
+      required: [accessionNo, dueDate]
+      properties:
+        accessionNo: { type: string, minLength: 1, maxLength: 30 }
+        studentId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        dueDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+    LibraryReturnInput:
+      type: object
+      properties:
+        lost: { type: boolean, description: The borrower lost the book; the copy leaves the shelf count }
+        damaged: { type: boolean }
+        note: { type: string, maxLength: 200 }
+    LibraryLoan:
+      type: object
+      required: [id, copyId, accessionNo, bookId, title, borrowerName, borrowerKind, issuedAt, dueDate, status, overdue, daysOverdue, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        copyId: { type: string, format: uuid }
+        accessionNo: { type: string }
+        bookId: { type: string, format: uuid }
+        title: { type: string }
+        studentId: { type: [string, 'null'], format: uuid }
+        userId: { type: [string, 'null'], format: uuid }
+        borrowerName: { type: string }
+        borrowerKind: { type: string, enum: [learner, staff] }
+        borrowerDetail: { type: [string, 'null'], description: Admission number and class, or staff role }
+        issuedAt: { type: string }
+        dueDate: { type: string }
+        returnedAt: { type: [string, 'null'] }
+        status: { type: string, enum: [out, returned, lost] }
+        overdue: { type: boolean }
+        daysOverdue: { type: integer }
+        returnNote: { type: [string, 'null'] }
+        issuedByName: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    LibraryBorrower:
+      type: object
+      required: [id, kind, name]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [learner, staff] }
+        name: { type: string }
+        detail: { type: [string, 'null'] }
+        booksOut: { type: integer }

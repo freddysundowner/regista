@@ -83,13 +83,15 @@ function ConfigForm({ s, onDone }: { s: IntegrationStatus; onDone: () => void })
   );
 }
 
-export default function Integrations() {
+/** `only` embeds the page in the setup flow, listing just those connections without the page header and notices. */
+export default function Integrations({ only }: { only?: string[] } = {}) {
   const q = useListIntegrationStatus({ query: { queryKey: getListIntegrationStatusQueryKey() } });
   const reg = useRegisterDarajaCallbacks();
   const { toast } = useToast();
   const [edit, setEdit] = useState<string | null>(null);
   return (
     <div className="space-y-6">
+      {!only && <>
       <PageHeader eyebrow="Connections" title="Integrations" meta="Credentials are write-only: they are encrypted on the server and never displayed, cached or returned." />
       <div data-testid="banner-messaging-routing" className="flex flex-wrap items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
         <RadioTower className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -100,9 +102,10 @@ export default function Integrations() {
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
         <p>No live provider has been verified. Daraja, WhatsApp, SMS and KCB still require provider acceptance testing. "Unverified" means saved, not proven to work.</p>
       </div>
+      </>}
       <Panel>
         {q.isLoading ? <SkeletonRows cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : (
-          <ul className="divide-y divide-border/70">{(q.data ?? []).map((s) => {
+          <ul className="divide-y divide-border/70">{(q.data ?? []).filter((s) => !only || only.includes(s.provider)).filter((s) => only || s.provider !== "bank" || s.configured).map((s) => {
             const spec = SPECS[s.provider as IntegrationInputProvider];
             return (
               <li key={s.provider} data-testid={`row-integration-${s.provider}`}>
@@ -112,7 +115,7 @@ export default function Integrations() {
                     <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{spec?.label ?? s.provider}</span><Pill tone={STATUS_TONE[s.status] ?? "left"}>{s.status.replace(/_/g, " ")}</Pill>{s.configured && <Pill tone="current">{s.environment}</Pill>}{s.configured && !s.enabled && <Pill tone="inactive">disabled</Pill>}</div>
                     <p className="text-sm text-muted-foreground">{spec?.purpose}</p>
                     {(s.provider === "leadsintel" || s.provider === "africastalking") && <p className="mt-1 text-xs text-muted-foreground">Legacy account. Still honoured where Messaging routing reports a legacy source; configure new accounts in <Link href="/messaging" className="font-semibold text-primary hover:underline">Messaging routing</Link>.</p>}
-                    {s.reason && <p className="mt-1 text-xs text-amber-800">{s.reason}</p>}
+                    {s.reason && s.configured && <p className="mt-1 text-xs text-amber-800">{s.reason}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {s.provider === "daraja" && s.configured && <Btn variant="outline" disabled={reg.isPending} data-testid="button-register-callbacks" onClick={() => reg.mutate(undefined, {

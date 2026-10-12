@@ -13,7 +13,8 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      'fixed top-[env(safe-area-inset-top)] z-[100] flex max-h-screen w-full flex-col-reverse p-4 md:bottom-0 md:right-0 md:top-auto md:flex-col md:max-w-[420px]',
+      // A slim message at the bottom of the screen, above the phone's tab bar; it never covers the page's top bar.
+      'pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[100] flex flex-col items-center gap-2 px-4 md:bottom-6',
       className,
     )}
     {...props}
@@ -22,13 +23,12 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
+  'group pointer-events-auto relative flex w-fit max-w-[min(26rem,100%)] items-start gap-2.5 rounded-2xl px-4 py-2.5 text-sm shadow-[0_12px_30px_-12px_rgba(0,0,0,.55)] transition-all data-[swipe=cancel]:translate-y-0 data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-3 data-[state=closed]:slide-out-to-bottom-3',
   {
     variants: {
       variant: {
-        default: 'border bg-background text-foreground',
-        destructive:
-          'destructive group border-destructive bg-destructive text-destructive-foreground',
+        default: 'bg-foreground text-background',
+        destructive: 'destructive group bg-destructive text-destructive-foreground',
       },
     },
     defaultVariants: {

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode, type SelectHTMLAttributes, type InputHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, RotateCw, SlidersHorizontal, ChevronDown, MoveHorizontal } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AlertTriangle, RotateCw, SlidersHorizontal, MoveHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { usePageTitle } from "@/lib/page-title";
@@ -53,8 +55,16 @@ export function Field({ label, hint, children, className, required }: { label: s
 
 const ctl = "h-11 w-full text-base sm:h-9 sm:text-sm rounded-md border border-input bg-background/60 px-3 outline-none transition focus:border-primary focus:bg-card focus:ring-2 focus:ring-ring/20 disabled:opacity-60";
 
-export function TextInput({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...p} className={cn(ctl, className)} />;
+/**
+ * The app's forms are for the school's data, API keys and other people's passwords, never the signed-in person's
+ * own sign-in details, so browsers and password managers are told not to fill them. (Browsers ignore "off" on a
+ * password box and fill the saved sign-in anyway, with the email landing in the field before it; "new-password"
+ * is what stops that.) The sign-in page has its own inputs and still autofills.
+ */
+export function TextInput({ className, autoComplete, ...p }: InputHTMLAttributes<HTMLInputElement>) {
+  const secret = p.type === "password";
+  const fill = secret ? (autoComplete && autoComplete !== "off" ? autoComplete : "new-password") : autoComplete ?? "off";
+  return <input data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" {...p} autoComplete={fill} className={cn(ctl, className)} />;
 }
 
 export function NativeSelect({ className, children, ...p }: SelectHTMLAttributes<HTMLSelectElement>) {
@@ -146,8 +156,8 @@ export function FormActions({ children }: { children: ReactNode }) {
 
 /**
  * Wraps a regular <table>. Desktop: unchanged table in a contained horizontal scroller.
- * Phone (<768px): every row becomes a card; each cell is labelled from its column header
- * (columns hidden on desktop-small breakpoints are revealed inside the card).
+ * Phone (<768px): every row becomes two slim lines: the cell that names it on top, the rest in small print
+ * under it, each labelled from its column header (columns hidden on small computers are shown here).
  */
 export function CardTable({ children, className, testid }: { children: ReactNode; className?: string; testid?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -156,6 +166,10 @@ export function CardTable({ children, className, testid }: { children: ReactNode
     const label = () => {
       const heads = Array.from(el.querySelectorAll("thead th")).map((th) => (th.querySelector(".sr-only") ? "" : (th.textContent ?? "").trim()));
       el.querySelectorAll("tbody tr").forEach((tr) => {
+        // The cell that names the row (the first with bold text or a link, else the first) heads it on a phone.
+        const cells = Array.from(tr.children) as HTMLElement[];
+        const title = cells.length > 1 ? cells.find((td) => !td.hasAttribute("colspan") && td.querySelector(".font-semibold, .font-medium, .font-bold, a, b, strong")) ?? cells[0] : undefined;
+        cells.forEach((td) => { if (td === title) { if (!td.hasAttribute("data-title")) td.setAttribute("data-title", ""); } else if (td.hasAttribute("data-title")) td.removeAttribute("data-title"); });
         let i = 0;
         Array.from(tr.children).forEach((td) => {
           const h = heads[i] ?? "";
@@ -184,25 +198,48 @@ export function DenseScroll({ children, className }: { children: ReactNode; clas
 }
 
 /**
- * Filter toolbar. Always visible on desktop; on phones the extra filters collapse behind
- * an accessible toggle with an active-count badge. `lead` (usually search) stays visible.
+ * Filter toolbar. On a computer everything sits in one row. On a phone only `lead` (usually search) stays on the
+ * page, beside a filter button with a count of what is switched on; the rest opens as a sheet that slides up from
+ * the bottom, so filters never push the list down the screen. `align="end"` is for filters that carry labels
+ * above them, to keep their boxes level with the search box on a computer.
  */
-export function Filters({ lead, children, active = 0, className, onClear }: { lead?: ReactNode; children: ReactNode; active?: number; className?: string; onClear?: () => void }) {
+export function Filters({ lead, children, active = 0, className, onClear, align = "center" }: { lead?: ReactNode; children: ReactNode; active?: number; className?: string; onClear?: () => void; align?: "center" | "end" }) {
   const [open, setOpen] = useState(false);
-  const id = useRef(`filters-${Math.random().toString(36).slice(2, 8)}`).current;
+  const phone = useIsMobile();
+  const clear = onClear && active > 0;
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={cn("flex flex-wrap gap-2", align === "end" ? "items-end" : "items-center")}>
       {lead && <div className="min-w-0 flex-1 md:min-w-[14rem]">{lead}</div>}
-      <button type="button" aria-expanded={open} aria-controls={id} data-testid="button-toggle-filters" onClick={() => setOpen((o) => !o)}
-        className={cn("inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold md:hidden", !lead && "w-full justify-center", active ? "border-primary/40 bg-primary/5 text-primary" : "border-input bg-card")}>
-        <SlidersHorizontal className="h-4 w-4" />{lead ? <span className="sr-only">Filters</span> : "Filters"}
+      <button type="button" aria-haspopup="dialog" aria-expanded={open} aria-label={active ? `Filters, ${active} on` : "Filters"} data-testid="button-toggle-filters" onClick={() => setOpen(true)}
+        className={cn("relative inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-semibold md:hidden", !lead && "w-full", active ? "border-primary/40 bg-primary/5 text-primary" : "border-input bg-card")}>
+        <SlidersHorizontal className="h-4 w-4" />{!lead && "Filters"}
         {active > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">{active}</span>}
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
       </button>
-      <div id={id} className={cn(open ? "grid" : "hidden", "w-full gap-2 md:flex md:w-auto md:flex-wrap md:items-center", className)}>
-        {children}
-        {onClear && active > 0 && <button type="button" onClick={onClear} className="h-11 rounded-md px-3 text-sm font-semibold text-primary hover:bg-muted md:h-9">Clear filters</button>}
-      </div>
+      {!phone && (
+        <div className={cn("hidden w-full gap-2 md:flex md:w-auto md:flex-wrap", align === "end" ? "md:items-end" : "md:items-center", className)}>
+          {children}
+          {clear && <button type="button" onClick={onClear} className="h-9 rounded-md px-3 text-sm font-semibold text-primary hover:bg-muted">Clear filters</button>}
+        </div>
+      )}
+      {phone && (
+        <Dialog.Root open={open} onOpenChange={setOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+            {/* A sheet normally puts the cursor in its first field as it opens; when that field is a date, a phone pops its calendar up unasked. The sheet itself takes the focus instead. */}
+            <Dialog.Content aria-describedby={undefined} data-testid="sheet-filters" tabIndex={-1} onOpenAutoFocus={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).focus(); }} className="filter-sheet dialog-body fixed inset-x-0 top-[calc(var(--vvt,0px)+var(--vvh,100dvh))] z-50 flex max-h-[calc(var(--vvh,100dvh)*0.9)] -translate-y-full flex-col rounded-t-2xl bg-card text-foreground outline-none">
+              <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-foreground/20" />
+              <div className="flex shrink-0 items-center justify-between gap-3 px-4 pb-2 pt-2">
+                <Dialog.Title className="font-display text-lg font-semibold">Filters</Dialog.Title>
+                {clear && <button type="button" onClick={onClear} data-testid="button-clear-filters" className="rounded-md px-2 text-sm font-semibold text-primary">Clear all</button>}
+              </div>
+              <div className="grid min-h-0 gap-3 overflow-y-auto px-4 pb-3 [&_input:not([type=checkbox]):not([type=radio])]:w-full [&_select]:w-full">{children}</div>
+              <div className="shrink-0 border-t border-border/60 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+                <Dialog.Close asChild><Btn className="h-11 w-full" data-testid="button-apply-filters">Show results</Btn></Dialog.Close>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
     </div>
   );
 }

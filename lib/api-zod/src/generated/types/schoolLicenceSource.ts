@@ -12,4 +12,5 @@ export type SchoolLicenceSource = typeof SchoolLicenceSource[keyof typeof School
 export const SchoolLicenceSource = {
   admin: 'admin',
   payment: 'payment',
+  key: 'key',
 } as const;

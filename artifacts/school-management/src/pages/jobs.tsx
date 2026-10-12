@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { Pager, usePaged } from "@/components/pager";
 import { useListFailedFinanceJobs, useListFailedJobs, useRetryFailedJob, getListFailedFinanceJobsQueryKey, getListFailedJobsQueryKey } from "@workspace/api-client-react";
 import { CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Pill } from "@/components/kit";
@@ -23,6 +24,7 @@ export default function Jobs() {
   const q = useListFailedJobs({ query: { queryKey: getListFailedJobsQueryKey() } });
   const fin = useListFailedFinanceJobs({ query: { queryKey: getListFailedFinanceJobsQueryKey() } });
   const d = q.data;
+  const msgs = usePaged(d?.messages), jobs = usePaged(d?.jobs), events = usePaged(d?.integrations), finJobs = usePaged(fin.data);
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Monitoring" title="Finance jobs" meta="Background work that did not finish. Postings are never undone by a failure; retrying re-runs only the job.">
@@ -30,27 +32,31 @@ export default function Jobs() {
       </PageHeader>
       <Panel title="Messages" note="Retrying re-sends through the same outbox; it cannot send twice. Expired one-time codes need a fresh code, not a retry.">
         {q.isLoading ? <SkeletonRows cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !d?.messages.length ? <Empty icon={<CheckCircle2 className="h-5 w-5" />} title="No failed messages" body="Every queued message was handed to its provider." /> : (
-          <Table head={["Template", "Status", "Attempts", "Error", ""]}>{d.messages.map((m, i) => (
+          <Table head={["Template", "Status", "Attempts", "Error", ""]}>{msgs.rows.map((m, i) => (
             <tr key={m.id ?? i}><td className={td}>{m.template?.replace(/_/g, " ")}</td><td className={td}><Pill tone="error">{m.status}</Pill></td><td className={td}>{m.attempts}</td><td className={`${td} text-xs text-destructive`}>{m.error}</td><td className={td}><Retry id={m.id} /></td></tr>))}</Table>
         )}
+        <Pager {...msgs.pager} />
       </Panel>
       {(p.platform || !!d?.jobs.length) && <Panel title="Scheduler jobs" note={p.platform ? "Global jobs; platform administrators only." : undefined}>
         {!d?.jobs.length ? <p className="p-5 text-sm text-muted-foreground">No failed scheduler jobs.</p> : (
-          <Table head={["Job", "State", "Retries", "Failed at", ""]}>{d.jobs.map((j, i) => (
+          <Table head={["Job", "State", "Retries", "Failed at", ""]}>{jobs.rows.map((j, i) => (
             <tr key={j.id ?? i}><td className={`${td} font-semibold`}>{JOB_LABEL[j.name ?? ""] ?? j.name}</td><td className={td}><Pill tone="error">{j.state}</Pill></td><td className={td}>{j.retryCount}</td><td className={`${td} text-xs`}>{fmtDateTime(j.completedAt)}</td><td className={td}>{p.platform && <Retry id={j.id} />}</td></tr>))}</Table>
         )}
+        <Pager {...jobs.pager} />
       </Panel>}
       <Panel title="Integration events">
         {!d?.integrations.length ? <p className="p-5 text-sm text-muted-foreground">No failed provider callbacks.</p> : (
-          <Table head={["Provider", "Event", "Status", "Received"]}>{d.integrations.map((x, i) => (
+          <Table head={["Provider", "Event", "Status", "Received"]}>{events.rows.map((x, i) => (
             <tr key={x.id ?? i}><td className={td}>{readable(x.provider ?? "Integration")}</td><td className={`${td} text-xs`}>{readable(x.event ?? "Event")}</td><td className={td}><Pill tone="error">{readable(x.status ?? "Failed")}</Pill></td><td className={`${td} text-xs`}>{fmtDateTime(x.createdAt)}</td></tr>))}</Table>
         )}
+        <Pager {...events.pager} />
       </Panel>
       <Panel title="Finance jobs">
         {fin.isLoading ? <SkeletonRows cols={4} /> : fin.isError ? <ErrorState msg={errMsg(fin.error)} onRetry={() => fin.refetch()} /> : !fin.data?.length ? <p className="p-5 text-sm text-muted-foreground">No failed nightly or receipt jobs.</p> : (
-          <Table head={["Job", "ID", "Retries", "Failed at", ""]}>{fin.data.map((j, i) => (
+          <Table head={["Job", "ID", "Retries", "Failed at", ""]}>{finJobs.rows.map((j, i) => (
             <tr key={str(j, "id") ?? i}><td className={`${td} font-semibold`}>{JOB_LABEL[str(j, "name") ?? ""] ?? str(j, "name")}</td><td className={`${td} font-mono text-xs`}>{str(j, "id")?.slice(0, 8)}</td><td className={td}>{str(j, "retryCount") ?? "0"}</td><td className={`${td} text-xs`}>{fmtDateTime(str(j, "completedOn") ?? str(j, "completedAt"))}</td><td className={td}>{p.platform && <Retry id={str(j, "id")} />}</td></tr>))}</Table>
         )}
+        <Pager {...finJobs.pager} />
       </Panel>
     </div>
   );

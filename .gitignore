@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.env.local
+
+# Files uploaded or generated when storage is on this server (logos, receipts, report cards)
+/artifacts/api-server/storage/

@@ -20,6 +20,7 @@ export interface FileUploadInput {
      */
   size: number;
   contentType: FileUploadInputContentType;
+  /** finance_document: a receipt or invoice scan; entityId is the school */
   purpose: FileUploadInputPurpose;
   entityId: string;
 }

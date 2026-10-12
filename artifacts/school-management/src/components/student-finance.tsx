@@ -1,4 +1,5 @@
 import { useGetStudentFinanceHistory, getGetStudentFinanceHistoryQueryKey } from "@workspace/api-client-react";
+import { Pager, usePaged } from "@/components/pager";
 import { Wallet } from "lucide-react";
 import { Panel, SkeletonRows, ErrorState, Empty } from "@/components/kit";
 import { StatusPill, Money, DocumentButton, Table, td } from "@/components/finance-kit";
@@ -17,6 +18,7 @@ export function StudentFinancePanel({ studentId }: { studentId: string }) {
     return { e, d, c, run: fromCents(run) };
   });
   const records = [...(h?.records ?? [])].reverse();
+  const lp = usePaged([...ledger].reverse()), rp = usePaged(records), ap = usePaged(h?.allocations);
   const ref = (id?: string) => { const r = h?.records.find((x) => x.id === id); return r ? recordTitle(r) : "Record"; };
   return (
     <Panel title="Financial history" note="Ledger is the source of truth. Pending requests are not posted." action={<DocumentButton type="statement" referenceId={studentId} />}>
@@ -29,17 +31,20 @@ export function StudentFinancePanel({ studentId }: { studentId: string }) {
           </div>
           {!ledger.length && !records.length ? <Empty icon={<Wallet className="h-5 w-5" />} title="No financial activity" body="Invoices and payments for this learner will appear here." /> : <>
             <h3 className="px-5 pt-4 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Ledger</h3>
-            <Table head={["Date", "Entry", "Debit", "Credit", "Running"]}>{ledger.map(({ e, d, c, run }, i) => (
+            <Table head={["Date", "Entry", "Debit", "Credit", "Running"]}>{lp.rows.map(({ e, d, c, run }, i) => (
               <tr key={str(e, "id") ?? i} className={str(e, "reversesId") ? "text-muted-foreground" : ""}><td className={`${td} whitespace-nowrap text-xs`}>{fmtDate(str(e, "createdAt"))}</td><td className={td}>{str(e, "description") ?? str(e, "type")}<div className="text-[11px] capitalize text-muted-foreground">{str(e, "type")}{str(e, "reversesId") ? " (reversal)" : ""}</div></td>
                 <td className={td}>{toCents(d) ? <Money v={d} /> : ""}</td><td className={td}>{toCents(c) ? <Money v={c} /> : ""}</td><td className={td}><Money v={run} /></td></tr>))}</Table>
+            <Pager {...lp.pager} />
             <h3 className="px-5 pt-5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Records & requests</h3>
-            <Table head={["When", "Record", "Amount", "Status", ""]}>{records.map((r) => (
+            <Table head={["When", "Record", "Amount", "Status", ""]}>{rp.rows.map((r) => (
               <tr key={r.id} data-testid={`row-student-finance-${r.id}`}><td className={`${td} whitespace-nowrap text-xs`}>{fmtDateTime(r.createdAt)}</td><td className={td}>{recordTitle(r)}<div className="text-[11px] text-muted-foreground">{KIND_LABEL[r.kind] ?? r.kind}{rd(r, "reason") ? ` · ${rd(r, "reason")}` : ""}</div></td>
-                <td className={td}><Money v={r.amount} /></td><td className={td}><StatusPill status={r.status} /></td><td className={td}>{r.kind === "payment" && r.status === "posted" && <DocumentButton type="receipt" referenceId={r.id} fileName={rd(r, "receiptNo") ?? "receipt"} />}</td></tr>))}</Table>
+                <td className={td}><Money v={r.amount} /></td><td className={td}><StatusPill status={r.status} /></td><td className={td}>{r.kind === "payment" && r.status === "posted" && <DocumentButton type="receipt" referenceId={r.id} fileName={rd(r, "receiptNo") ?? "receipt"} />}{r.kind === "invoice" && <DocumentButton type="invoice" referenceId={r.id} fileName={`Invoice-${rd(r, "invoiceNo") ?? r.id}`} />}</td></tr>))}</Table>
+            <Pager {...rp.pager} />
             {h.allocations.length > 0 && <>
               <h3 className="px-5 pt-5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Allocations</h3>
-              <Table head={["Date", "Source", "Invoice", "Amount"]}>{h.allocations.map((a, i) => (
+              <Table head={["Date", "Source", "Invoice", "Amount"]}>{ap.rows.map((a, i) => (
                 <tr key={str(a, "id") ?? i} className={str(a, "reversesId") ? "text-muted-foreground line-through" : ""}><td className={`${td} text-xs`}>{fmtDate(str(a, "createdAt"))}</td><td className={`${td} font-mono text-xs`}>{ref(str(a, "sourceId"))}</td><td className={`${td} font-mono text-xs`}>{ref(str(a, "invoiceId"))}</td><td className={td}><Money v={str(a, "amount")} /></td></tr>))}</Table>
+            <Pager {...ap.pager} />
             </>}
           </>}
         </div>

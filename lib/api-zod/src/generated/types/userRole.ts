@@ -16,4 +16,6 @@ export const UserRole = {
   bursar: 'bursar',
   teacher: 'teacher',
   class_teacher: 'class_teacher',
+  storekeeper: 'storekeeper',
+  librarian: 'librarian',
 } as const;

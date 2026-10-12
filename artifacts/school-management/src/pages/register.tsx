@@ -25,7 +25,7 @@ function stepError(step: number, d: Draft): string | null {
     const a = d.adminName.trim();
     if (a.length < 2 || a.length > 160) return "Enter your full name (2 to 160 characters).";
     if (!EMAIL.test(d.email.trim()) || d.email.trim().length > 180) return "Enter a valid email address. You will sign in with it.";
-    if (d.password.length < 10 || d.password.length > 128) return "Password must be 10 to 128 characters.";
+    if (d.password.length < 6 || d.password.length > 128) return "Password must be 6 to 128 characters.";
   }
   return null;
 }
@@ -57,6 +57,8 @@ export function RegisterPage() {
     m.mutate({ data: { schoolName: d.schoolName.trim(), schoolType: d.schoolType, adminName: d.adminName.trim(), email: d.email.trim(), password: d.password } }, {
       onSuccess: (session: AuthSession) => {
         qc.setQueryData(getGetSetupStatusQueryKey(), { needsSetup: false, requiresSetupToken: false });
+        // A "who am I" check still in flight from before the sign-in would answer "nobody" and bounce the person back to the landing page, so it is dropped first.
+        void qc.cancelQueries({ queryKey: getGetCurrentUserQueryKey() });
         qc.setQueryData(getGetCurrentUserQueryKey(), session);
         navigate("/", { replace: true });
       },
@@ -65,14 +67,11 @@ export function RegisterPage() {
   };
 
   return (
-    <Frame side={<>
-      <p className="font-display text-4xl font-semibold leading-[1.1] text-sidebar-accent-foreground">Start with two things.<br /><span className="text-sidebar-primary">Your school and you.</span></p>
-      <p className="mt-6 max-w-sm text-sm leading-relaxed text-sidebar-foreground/70">County, contacts, logo and the rest wait until you are approved and inside. A platform reviewer checks each new school before it opens.</p>
-    </>}>
-      <div className="mx-auto max-w-md">
+    <Frame wide>
+      <div>
         <div className="mb-6 flex items-center justify-between">
           {step > 0 ? <button type="button" key="hdr-back" onClick={back} disabled={m.isPending} className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground" data-testid="button-wizard-header-back"><ArrowLeft className="h-3.5 w-3.5" />Back</button>
-            : <Link href="/" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground" data-testid="link-back-login"><ArrowLeft className="h-3.5 w-3.5" />Sign in</Link>}
+            : <Link href="/login" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground" data-testid="link-back-login"><ArrowLeft className="h-3.5 w-3.5" />Sign in</Link>}
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Step {step + 1} of 3</span>
         </div>
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700/80">School registration</div>
@@ -87,14 +86,14 @@ export function RegisterPage() {
         </ol>
 
         <form onSubmit={submit} className="space-y-5" noValidate>
-          {step === 0 && <div key="s0" className="rise space-y-4">
+          {step === 0 && <div key="s0" className="rise grid gap-4 sm:grid-cols-2">
             <Field label="School name" required><TextInput data-testid="input-school-name" autoFocus maxLength={180} value={d.schoolName} onChange={set("schoolName")} placeholder="Kitengela Hills Academy" /></Field>
             <Field label="Level" required hint="You can refine this later in settings."><NativeSelect data-testid="select-school-type" value={d.schoolType} onChange={set("schoolType")}>{Object.values(SchoolType).map((t) => <option key={t} value={t}>{label(t)}</option>)}</NativeSelect></Field>
           </div>}
-          {step === 1 && <div key="s1" className="rise space-y-4">
-            <Field label="Full name" required><TextInput data-testid="input-admin-name" autoFocus autoComplete="name" maxLength={160} value={d.adminName} onChange={set("adminName")} placeholder="Grace Wanjiru Mwangi" /></Field>
+          {step === 1 && <div key="s1" className="rise grid gap-4 sm:grid-cols-2">
+            <Field label="Full name" required className="sm:col-span-2"><TextInput data-testid="input-admin-name" autoFocus autoComplete="name" maxLength={160} value={d.adminName} onChange={set("adminName")} placeholder="Grace Wanjiru Mwangi" /></Field>
             <Field label="Email" required hint="You will sign in with this email."><TextInput data-testid="input-email" type="email" autoComplete="email" maxLength={180} value={d.email} onChange={set("email")} placeholder="admin@school.ac.ke" /></Field>
-            <Field label="Password" required hint="At least 10 characters">
+            <Field label="Password" required hint="At least 6 characters">
               <div className="relative">
                 <TextInput data-testid="input-password" type={showPassword ? "text" : "password"} autoComplete="new-password" maxLength={128} value={d.password} onChange={set("password")} className="pr-16" />
                 <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 min-w-14 px-3 text-xs font-semibold text-primary">{showPassword ? "Hide" : "Show"}</button>
@@ -136,10 +135,7 @@ export function RegistrationStatusPage({ session }: { session: AuthSession }) {
   useEffect(() => { if (me.dataUpdatedAt) setCheckedAt(new Date(me.dataUpdatedAt).toISOString()); }, [me.dataUpdatedAt]);
 
   return (
-    <Frame side={<>
-      <p className="font-display text-4xl font-semibold leading-[1.1] text-sidebar-accent-foreground">{pending ? <>Your school is<br /><span className="text-sidebar-primary">awaiting approval.</span></> : <>Registration<br /><span className="text-sidebar-primary">not approved.</span></>}</p>
-      <p className="mt-6 max-w-sm text-sm leading-relaxed text-sidebar-foreground/70">Signed in as {session.user.name}{session.user.email ? ` (${session.user.email})` : ""}.</p>
-    </>}>
+    <Frame wide>
       <div className="mx-auto max-w-md" data-testid={pending ? "page-registration-pending" : "page-registration-rejected"}>
         <div className={cn("mb-5 flex h-12 w-12 items-center justify-center rounded-full", pending ? "bg-amber-500/15 text-amber-700" : "bg-destructive/10 text-destructive")}>
           {pending ? <Clock className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}

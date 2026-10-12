@@ -1,11 +1,13 @@
 import { fmtDate, fmtDateTime } from "./datetime";
 /** Presentation only: stored audit records are never rewritten. */
 export const ACTION_LABELS: Record<string, string> = {
-  login: "Signed in", logout: "Signed out", password_changed: "Changed own password",
+  login: "Signed in", logout: "Signed out", password_changed: "Changed own password", password_reset: "Staff password reset",
   "school.provisioned": "School created", "school.updated": "School details updated",
   "school.registration_approved": "School registration approved", "school.registration_rejected": "School registration declined",
   "admin.created": "Administrator added", "admin.updated": "Administrator details updated",
   "admin.password_reset": "Administrator password reset",
+  "knowledge.article_created": "Knowledge base article added", "knowledge.article_updated": "Knowledge base article edited",
+  "knowledge.article_deleted": "Knowledge base article removed", "knowledge.seeded": "Starter knowledge base articles added",
   "tenant.entered": "School support session started", "tenant.exited": "School support session ended",
   "billing.invoice_created": "Subscription invoice issued", "billing.invoice_voided": "Subscription invoice voided",
   "billing.payment_recorded": "Subscription payment recorded", "billing.payment_reversed": "Subscription payment reversed",
@@ -17,7 +19,7 @@ export const ACTION_LABELS: Record<string, string> = {
 };
 const ACTIONS: Record<string, string> = {
   created: "Created", updated: "Updated", deleted: "Removed", approved: "Approved", rejected: "Declined",
-  registration_submitted: "Submitted school registration", current_cleared: "Removed current designation",
+  registration_submitted: "Submitted school registration", terms_accepted: "Accepted the terms and privacy policy", current_cleared: "Removed current designation",
   privacy_exported: "Exported personal data", privacy_updated: "Updated privacy settings",
   verification_revoked: "Revoked verification", anonymized: "Anonymized personal details",
   promotion_previewed: "Previewed student promotion", promotion_committed: "Completed student promotion",

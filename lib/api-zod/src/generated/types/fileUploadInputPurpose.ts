@@ -6,10 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * finance_document: a receipt or invoice scan; entityId is the school
+ */
 export type FileUploadInputPurpose = typeof FileUploadInputPurpose[keyof typeof FileUploadInputPurpose];
 
 
 export const FileUploadInputPurpose = {
   school_logo: 'school_logo',
   student_photo: 'student_photo',
+  finance_document: 'finance_document',
 } as const;

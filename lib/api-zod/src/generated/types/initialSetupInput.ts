@@ -35,7 +35,7 @@ export interface InitialSetupInput {
      */
   phone?: string;
   /**
-     * @minLength 10
+     * @minLength 6
      * @maxLength 128
      */
   password: string;

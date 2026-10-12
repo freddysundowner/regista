@@ -3,6 +3,7 @@ import { ApiError, owned, type Actor } from "../core";
 import { money } from "../finance/money";
 import { integration } from "./security";
 import { fullPhone } from "../payments/matching";
+import { isSunpayStk, refreshSunpayStk, startSunpayStk, usesSunpayStk } from "./sunpay";
 
 async function daraja(schoolId: string) {
   const { config, credentials, publicConfig } = await integration(schoolId, "daraja");
@@ -25,7 +26,7 @@ async function daraja(schoolId: string) {
   const timestamp = new Date(Date.now() + 3 * 3600000).toISOString().replace(/\D/g, "").slice(0, 14);
   return { credentials, publicConfig, timestamp, password: Buffer.from(`${publicConfig.shortcode}${credentials.passkey}${timestamp}`).toString("base64"), post };
 }
-function callbackBase() {
+export function callbackBase() {
   const value = process.env.APP_BASE_URL;
   if (!value || !/^https:\/\/[^/]+/.test(value)) throw new ApiError(503, "APP_BASE_URL must be a public HTTPS origin");
   return value.replace(/\/$/, "");
@@ -42,6 +43,7 @@ export async function registerCallbacks(actor: Actor) {
   return { status: "accepted", message: "Registration accepted; this is not a payment verification or live acceptance test" };
 }
 export async function startStk(actor: Actor, input: { studentId: string; phone: string; amount: string; idempotencyKey: string }) {
+  if (await usesSunpayStk(actor.school.id)) return startSunpayStk(actor, input);
   const schoolId = actor.school.id, student = await owned(db, "student", input.studentId, schoolId);
   const amount = money(input.amount), phone = fullPhone(input.phone);
   if (!phone || !phone.startsWith("2547")) throw new ApiError(400, "STK requires a documented 2547 phone; 2541 support awaits provider acceptance");
@@ -70,6 +72,7 @@ export async function startStk(actor: Actor, input: { studentId: string; phone: 
 }
 export async function queryStk(schoolId: string, id: string) {
   const request = await db.stkRequest.findFirst({ where: { id, schoolId } });
+  if (request && isSunpayStk(request)) return refreshSunpayStk(schoolId, id);
   if (!request?.checkoutRequestId) throw new ApiError(404, "STK request has no checkout identifier");
   const api = await daraja(schoolId);
   const response = await api.post("/mpesa/stkpushquery/v1/query", { BusinessShortCode: api.publicConfig.shortcode, Password: api.password, Timestamp: api.timestamp, CheckoutRequestID: request.checkoutRequestId });

@@ -634,6 +634,7 @@ export const SaveSchoolMessagingResponse = zod.object({
 
 
 export const ListLicencePlansResponseItem = zod.object({
+  "maxLearners": zod.number().int().nullable(),
   "id": zod.string().uuid(),
   "name": zod.string(),
   "description": zod.string(),
@@ -655,6 +656,8 @@ export const createLicencePlanBodyDurationDaysMax = 3650;
 
 export const createLicencePlanBodyPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
 export const createLicencePlanBodySubscriptionPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+export const createLicencePlanBodyMaxLearnersMax = 1000000;
+
 
 
 export const CreateLicencePlanBody = zod.object({
@@ -663,10 +666,12 @@ export const CreateLicencePlanBody = zod.object({
   "durationDays": zod.number().int().min(1).max(createLicencePlanBodyDurationDaysMax),
   "price": zod.string().regex(createLicencePlanBodyPriceRegExp),
   "subscriptionPrice": zod.string().regex(createLicencePlanBodySubscriptionPriceRegExp),
+  "maxLearners": zod.number().int().min(1).max(createLicencePlanBodyMaxLearnersMax).nullish().describe('Most active learners the package covers; null covers any number.'),
   "isActive": zod.boolean()
 })
 
 export const CreateLicencePlanResponse = zod.object({
+  "maxLearners": zod.number().int().nullable(),
   "id": zod.string().uuid(),
   "name": zod.string(),
   "description": zod.string(),
@@ -691,6 +696,8 @@ export const editLicencePlanBodyDurationDaysMax = 3650;
 
 export const editLicencePlanBodyPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
 export const editLicencePlanBodySubscriptionPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+export const editLicencePlanBodyMaxLearnersMax = 1000000;
+
 
 
 export const EditLicencePlanBody = zod.object({
@@ -699,10 +706,12 @@ export const EditLicencePlanBody = zod.object({
   "durationDays": zod.number().int().min(1).max(editLicencePlanBodyDurationDaysMax),
   "price": zod.string().regex(editLicencePlanBodyPriceRegExp),
   "subscriptionPrice": zod.string().regex(editLicencePlanBodySubscriptionPriceRegExp),
+  "maxLearners": zod.number().int().min(1).max(editLicencePlanBodyMaxLearnersMax).nullish().describe('Most active learners the package covers; null covers any number.'),
   "isActive": zod.boolean()
 })
 
 export const EditLicencePlanResponse = zod.object({
+  "maxLearners": zod.number().int().nullable(),
   "id": zod.string().uuid(),
   "name": zod.string(),
   "description": zod.string(),
@@ -719,11 +728,38 @@ export const GetPlatformLicensingParams = zod.object({
 })
 
 export const GetPlatformLicensingResponse = zod.object({
+  "packages": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "fits": zod.boolean().describe('Covers the school\'s active learners today.'),
+  "current": zod.boolean().describe('The package the school\'s current licence is on.'),
+  "upgradePrice": zod.string().nullable().describe('What moving to it now costs for the days left; null when it is not an upgrade.')
+}).describe('A package as one school sees it.')),
+  "trialEndsAt": zod.coerce.date().nullable(),
+  "pricing": zod.object({
+  "configured": zod.boolean(),
+  "currency": zod.enum(['KES']),
+  "price": zod.string(),
+  "periodDays": zod.number().int(),
+  "periodLabel": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "trialDays": zod.number().int(),
+  "highlights": zod.array(zod.string())
+}),
+  "learners": zod.object({
+  "active": zod.number().int(),
+  "max": zod.number().int().nullable()
+}),
   "managed": zod.boolean(),
   "accessAllowed": zod.boolean(),
-  "status": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']),
+  "status": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']),
   "currentEndsAt": zod.coerce.date().nullable(),
   "plans": zod.array(zod.object({
+  "maxLearners": zod.number().int().nullable(),
   "id": zod.string().uuid(),
   "name": zod.string(),
   "description": zod.string(),
@@ -736,13 +772,14 @@ export const GetPlatformLicensingResponse = zod.object({
   "licences": zod.array(zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
-  "planId": zod.string().uuid(),
+  "planId": zod.string().uuid().nullable(),
+  "maxLearners": zod.number().int().nullable(),
   "planName": zod.string(),
   "durationDays": zod.number().int(),
   "price": zod.string(),
   "startsAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
-  "source": zod.enum(['admin', 'payment']),
+  "source": zod.enum(['admin', 'payment', 'key']),
   "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
   "revokedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -772,22 +809,33 @@ export const IssueSchoolLicenceParams = zod.object({
   "schoolId": zod.coerce.string().uuid()
 })
 
+export const issueSchoolLicenceBodyDurationDaysMax = 3650;
+
+export const issueSchoolLicenceBodyMaxLearnersMax = 1000000;
+
+export const issueSchoolLicenceBodyLabelMax = 100;
+
+
+
 export const IssueSchoolLicenceBody = zod.object({
   "requestId": zod.string().uuid(),
-  "planId": zod.string().uuid(),
+  "durationDays": zod.number().int().min(1).max(issueSchoolLicenceBodyDurationDaysMax),
+  "maxLearners": zod.number().int().min(1).max(issueSchoolLicenceBodyMaxLearnersMax).nullable(),
+  "label": zod.string().max(issueSchoolLicenceBodyLabelMax).optional(),
   "startsAt": zod.coerce.date().optional()
 })
 
 export const IssueSchoolLicenceResponse = zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
-  "planId": zod.string().uuid(),
+  "planId": zod.string().uuid().nullable(),
+  "maxLearners": zod.number().int().nullable(),
   "planName": zod.string(),
   "durationDays": zod.number().int(),
   "price": zod.string(),
   "startsAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
-  "source": zod.enum(['admin', 'payment']),
+  "source": zod.enum(['admin', 'payment', 'key']),
   "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
   "revokedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -802,25 +850,440 @@ export const RevokeSchoolLicenceParams = zod.object({
 export const RevokeSchoolLicenceResponse = zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
-  "planId": zod.string().uuid(),
+  "planId": zod.string().uuid().nullable(),
+  "maxLearners": zod.number().int().nullable(),
   "planName": zod.string(),
   "durationDays": zod.number().int(),
   "price": zod.string(),
   "startsAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
-  "source": zod.enum(['admin', 'payment']),
+  "source": zod.enum(['admin', 'payment', 'key']),
   "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
   "revokedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
 
 
+export const GetPublicPricingResponse = zod.object({
+  "configured": zod.boolean(),
+  "currency": zod.enum(['KES']),
+  "price": zod.string(),
+  "periodDays": zod.number().int(),
+  "periodLabel": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "trialDays": zod.number().int(),
+  "highlights": zod.array(zod.string())
+}).and(zod.object({
+  "requireApproval": zod.boolean(),
+  "packages": zod.array(zod.object({
+  "name": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "maxLearners": zod.number().int().nullable()
+})),
+  "paymentMethods": zod.array(zod.object({
+  "id": zod.enum(['mpesa', 'stripe', 'paystack']),
+  "name": zod.string()
+}))
+}))
+
+
+export const GetPlatformPricingResponse = zod.object({
+  "configured": zod.boolean(),
+  "currency": zod.enum(['KES']),
+  "price": zod.string(),
+  "periodDays": zod.number().int(),
+  "periodLabel": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "trialDays": zod.number().int(),
+  "highlights": zod.array(zod.string())
+})
+
+
+export const updatePlatformPricingBodyPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+export const updatePlatformPricingBodyPeriodDaysMax = 3650;
+
+export const updatePlatformPricingBodyPeriodLabelMin = 2;
+export const updatePlatformPricingBodyPeriodLabelMax = 30;
+
+export const updatePlatformPricingBodyMaxLearnersMax = 1000000;
+
+export const updatePlatformPricingBodyTrialDaysMin = 0;
+export const updatePlatformPricingBodyTrialDaysMax = 90;
+
+export const updatePlatformPricingBodyHighlightsItemMin = 2;
+export const updatePlatformPricingBodyHighlightsItemMax = 120;
+
+export const updatePlatformPricingBodyHighlightsMax = 12;
+
+
+
+export const UpdatePlatformPricingBody = zod.object({
+  "price": zod.string().regex(updatePlatformPricingBodyPriceRegExp),
+  "periodDays": zod.number().int().min(1).max(updatePlatformPricingBodyPeriodDaysMax),
+  "periodLabel": zod.string().min(updatePlatformPricingBodyPeriodLabelMin).max(updatePlatformPricingBodyPeriodLabelMax),
+  "maxLearners": zod.number().int().min(1).max(updatePlatformPricingBodyMaxLearnersMax).nullable(),
+  "trialDays": zod.number().int().min(updatePlatformPricingBodyTrialDaysMin).max(updatePlatformPricingBodyTrialDaysMax),
+  "highlights": zod.array(zod.string().min(updatePlatformPricingBodyHighlightsItemMin).max(updatePlatformPricingBodyHighlightsItemMax)).max(updatePlatformPricingBodyHighlightsMax)
+})
+
+export const UpdatePlatformPricingResponse = zod.object({
+  "configured": zod.boolean(),
+  "currency": zod.enum(['KES']),
+  "price": zod.string(),
+  "periodDays": zod.number().int(),
+  "periodLabel": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "trialDays": zod.number().int(),
+  "highlights": zod.array(zod.string())
+})
+
+
+export const GetInstallationResponse = zod.object({
+  "mode": zod.enum(['hosted', 'standalone']),
+  "licensing": zod.union([zod.literal('licensed'),zod.literal('open'),zod.literal(null)]).nullable(),
+  "licence": zod.union([zod.object({
+  "status": zod.enum(['active', 'expired', 'missing', 'invalid', 'unconfigured']),
+  "schoolName": zod.string().nullable(),
+  "expiresAt": zod.coerce.date().nullable(),
+  "maxLearners": zod.number().int().nullable(),
+  "issuedAt": zod.coerce.date().nullable()
+}),zod.null()])
+})
+
+
+export const installLicenceBodyLicenceMin = 20;
+export const installLicenceBodyLicenceMax = 4000;
+
+
+
+export const InstallLicenceBody = zod.object({
+  "licence": zod.string().min(installLicenceBodyLicenceMin).max(installLicenceBodyLicenceMax)
+})
+
+export const InstallLicenceResponse = zod.object({
+  "mode": zod.enum(['hosted', 'standalone']),
+  "licensing": zod.union([zod.literal('licensed'),zod.literal('open'),zod.literal(null)]).nullable(),
+  "licence": zod.union([zod.object({
+  "status": zod.enum(['active', 'expired', 'missing', 'invalid', 'unconfigured']),
+  "schoolName": zod.string().nullable(),
+  "expiresAt": zod.coerce.date().nullable(),
+  "maxLearners": zod.number().int().nullable(),
+  "issuedAt": zod.coerce.date().nullable()
+}),zod.null()])
+})
+
+
+export const ListStandaloneLicencesResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "schoolName": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "issuedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date().nullable(),
+  "note": zod.string(),
+  "licence": zod.string()
+})
+export const ListStandaloneLicencesResponse = zod.array(ListStandaloneLicencesResponseItem)
+
+
+export const issueStandaloneLicenceBodySchoolNameMin = 2;
+export const issueStandaloneLicenceBodySchoolNameMax = 180;
+
+export const issueStandaloneLicenceBodyMaxLearnersMax = 1000000;
+
+export const issueStandaloneLicenceBodyNoteMax = 200;
+
+
+
+export const IssueStandaloneLicenceBody = zod.object({
+  "requestId": zod.string().uuid(),
+  "schoolName": zod.string().min(issueStandaloneLicenceBodySchoolNameMin).max(issueStandaloneLicenceBodySchoolNameMax),
+  "expiresAt": zod.coerce.date().nullish(),
+  "maxLearners": zod.number().int().min(1).max(issueStandaloneLicenceBodyMaxLearnersMax).nullable(),
+  "note": zod.string().max(issueStandaloneLicenceBodyNoteMax).optional()
+})
+
+export const IssueStandaloneLicenceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "schoolName": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "issuedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date().nullable(),
+  "note": zod.string(),
+  "licence": zod.string()
+})
+
+
+export const GetRegistrationSettingsResponse = zod.object({
+  "requireApproval": zod.boolean()
+})
+
+
+export const UpdateRegistrationSettingsBody = zod.object({
+  "requireApproval": zod.boolean()
+})
+
+export const UpdateRegistrationSettingsResponse = zod.object({
+  "requireApproval": zod.boolean()
+})
+
+
+export const ListPaymentGatewaysResponseItem = zod.object({
+  "provider": zod.enum(['mpesa', 'stripe', 'paystack']),
+  "name": zod.string(),
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['sandbox', 'live']),
+  "publicConfig": zod.record(zod.string(), zod.string()),
+  "configured": zod.boolean(),
+  "savedCredentials": zod.array(zod.string()),
+  "webhookUrl": zod.string().nullable(),
+  "updatedAt": zod.coerce.date().nullable()
+})
+export const ListPaymentGatewaysResponse = zod.array(ListPaymentGatewaysResponseItem)
+
+
+export const UpdatePaymentGatewayParams = zod.object({
+  "provider": zod.enum(['mpesa', 'stripe', 'paystack'])
+})
+
+export const updatePaymentGatewayBodyPublicConfigMaxOne = 200;
+
+export const updatePaymentGatewayBodyCredentialsMaxOne = 4000;
+
+
+
+export const UpdatePaymentGatewayBody = zod.object({
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['sandbox', 'live']),
+  "publicConfig": zod.record(zod.string(), zod.string().max(updatePaymentGatewayBodyPublicConfigMaxOne)),
+  "credentials": zod.record(zod.string(), zod.string().max(updatePaymentGatewayBodyCredentialsMaxOne)).optional()
+})
+
+export const UpdatePaymentGatewayResponse = zod.object({
+  "provider": zod.enum(['mpesa', 'stripe', 'paystack']),
+  "name": zod.string(),
+  "enabled": zod.boolean(),
+  "environment": zod.enum(['sandbox', 'live']),
+  "publicConfig": zod.record(zod.string(), zod.string()),
+  "configured": zod.boolean(),
+  "savedCredentials": zod.array(zod.string()),
+  "webhookUrl": zod.string().nullable(),
+  "updatedAt": zod.coerce.date().nullable()
+})
+
+
+export const ListLicenceKeysResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "batchId": zod.string().uuid(),
+  "maskedCode": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "note": zod.string(),
+  "status": zod.enum(['available', 'redeemed', 'revoked']),
+  "redeemedAt": zod.coerce.date().nullable(),
+  "redeemedSchoolId": zod.string().uuid().nullable(),
+  "redeemedSchoolName": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListLicenceKeysResponse = zod.array(ListLicenceKeysResponseItem)
+
+
+export const generateLicenceKeysBodyQuantityMax = 200;
+
+export const generateLicenceKeysBodyDurationDaysMax = 3650;
+
+export const generateLicenceKeysBodyPriceRegExp = new RegExp('^[0-9]{1,10}(\\.[0-9]{1,2})?$');
+export const generateLicenceKeysBodyMaxLearnersMax = 1000000;
+
+export const generateLicenceKeysBodyNoteMax = 200;
+
+
+
+export const GenerateLicenceKeysBody = zod.object({
+  "requestId": zod.string().uuid(),
+  "quantity": zod.number().int().min(1).max(generateLicenceKeysBodyQuantityMax),
+  "durationDays": zod.number().int().min(1).max(generateLicenceKeysBodyDurationDaysMax),
+  "price": zod.string().regex(generateLicenceKeysBodyPriceRegExp),
+  "maxLearners": zod.number().int().min(1).max(generateLicenceKeysBodyMaxLearnersMax).nullable(),
+  "note": zod.string().max(generateLicenceKeysBodyNoteMax).optional()
+})
+
+export const GenerateLicenceKeysResponse = zod.object({
+  "batchId": zod.string().uuid(),
+  "keys": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.string()
+}))
+})
+
+
+export const RevealLicenceKeyParams = zod.object({
+  "keyId": zod.coerce.string().uuid()
+})
+
+export const RevealLicenceKeyResponse = zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.string()
+})
+
+
+export const RevokeLicenceKeyParams = zod.object({
+  "keyId": zod.coerce.string().uuid()
+})
+
+export const RevokeLicenceKeyResponse = zod.object({
+  "id": zod.string().uuid(),
+  "batchId": zod.string().uuid(),
+  "maskedCode": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "note": zod.string(),
+  "status": zod.enum(['available', 'redeemed', 'revoked']),
+  "redeemedAt": zod.coerce.date().nullable(),
+  "redeemedSchoolId": zod.string().uuid().nullable(),
+  "redeemedSchoolName": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const StartSubscriptionCheckoutParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const startSubscriptionCheckoutBodyPhoneMax = 20;
+
+export const startSubscriptionCheckoutBodyEmailMax = 200;
+
+
+
+export const StartSubscriptionCheckoutBody = zod.object({
+  "requestId": zod.string().uuid(),
+  "method": zod.enum(['mpesa', 'stripe', 'paystack']),
+  "phone": zod.string().max(startSubscriptionCheckoutBodyPhoneMax).optional(),
+  "email": zod.string().email().max(startSubscriptionCheckoutBodyEmailMax).optional()
+})
+
+export const StartSubscriptionCheckoutResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "provider": zod.enum(['mpesa', 'stripe', 'paystack']),
+  "status": zod.enum(['pending', 'paid', 'failed', 'cancelled']),
+  "amount": zod.string(),
+  "currency": zod.string(),
+  "redirectUrl": zod.string().nullable(),
+  "receipt": zod.string().nullable(),
+  "message": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const GetSubscriptionCheckoutParams = zod.object({
+  "checkoutId": zod.coerce.string().uuid()
+})
+
+export const GetSubscriptionCheckoutResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "provider": zod.enum(['mpesa', 'stripe', 'paystack']),
+  "status": zod.enum(['pending', 'paid', 'failed', 'cancelled']),
+  "amount": zod.string(),
+  "currency": zod.string(),
+  "redirectUrl": zod.string().nullable(),
+  "receipt": zod.string().nullable(),
+  "message": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const redeemLicenceKeyBodyCodeMin = 8;
+export const redeemLicenceKeyBodyCodeMax = 40;
+
+
+
+export const RedeemLicenceKeyBody = zod.object({
+  "code": zod.string().min(redeemLicenceKeyBodyCodeMin).max(redeemLicenceKeyBodyCodeMax)
+})
+
+export const RedeemLicenceKeyResponse = zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid(),
+  "planId": zod.string().uuid().nullable(),
+  "maxLearners": zod.number().int().nullable(),
+  "planName": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "source": zod.enum(['admin', 'payment', 'key']),
+  "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const GetOnboardingResponse = zod.object({
+  "dismissed": zod.boolean(),
+  "steps": zod.array(zod.object({
+  "id": zod.enum(['profile', 'calendar', 'classes', 'learners', 'staff', 'fees', 'invoices', 'collections', 'curriculum', 'parents']),
+  "done": zod.boolean(),
+  "skipped": zod.boolean(),
+  "optional": zod.boolean()
+}))
+})
+
+
+export const UpdateOnboardingBody = zod.object({
+  "dismissed": zod.boolean().optional(),
+  "skip": zod.enum(['profile', 'calendar', 'classes', 'learners', 'staff', 'fees', 'invoices', 'collections', 'curriculum', 'parents']).optional(),
+  "unskip": zod.enum(['profile', 'calendar', 'classes', 'learners', 'staff', 'fees', 'invoices', 'collections', 'curriculum', 'parents']).optional()
+})
+
+export const UpdateOnboardingResponse = zod.object({
+  "dismissed": zod.boolean(),
+  "steps": zod.array(zod.object({
+  "id": zod.enum(['profile', 'calendar', 'classes', 'learners', 'staff', 'fees', 'invoices', 'collections', 'curriculum', 'parents']),
+  "done": zod.boolean(),
+  "skipped": zod.boolean(),
+  "optional": zod.boolean()
+}))
+})
+
+
 export const GetSchoolSubscriptionResponse = zod.object({
+  "packages": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "durationDays": zod.number().int(),
+  "price": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "fits": zod.boolean().describe('Covers the school\'s active learners today.'),
+  "current": zod.boolean().describe('The package the school\'s current licence is on.'),
+  "upgradePrice": zod.string().nullable().describe('What moving to it now costs for the days left; null when it is not an upgrade.')
+}).describe('A package as one school sees it.')),
+  "trialEndsAt": zod.coerce.date().nullable(),
+  "pricing": zod.object({
+  "configured": zod.boolean(),
+  "currency": zod.enum(['KES']),
+  "price": zod.string(),
+  "periodDays": zod.number().int(),
+  "periodLabel": zod.string(),
+  "maxLearners": zod.number().int().nullable(),
+  "trialDays": zod.number().int(),
+  "highlights": zod.array(zod.string())
+}),
+  "learners": zod.object({
+  "active": zod.number().int(),
+  "max": zod.number().int().nullable()
+}),
   "managed": zod.boolean(),
   "accessAllowed": zod.boolean(),
-  "status": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']),
+  "status": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']),
   "currentEndsAt": zod.coerce.date().nullable(),
   "plans": zod.array(zod.object({
+  "maxLearners": zod.number().int().nullable(),
   "id": zod.string().uuid(),
   "name": zod.string(),
   "description": zod.string(),
@@ -833,13 +1296,14 @@ export const GetSchoolSubscriptionResponse = zod.object({
   "licences": zod.array(zod.object({
   "id": zod.string().uuid(),
   "schoolId": zod.string().uuid(),
-  "planId": zod.string().uuid(),
+  "planId": zod.string().uuid().nullable(),
+  "maxLearners": zod.number().int().nullable(),
   "planName": zod.string(),
   "durationDays": zod.number().int(),
   "price": zod.string(),
   "startsAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
-  "source": zod.enum(['admin', 'payment']),
+  "source": zod.enum(['admin', 'payment', 'key']),
   "status": zod.enum(['active', 'scheduled', 'expired', 'revoked']),
   "revokedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -867,7 +1331,8 @@ export const GetSchoolSubscriptionResponse = zod.object({
 
 export const RequestLicenceRenewalBody = zod.object({
   "requestId": zod.string().uuid(),
-  "planId": zod.string().uuid()
+  "planId": zod.string().uuid().optional(),
+  "upgrade": zod.boolean().optional().describe('Move to a bigger package now, for the rest of the current licence, paying only the difference for the days left.')
 })
 
 export const RequestLicenceRenewalResponse = zod.object({
@@ -1119,17 +1584,18 @@ export const registerSchoolBodyAdminNameMax = 160;
 
 export const registerSchoolBodyEmailMax = 180;
 
-export const registerSchoolBodyPasswordMin = 10;
+export const registerSchoolBodyPasswordMin = 6;
 export const registerSchoolBodyPasswordMax = 128;
 
 
 
 export const RegisterSchoolBody = zod.object({
-  "schoolName": zod.string().min(registerSchoolBodySchoolNameMin).max(registerSchoolBodySchoolNameMax),
-  "schoolType": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']),
+  "schoolName": zod.string().min(registerSchoolBodySchoolNameMin).max(registerSchoolBodySchoolNameMax).optional().describe('Optional; the school is named on the dashboard after sign-up.'),
+  "schoolType": zod.enum(['primary', 'junior', 'senior', 'comprehensive', 'other']).optional(),
   "adminName": zod.string().min(registerSchoolBodyAdminNameMin).max(registerSchoolBodyAdminNameMax),
   "email": zod.string().email().max(registerSchoolBodyEmailMax),
-  "password": zod.string().min(registerSchoolBodyPasswordMin).max(registerSchoolBodyPasswordMax)
+  "password": zod.string().min(registerSchoolBodyPasswordMin).max(registerSchoolBodyPasswordMax),
+  "acceptedTerms": zod.boolean().optional().describe('The person ticked the box agreeing to the Terms and Privacy Policy. Recorded with the account.')
 })
 
 export const registerSchoolResponseSchoolOneLogoUrlMax = 500;
@@ -1180,6 +1646,38 @@ export const registerSchoolResponseSchoolOneSettingsReminderDaysMax = 20;
 export const registerSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const registerSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const RegisterSchoolResponse = zod.object({
@@ -1190,7 +1688,8 @@ export const RegisterSchoolResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
@@ -1235,11 +1734,40 @@ export const RegisterSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(registerSchoolResponseSchoolOneSettingsReminderDaysItemMin).max(registerSchoolResponseSchoolOneSettingsReminderDaysItemMax)).max(registerSchoolResponseSchoolOneSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(registerSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(registerSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(registerSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(registerSchoolResponseSchoolOneSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -1255,6 +1783,22 @@ export const RegisterSchoolResponse = zod.object({
   "writeEnabled": zod.boolean(),
   "expiresAt": zod.coerce.date()
 }),zod.null()])
+})
+
+
+/**
+ * @summary Whether a new account can use this email, asked while signing up so a taken email is caught on the first screen.
+ */
+export const checkEmailAvailableBodyEmailMax = 180;
+
+
+
+export const CheckEmailAvailableBody = zod.object({
+  "email": zod.string().email().max(checkEmailAvailableBodyEmailMax)
+})
+
+export const CheckEmailAvailableResponse = zod.object({
+  "available": zod.boolean()
 })
 
 
@@ -1320,6 +1864,38 @@ export const reviewSchoolRegistrationResponseSettingsReminderDaysMax = 20;
 export const reviewSchoolRegistrationResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const reviewSchoolRegistrationResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const ReviewSchoolRegistrationResponse = zod.object({
@@ -1363,11 +1939,40 @@ export const ReviewSchoolRegistrationResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(reviewSchoolRegistrationResponseSettingsReminderDaysItemMin).max(reviewSchoolRegistrationResponseSettingsReminderDaysItemMax)).max(reviewSchoolRegistrationResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(reviewSchoolRegistrationResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(reviewSchoolRegistrationResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(reviewSchoolRegistrationResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(reviewSchoolRegistrationResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -1434,6 +2039,38 @@ export const listPlatformSchoolsResponseSettingsReminderDaysMax = 20;
 export const listPlatformSchoolsResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const listPlatformSchoolsResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const listPlatformSchoolsResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const ListPlatformSchoolsResponseItem = zod.object({
@@ -1477,11 +2114,40 @@ export const ListPlatformSchoolsResponseItem = zod.object({
   "reminderDays": zod.array(zod.number().int().min(listPlatformSchoolsResponseSettingsReminderDaysItemMin).max(listPlatformSchoolsResponseSettingsReminderDaysItemMax)).max(listPlatformSchoolsResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(listPlatformSchoolsResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(listPlatformSchoolsResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(listPlatformSchoolsResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(listPlatformSchoolsResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -1508,7 +2174,7 @@ export const provisionPlatformSchoolBodyOneAdminNameMax = 160;
 export const provisionPlatformSchoolBodyOnePhoneMin = 9;
 export const provisionPlatformSchoolBodyOnePhoneMax = 20;
 
-export const provisionPlatformSchoolBodyOnePasswordMin = 10;
+export const provisionPlatformSchoolBodyOnePasswordMin = 6;
 export const provisionPlatformSchoolBodyOnePasswordMax = 128;
 
 export const provisionPlatformSchoolBodyTwoReasonMin = 3;
@@ -1579,6 +2245,38 @@ export const provisionPlatformSchoolResponseSettingsReminderDaysMax = 20;
 export const provisionPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const provisionPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const provisionPlatformSchoolResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const ProvisionPlatformSchoolResponse = zod.object({
@@ -1622,11 +2320,40 @@ export const ProvisionPlatformSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(provisionPlatformSchoolResponseSettingsReminderDaysItemMin).max(provisionPlatformSchoolResponseSettingsReminderDaysItemMax)).max(provisionPlatformSchoolResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(provisionPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(provisionPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(provisionPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(provisionPlatformSchoolResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -1688,6 +2415,38 @@ export const getPlatformSchoolResponseSettingsReminderDaysMax = 20;
 export const getPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const getPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const getPlatformSchoolResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const GetPlatformSchoolResponse = zod.object({
@@ -1731,11 +2490,40 @@ export const GetPlatformSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(getPlatformSchoolResponseSettingsReminderDaysItemMin).max(getPlatformSchoolResponseSettingsReminderDaysItemMax)).max(getPlatformSchoolResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(getPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(getPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(getPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(getPlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(getPlatformSchoolResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -1829,6 +2617,38 @@ export const editPlatformSchoolResponseSettingsReminderDaysMax = 20;
 export const editPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const editPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const editPlatformSchoolResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const EditPlatformSchoolResponse = zod.object({
@@ -1872,11 +2692,40 @@ export const EditPlatformSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(editPlatformSchoolResponseSettingsReminderDaysItemMin).max(editPlatformSchoolResponseSettingsReminderDaysItemMax)).max(editPlatformSchoolResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(editPlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(editPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(editPlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(editPlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(editPlatformSchoolResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -1897,7 +2746,8 @@ export const ListPlatformAdminsResponseItem = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -1917,7 +2767,7 @@ export const createPlatformAdminBodyOnePhoneMax = 20;
 export const createPlatformAdminBodyOneReasonMin = 3;
 export const createPlatformAdminBodyOneReasonMax = 500;
 
-export const createPlatformAdminBodyTwoPasswordMin = 10;
+export const createPlatformAdminBodyTwoPasswordMin = 6;
 export const createPlatformAdminBodyTwoPasswordMax = 128;
 
 
@@ -1940,7 +2790,8 @@ export const CreatePlatformAdminResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -1978,7 +2829,8 @@ export const EditPlatformAdminResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -1992,7 +2844,7 @@ export const ResetPlatformAdminPasswordParams = zod.object({
 export const resetPlatformAdminPasswordBodyOneReasonMin = 3;
 export const resetPlatformAdminPasswordBodyOneReasonMax = 500;
 
-export const resetPlatformAdminPasswordBodyTwoPasswordMin = 10;
+export const resetPlatformAdminPasswordBodyTwoPasswordMin = 6;
 export const resetPlatformAdminPasswordBodyTwoPasswordMax = 128;
 
 
@@ -2113,6 +2965,38 @@ export const enterTenantAccessResponseSchoolOneSettingsReminderDaysMax = 20;
 export const enterTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const enterTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const EnterTenantAccessResponse = zod.object({
@@ -2123,7 +3007,8 @@ export const EnterTenantAccessResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
@@ -2168,11 +3053,40 @@ export const EnterTenantAccessResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(enterTenantAccessResponseSchoolOneSettingsReminderDaysItemMin).max(enterTenantAccessResponseSchoolOneSettingsReminderDaysItemMax)).max(enterTenantAccessResponseSchoolOneSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(enterTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(enterTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(enterTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(enterTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -2239,6 +3153,38 @@ export const exitTenantAccessResponseSchoolOneSettingsReminderDaysMax = 20;
 export const exitTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const exitTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const ExitTenantAccessResponse = zod.object({
@@ -2249,7 +3195,8 @@ export const ExitTenantAccessResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
@@ -2294,11 +3241,40 @@ export const ExitTenantAccessResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(exitTenantAccessResponseSchoolOneSettingsReminderDaysItemMin).max(exitTenantAccessResponseSchoolOneSettingsReminderDaysItemMax)).max(exitTenantAccessResponseSchoolOneSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(exitTenantAccessResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(exitTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(exitTenantAccessResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(exitTenantAccessResponseSchoolOneSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -2449,6 +3425,228 @@ export const ReceiveKcbTillNotificationResponse = zod.object({
   "transactionId": zod.string()
 })
 })
+})
+
+
+/**
+ * @summary The school's bank accounts, without any credentials
+ */
+export const ListBankAccountsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "bank": zod.string(),
+  "accountName": zod.string(),
+  "accountNumber": zod.string(),
+  "branch": zod.string().nullable(),
+  "collectionType": zod.string().nullable(),
+  "collectionNumber": zod.string().nullable(),
+  "notificationStatus": zod.enum(['off', 'requested', 'live']),
+  "signingKeySaved": zod.boolean().describe('KCB only. Whether KCB\'s signing public key has been saved.'),
+  "requestedAt": zod.coerce.date().nullable(),
+  "liveAt": zod.coerce.date().nullable(),
+  "lastNotificationAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListBankAccountsResponse = zod.array(ListBankAccountsResponseItem)
+
+
+export const createBankAccountBodyBankMin = 2;
+export const createBankAccountBodyBankMax = 40;
+
+export const createBankAccountBodyAccountNameMax = 120;
+
+export const createBankAccountBodyAccountNumberRegExp = new RegExp('^[0-9A-Za-z-]{4,30}$');
+export const createBankAccountBodyBranchMax = 80;
+
+export const createBankAccountBodyCollectionNumberRegExp = new RegExp('^[0-9A-Za-z_-]{3,40}$');
+
+
+export const CreateBankAccountBody = zod.object({
+  "bank": zod.string().min(createBankAccountBodyBankMin).max(createBankAccountBodyBankMax),
+  "accountName": zod.string().min(1).max(createBankAccountBodyAccountNameMax),
+  "accountNumber": zod.string().regex(createBankAccountBodyAccountNumberRegExp),
+  "branch": zod.string().max(createBankAccountBodyBranchMax).nullish(),
+  "collectionType": zod.union([zod.literal('ncba_till'),zod.literal('paybill'),zod.literal('kcb_till'),zod.literal(null)]).nullish(),
+  "collectionNumber": zod.string().regex(createBankAccountBodyCollectionNumberRegExp).nullish()
+})
+
+export const CreateBankAccountResponse = zod.object({
+  "id": zod.string().uuid(),
+  "bank": zod.string(),
+  "accountName": zod.string(),
+  "accountNumber": zod.string(),
+  "branch": zod.string().nullable(),
+  "collectionType": zod.string().nullable(),
+  "collectionNumber": zod.string().nullable(),
+  "notificationStatus": zod.enum(['off', 'requested', 'live']),
+  "signingKeySaved": zod.boolean().describe('KCB only. Whether KCB\'s signing public key has been saved.'),
+  "requestedAt": zod.coerce.date().nullable(),
+  "liveAt": zod.coerce.date().nullable(),
+  "lastNotificationAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Account details only. Changing the NCBA till or paybill of a requested or live connection is refused; remove the account and add it again instead.
+ */
+export const UpdateBankAccountParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateBankAccountBodyBankMin = 2;
+export const updateBankAccountBodyBankMax = 40;
+
+export const updateBankAccountBodyAccountNameMax = 120;
+
+export const updateBankAccountBodyAccountNumberRegExp = new RegExp('^[0-9A-Za-z-]{4,30}$');
+export const updateBankAccountBodyBranchMax = 80;
+
+export const updateBankAccountBodyCollectionNumberRegExp = new RegExp('^[0-9A-Za-z_-]{3,40}$');
+
+
+export const UpdateBankAccountBody = zod.object({
+  "bank": zod.string().min(updateBankAccountBodyBankMin).max(updateBankAccountBodyBankMax),
+  "accountName": zod.string().min(1).max(updateBankAccountBodyAccountNameMax),
+  "accountNumber": zod.string().regex(updateBankAccountBodyAccountNumberRegExp),
+  "branch": zod.string().max(updateBankAccountBodyBranchMax).nullish(),
+  "collectionType": zod.union([zod.literal('ncba_till'),zod.literal('paybill'),zod.literal('kcb_till'),zod.literal(null)]).nullish(),
+  "collectionNumber": zod.string().regex(updateBankAccountBodyCollectionNumberRegExp).nullish()
+})
+
+export const UpdateBankAccountResponse = zod.object({
+  "id": zod.string().uuid(),
+  "bank": zod.string(),
+  "accountName": zod.string(),
+  "accountNumber": zod.string(),
+  "branch": zod.string().nullable(),
+  "collectionType": zod.string().nullable(),
+  "collectionNumber": zod.string().nullable(),
+  "notificationStatus": zod.enum(['off', 'requested', 'live']),
+  "signingKeySaved": zod.boolean().describe('KCB only. Whether KCB\'s signing public key has been saved.'),
+  "requestedAt": zod.coerce.date().nullable(),
+  "liveAt": zod.coerce.date().nullable(),
+  "lastNotificationAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Removes the account and its notification credentials. Notifications that arrive afterwards are refused.
+ */
+export const DeleteBankAccountParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteBankAccountResponse = zod.void()
+
+
+/**
+ * Generates fresh notification and STK credentials for this NCBA account, replacing any earlier ones, and returns them once for the activation request letter. They are stored encrypted and never shown again.
+ */
+export const RequestNcbaConnectionParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const RequestNcbaConnectionResponse = zod.object({
+  "schoolName": zod.string(),
+  "accountName": zod.string(),
+  "accountNumber": zod.string(),
+  "branch": zod.string().nullish(),
+  "collectionType": zod.string(),
+  "collectionNumber": zod.string(),
+  "endpointUrl": zod.string(),
+  "notificationUsername": zod.string(),
+  "notificationPassword": zod.string(),
+  "notificationSecretKey": zod.string(),
+  "stkUsername": zod.string(),
+  "stkSecretKey": zod.string()
+})
+
+
+/**
+ * The addresses KCB sends this account's payments to. They are created the first time they are asked for and can be shown again later. They are null while the platform has no public HTTPS address.
+ */
+export const GetKcbConnectionParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetKcbConnectionResponse = zod.object({
+  "accountNotificationUrl": zod.string().nullable(),
+  "tillNotificationUrl": zod.string().nullable().describe('Only when the account has a KCB till number.'),
+  "emailTo": zod.string().describe('KCB\'s onboarding address')
+})
+
+
+/**
+ * Replaces this account's KCB notification addresses. The old ones stop working at once.
+ */
+export const ReplaceKcbAddressesParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ReplaceKcbAddressesResponse = zod.object({
+  "accountNotificationUrl": zod.string().nullable(),
+  "tillNotificationUrl": zod.string().nullable().describe('Only when the account has a KCB till number.'),
+  "emailTo": zod.string().describe('KCB\'s onboarding address')
+})
+
+
+/**
+ * KCB's partner request letter on the school's letterhead, as a PDF. It holds no address or secret.
+ */
+export const DownloadKcbLetterParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DownloadKcbLetterResponse = zod.unknown()
+
+
+/**
+ * Optional per-account override of the platform's KCB_PUBLIC_KEY. Stores KCB's RSA public key (PEM, at least 2048 bits) encrypted; private keys are refused.
+ */
+export const SaveKcbSigningKeyParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const saveKcbSigningKeyBodyPublicKeyMin = 100;
+export const saveKcbSigningKeyBodyPublicKeyMax = 10000;
+
+
+
+export const SaveKcbSigningKeyBody = zod.object({
+  "publicKey": zod.string().min(saveKcbSigningKeyBodyPublicKeyMin).max(saveKcbSigningKeyBodyPublicKeyMax)
+})
+
+export const SaveKcbSigningKeyResponse = zod.object({
+  "id": zod.string().uuid(),
+  "bank": zod.string(),
+  "accountName": zod.string(),
+  "accountNumber": zod.string(),
+  "branch": zod.string().nullable(),
+  "collectionType": zod.string().nullable(),
+  "collectionNumber": zod.string().nullable(),
+  "notificationStatus": zod.enum(['off', 'requested', 'live']),
+  "signingKeySaved": zod.boolean().describe('KCB only. Whether KCB\'s signing public key has been saved.'),
+  "requestedAt": zod.coerce.date().nullable(),
+  "liveAt": zod.coerce.date().nullable(),
+  "lastNotificationAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Server-to-server only. Authenticated by the generated username, password and SHA-256 hash in the body. Acknowledgement means durable receipt, not student allocation.
+ * @summary Receive an NCBA paybill-level push notification
+ */
+export const ReceiveNcbaNotificationParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const ReceiveNcbaNotificationBody = zod.record(zod.string(), zod.unknown()).describe('NCBA\'s JSON push payload. Validated strictly by the server adapter.')
+
+export const ReceiveNcbaNotificationResponse = zod.object({
+  "ResultCode": zod.string(),
+  "ResultDesc": zod.string()
 })
 
 
@@ -2962,7 +4160,9 @@ export const GetCurriculumResponse = zod.object({
   "id": zod.string().uuid(),
   "gradeId": zod.string().uuid(),
   "name": zod.string(),
-  "code": zod.string()
+  "code": zod.string(),
+  "isCore": zod.boolean().optional(),
+  "pathway": zod.string().nullish()
 })),
   "strands": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -4297,6 +5497,34 @@ export const UpdateFinanceRecordResponse = zod.object({
 })
 
 
+/**
+ * Only fee items can be removed, and only while no live fee structure, invoice line or active optional charge uses them. The item is archived, not erased, so history keeps it.
+ * @summary Remove a fee item that nothing uses yet
+ */
+export const DeleteFinanceRecordParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const deleteFinanceRecordResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const DeleteFinanceRecordResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "studentId": zod.string().nullish(),
+  "termId": zod.string().nullish(),
+  "parentId": zod.string().nullish(),
+  "status": zod.string(),
+  "amount": zod.string().regex(deleteFinanceRecordResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "uniqueKey": zod.string(),
+  "requestedBy": zod.string(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
 export const DecideFinanceRecordParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
@@ -4383,6 +5611,12 @@ export const CommitFinanceInvoicesResponse = zod.object({
 })
 
 
+export const getFinanceOverviewResponseTermOneBilledRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceOverviewResponseTermOneDiscountsOneRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceOverviewResponseTermOnePaidOneRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceOverviewResponseTermOneCollectedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceOverviewResponseTodayTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceOverviewResponseTodayChannelsItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
 export const getFinanceOverviewResponseInvoicedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
 export const getFinanceOverviewResponseCollectedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
 export const getFinanceOverviewResponseOutstandingRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
@@ -4390,11 +5624,368 @@ export const getFinanceOverviewResponseCreditRegExp = new RegExp('^-?\\d{1,12}(\
 
 
 export const GetFinanceOverviewResponse = zod.object({
+  "term": zod.union([zod.object({
+  "name": zod.string(),
+  "billed": zod.string().regex(getFinanceOverviewResponseTermOneBilledRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "discounts": zod.string().regex(getFinanceOverviewResponseTermOneDiscountsOneRegExp).describe('Exact KES decimal, never a JSON number.').describe('Discounts, waivers and bursaries applied to this term\'s invoices; billed less this is what should come in.'),
+  "paid": zod.string().regex(getFinanceOverviewResponseTermOnePaidOneRegExp).describe('Exact KES decimal, never a JSON number.').describe('Money (not discounts) allocated to this term\'s invoices; excludes credit held for later.'),
+  "collected": zod.string().regex(getFinanceOverviewResponseTermOneCollectedRegExp).describe('Exact KES decimal, never a JSON number.')
+}),zod.null()]).describe('The current term\'s billing and collections; null when no term is current.'),
+  "today": zod.object({
+  "total": zod.string().regex(getFinanceOverviewResponseTodayTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "channels": zod.array(zod.object({
+  "channel": zod.string(),
+  "amount": zod.string().regex(getFinanceOverviewResponseTodayChannelsItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "count": zod.number().int()
+}))
+}),
   "invoiced": zod.string().regex(getFinanceOverviewResponseInvoicedRegExp).describe('Exact KES decimal, never a JSON number.'),
   "collected": zod.string().regex(getFinanceOverviewResponseCollectedRegExp).describe('Exact KES decimal, never a JSON number.'),
   "outstanding": zod.string().regex(getFinanceOverviewResponseOutstandingRegExp).describe('Exact KES decimal, never a JSON number.'),
   "credit": zod.string().regex(getFinanceOverviewResponseCreditRegExp).describe('Exact KES decimal, never a JSON number.'),
   "pendingApprovals": zod.number().int()
+})
+
+
+/**
+ * @summary Plain answers to the owner's money questions for a term
+ */
+export const GetFinanceSummaryQueryParams = zod.object({
+  "termId": zod.coerce.string().uuid().optional()
+})
+
+export const getFinanceSummaryResponseExpectedBilledRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseExpectedDiscountsOneRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseExpectedToCollectOneRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseExpectedPaidRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseExpectedStillToCollectRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseReceivedTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseReceivedByChannelItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseOwedTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseOwedFromPastTermsRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseOwedPromisedAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseSpentTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseSpentByCategoryItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseHealthReceivedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseHealthSpentRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseClassesItemBilledRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseClassesItemPaidRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseClassesItemOwedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseAdjustmentsDiscountsRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseAdjustmentsRefundsRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceSummaryResponseAdjustmentsFlaggedItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const GetFinanceSummaryResponse = zod.object({
+  "termId": zod.string().uuid().nullish(),
+  "termName": zod.string().nullable(),
+  "from": zod.coerce.date().nullish(),
+  "to": zod.coerce.date().nullish(),
+  "expected": zod.object({
+  "billed": zod.string().regex(getFinanceSummaryResponseExpectedBilledRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "discounts": zod.string().regex(getFinanceSummaryResponseExpectedDiscountsOneRegExp).describe('Exact KES decimal, never a JSON number.').describe('Discounts'),
+  "toCollect": zod.string().regex(getFinanceSummaryResponseExpectedToCollectOneRegExp).describe('Exact KES decimal, never a JSON number.').describe('Billed less discounts; the money that should come in'),
+  "paid": zod.string().regex(getFinanceSummaryResponseExpectedPaidRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "percentPaid": zod.number().int(),
+  "stillToCollect": zod.string().regex(getFinanceSummaryResponseExpectedStillToCollectRegExp).describe('Exact KES decimal, never a JSON number.')
+}),
+  "received": zod.object({
+  "total": zod.string().regex(getFinanceSummaryResponseReceivedTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "byChannel": zod.array(zod.object({
+  "label": zod.string(),
+  "amount": zod.string().regex(getFinanceSummaryResponseReceivedByChannelItemAmountRegExp).describe('Exact KES decimal, never a JSON number.')
+}))
+}),
+  "owed": zod.object({
+  "total": zod.string().regex(getFinanceSummaryResponseOwedTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "learners": zod.number().int(),
+  "fromPastTerms": zod.string().regex(getFinanceSummaryResponseOwedFromPastTermsRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "promisesDue": zod.number().int(),
+  "promisesBroken": zod.number().int(),
+  "promisedAmount": zod.string().regex(getFinanceSummaryResponseOwedPromisedAmountRegExp).describe('Exact KES decimal, never a JSON number.')
+}),
+  "spent": zod.object({
+  "total": zod.string().regex(getFinanceSummaryResponseSpentTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "byCategory": zod.array(zod.object({
+  "label": zod.string(),
+  "amount": zod.string().regex(getFinanceSummaryResponseSpentByCategoryItemAmountRegExp).describe('Exact KES decimal, never a JSON number.')
+}))
+}),
+  "health": zod.object({
+  "received": zod.string().regex(getFinanceSummaryResponseHealthReceivedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "spent": zod.string().regex(getFinanceSummaryResponseHealthSpentRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "left": zod.string().describe('Received minus spent; negative means more was spent than received'),
+  "verdict": zod.enum(['healthy', 'tight', 'deficit', 'no_expenses'])
+}),
+  "classes": zod.array(zod.object({
+  "className": zod.string(),
+  "learners": zod.number().int(),
+  "billed": zod.string().regex(getFinanceSummaryResponseClassesItemBilledRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "paid": zod.string().regex(getFinanceSummaryResponseClassesItemPaidRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "owed": zod.string().regex(getFinanceSummaryResponseClassesItemOwedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "percentPaid": zod.number().int()
+})),
+  "adjustments": zod.object({
+  "discounts": zod.string().regex(getFinanceSummaryResponseAdjustmentsDiscountsRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "discountsCount": zod.number().int(),
+  "reversals": zod.number().int(),
+  "refunds": zod.string().regex(getFinanceSummaryResponseAdjustmentsRefundsRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "flagged": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string().describe('discount'),
+  "studentId": zod.string().uuid().nullish(),
+  "studentName": zod.string().nullish(),
+  "amount": zod.string().regex(getFinanceSummaryResponseAdjustmentsFlaggedItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "reason": zod.string().nullish(),
+  "why": zod.string().describe('Plain reason it is worth a look'),
+  "requestedBy": zod.string().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "status": zod.string().nullish(),
+  "at": zod.coerce.date()
+}))
+})
+})
+
+
+/**
+ * @summary Money the school has spent
+ */
+export const listExpensesQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listExpensesQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListExpensesQueryParams = zod.object({
+  "from": zod.coerce.string().regex(listExpensesQueryFromRegExp).optional().describe('First day, YYYY-MM-DD'),
+  "to": zod.coerce.string().regex(listExpensesQueryToRegExp).optional().describe('Last day, YYYY-MM-DD'),
+  "category": zod.coerce.string().optional()
+})
+
+export const listExpensesResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const ListExpensesResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.coerce.date(),
+  "category": zod.string(),
+  "description": zod.string(),
+  "amount": zod.string().regex(listExpensesResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "method": zod.string(),
+  "payee": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['active', 'voided']),
+  "voidReason": zod.string().nullish(),
+  "supplierId": zod.string().uuid().nullish(),
+  "supplierName": zod.string().nullish(),
+  "supplierInvoiceId": zod.string().uuid().nullish(),
+  "supplierInvoiceNo": zod.string().nullish(),
+  "attachmentUrl": zod.string().nullish(),
+  "recordedBy": zod.string().uuid(),
+  "recordedByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListExpensesResponse = zod.array(ListExpensesResponseItem)
+
+
+export const createExpenseBodyDescriptionMin = 2;
+export const createExpenseBodyDescriptionMax = 200;
+
+export const createExpenseBodyAmountRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const createExpenseBodyPayeeMax = 120;
+
+export const createExpenseBodyReferenceMax = 80;
+
+export const createExpenseBodyAttachmentUrlMax = 120;
+
+
+
+export const CreateExpenseBody = zod.object({
+  "date": zod.coerce.date(),
+  "category": zod.enum(['salaries', 'statutory', 'food', 'transport', 'fuel', 'supplies', 'stationery', 'books', 'cleaning', 'uniforms', 'medical', 'exams', 'events', 'utilities', 'repairs', 'furniture', 'rent', 'bank_charges', 'other']),
+  "description": zod.string().min(createExpenseBodyDescriptionMin).max(createExpenseBodyDescriptionMax),
+  "amount": zod.string().regex(createExpenseBodyAmountRegExp),
+  "method": zod.enum(['cash', 'mpesa', 'bank', 'cheque']),
+  "payee": zod.string().max(createExpenseBodyPayeeMax).optional(),
+  "reference": zod.string().max(createExpenseBodyReferenceMax).optional(),
+  "supplierId": zod.string().uuid().optional().describe('The supplier paid; payee is filled from it'),
+  "attachmentUrl": zod.string().max(createExpenseBodyAttachmentUrlMax).optional().describe('Receipt scan: /api/storage/files/<id> from a finance_document upload')
+})
+
+export const createExpenseResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const CreateExpenseResponse = zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.coerce.date(),
+  "category": zod.string(),
+  "description": zod.string(),
+  "amount": zod.string().regex(createExpenseResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "method": zod.string(),
+  "payee": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['active', 'voided']),
+  "voidReason": zod.string().nullish(),
+  "supplierId": zod.string().uuid().nullish(),
+  "supplierName": zod.string().nullish(),
+  "supplierInvoiceId": zod.string().uuid().nullish(),
+  "supplierInvoiceNo": zod.string().nullish(),
+  "attachmentUrl": zod.string().nullish(),
+  "recordedBy": zod.string().uuid(),
+  "recordedByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const VoidExpenseParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const voidExpenseBodyReasonMin = 3;
+export const voidExpenseBodyReasonMax = 200;
+
+
+
+export const VoidExpenseBody = zod.object({
+  "reason": zod.string().min(voidExpenseBodyReasonMin).max(voidExpenseBodyReasonMax)
+})
+
+export const voidExpenseResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const VoidExpenseResponse = zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.coerce.date(),
+  "category": zod.string(),
+  "description": zod.string(),
+  "amount": zod.string().regex(voidExpenseResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "method": zod.string(),
+  "payee": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['active', 'voided']),
+  "voidReason": zod.string().nullish(),
+  "supplierId": zod.string().uuid().nullish(),
+  "supplierName": zod.string().nullish(),
+  "supplierInvoiceId": zod.string().uuid().nullish(),
+  "supplierInvoiceNo": zod.string().nullish(),
+  "attachmentUrl": zod.string().nullish(),
+  "recordedBy": zod.string().uuid(),
+  "recordedByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Record a parent's promise to pay
+ */
+export const createPaymentPromiseBodyAmountRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const createPaymentPromiseBodyNoteMax = 200;
+
+
+
+export const CreatePaymentPromiseBody = zod.object({
+  "studentId": zod.string().uuid(),
+  "amount": zod.string().regex(createPaymentPromiseBodyAmountRegExp),
+  "promisedFor": zod.coerce.date(),
+  "note": zod.string().max(createPaymentPromiseBodyNoteMax).optional()
+})
+
+export const createPaymentPromiseResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const CreatePaymentPromiseResponse = zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "amount": zod.string().regex(createPaymentPromiseResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "promisedFor": zod.coerce.date(),
+  "note": zod.string().nullish(),
+  "state": zod.enum(['due', 'kept', 'broken', 'cancelled']).describe('Worked out from payments made since the promise'),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const CancelPaymentPromiseParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const cancelPaymentPromiseResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const CancelPaymentPromiseResponse = zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "amount": zod.string().regex(cancelPaymentPromiseResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "promisedFor": zod.coerce.date(),
+  "note": zod.string().nullish(),
+  "state": zod.enum(['due', 'kept', 'broken', 'cancelled']).describe('Worked out from payments made since the promise'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Every active learner with their balance, how old the unpaid amounts are (by term), last payment, plan and sponsor flags, primary parent and last fee reminder. Also counts active learners not yet billed for the current term.
+ * @summary Who owes, for the Money screen
+ */
+export const getFinanceArrearsResponseRowsItemBalanceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceArrearsResponseRowsItemCurrentRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceArrearsResponseRowsItemOneTermRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceArrearsResponseRowsItemTwoTermsRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceArrearsResponseRowsItemThreePlusTermsRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getFinanceArrearsResponseRowsItemPromiseOneAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const GetFinanceArrearsResponse = zod.object({
+  "termName": zod.string().nullable(),
+  "rows": zod.array(zod.object({
+  "studentId": zod.string().uuid(),
+  "admissionNo": zod.string(),
+  "studentName": zod.string(),
+  "gradeName": zod.string().nullish(),
+  "streamName": zod.string().nullish(),
+  "balance": zod.string().regex(getFinanceArrearsResponseRowsItemBalanceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "current": zod.string().regex(getFinanceArrearsResponseRowsItemCurrentRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "oneTerm": zod.string().regex(getFinanceArrearsResponseRowsItemOneTermRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "twoTerms": zod.string().regex(getFinanceArrearsResponseRowsItemTwoTermsRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "threePlusTerms": zod.string().regex(getFinanceArrearsResponseRowsItemThreePlusTermsRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "lastPaidAt": zod.coerce.date().nullish(),
+  "lastPaidAmount": zod.string().nullish(),
+  "onPlan": zod.boolean(),
+  "sponsored": zod.boolean(),
+  "billedThisTerm": zod.boolean(),
+  "guardianName": zod.string().nullish(),
+  "guardianPhone": zod.string().nullish(),
+  "lastReminderAt": zod.coerce.date().nullish(),
+  "promise": zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "amount": zod.string().regex(getFinanceArrearsResponseRowsItemPromiseOneAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "promisedFor": zod.coerce.date(),
+  "note": zod.string().nullish(),
+  "state": zod.enum(['due', 'kept', 'broken', 'cancelled']).describe('Worked out from payments made since the promise'),
+  "createdAt": zod.coerce.date()
+}).nullish().describe('The latest promise to pay')
+})),
+  "notBilled": zod.number().int().describe('Active learners with no invoice for the current term')
+})
+
+
+/**
+ * Skips learners who owe nothing or have no parent to reach. One reminder per learner per day for the same balance; repeating the request does not send twice.
+ * @summary Send a fee reminder to the primary parent of each chosen learner
+ */
+export const sendFeeRemindersBodyStudentIdsMax = 500;
+
+export const sendFeeRemindersBodyChannelDefault = `whatsapp`;
+
+export const SendFeeRemindersBody = zod.object({
+  "studentIds": zod.array(zod.string().uuid()).min(1).max(sendFeeRemindersBodyStudentIdsMax),
+  "channel": zod.enum(['whatsapp', 'sms']).default(sendFeeRemindersBodyChannelDefault)
+})
+
+export const SendFeeRemindersResponse = zod.object({
+  "queued": zod.number().int(),
+  "skipped": zod.array(zod.object({
+  "studentId": zod.string().uuid(),
+  "reason": zod.string()
+}))
 })
 
 
@@ -4429,7 +6020,7 @@ export const GetStudentFinanceHistoryResponse = zod.object({
 
 
 export const CreateFinanceDocumentBody = zod.object({
-  "type": zod.enum(['receipt', 'statement']),
+  "type": zod.enum(['receipt', 'statement', 'invoice']),
   "referenceId": zod.string().uuid()
 })
 
@@ -4451,6 +6042,1343 @@ export const ListFailedFinanceJobsResponseItem = zod.record(zod.string(), zod.un
 export const ListFailedFinanceJobsResponse = zod.array(ListFailedFinanceJobsResponseItem)
 
 
+/**
+ * @summary People and businesses the school buys from
+ */
+export const listSuppliersResponseOwedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const ListSuppliersResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "contactPerson": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "kraPin": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "owed": zod.string().regex(listSuppliersResponseOwedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "openOrders": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
+
+
+export const createSupplierBodyNameMin = 2;
+export const createSupplierBodyNameMax = 160;
+
+export const createSupplierBodyContactPersonMax = 120;
+
+export const createSupplierBodyPhoneMax = 20;
+
+export const createSupplierBodyEmailMax = 160;
+
+export const createSupplierBodyKraPinMax = 20;
+
+export const createSupplierBodyAddressMax = 200;
+
+
+
+export const CreateSupplierBody = zod.object({
+  "name": zod.string().min(createSupplierBodyNameMin).max(createSupplierBodyNameMax),
+  "contactPerson": zod.string().max(createSupplierBodyContactPersonMax).optional(),
+  "phone": zod.string().max(createSupplierBodyPhoneMax).optional(),
+  "email": zod.string().max(createSupplierBodyEmailMax).optional(),
+  "kraPin": zod.string().max(createSupplierBodyKraPinMax).optional(),
+  "address": zod.string().max(createSupplierBodyAddressMax).optional()
+})
+
+export const createSupplierResponseOwedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const CreateSupplierResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "contactPerson": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "kraPin": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "owed": zod.string().regex(createSupplierResponseOwedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "openOrders": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a supplier that has no LPOs, invoices or payments
+ */
+export const DeleteSupplierParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteSupplierResponse = zod.void()
+
+
+export const UpdateSupplierParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateSupplierBodyNameMin = 2;
+export const updateSupplierBodyNameMax = 160;
+
+export const updateSupplierBodyContactPersonMax = 120;
+
+export const updateSupplierBodyPhoneMax = 20;
+
+export const updateSupplierBodyEmailMax = 160;
+
+export const updateSupplierBodyKraPinMax = 20;
+
+export const updateSupplierBodyAddressMax = 200;
+
+
+
+export const UpdateSupplierBody = zod.object({
+  "name": zod.string().min(updateSupplierBodyNameMin).max(updateSupplierBodyNameMax).optional(),
+  "contactPerson": zod.string().max(updateSupplierBodyContactPersonMax).nullish(),
+  "phone": zod.string().max(updateSupplierBodyPhoneMax).nullish(),
+  "email": zod.string().max(updateSupplierBodyEmailMax).nullish(),
+  "kraPin": zod.string().max(updateSupplierBodyKraPinMax).nullish(),
+  "address": zod.string().max(updateSupplierBodyAddressMax).nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const updateSupplierResponseOwedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const UpdateSupplierResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "contactPerson": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "kraPin": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "owed": zod.string().regex(updateSupplierResponseOwedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "openOrders": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Local purchase orders (LPOs), newest first
+ */
+export const ListPurchaseOrdersQueryParams = zod.object({
+  "status": zod.enum(['pending', 'approved', 'rejected', 'partly_received', 'received', 'cancelled']).optional(),
+  "supplierId": zod.coerce.string().uuid().optional()
+})
+
+export const listPurchaseOrdersResponseTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const listPurchaseOrdersResponseInvoicedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const listPurchaseOrdersResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const listPurchaseOrdersResponseLinesItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const ListPurchaseOrdersResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.number().int(),
+  "reference": zod.string().describe('Printed LPO number, e.g. LPO-0007'),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "date": zod.string(),
+  "neededBy": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'partly_received', 'received', 'cancelled']),
+  "total": zod.string().regex(listPurchaseOrdersResponseTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "invoiced": zod.string().regex(listPurchaseOrdersResponseInvoicedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "createdBy": zod.string().uuid(),
+  "createdByName": zod.string().nullish(),
+  "decidedByName": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decisionNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "storeItemId": zod.string().uuid().nullish(),
+  "storeItemName": zod.string().nullish(),
+  "description": zod.string(),
+  "unit": zod.string().nullish(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string().regex(listPurchaseOrdersResponseLinesItemUnitPriceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "amount": zod.string().regex(listPurchaseOrdersResponseLinesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "receivedQty": zod.string()
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.string(),
+  "deliveryNote": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "receivedByName": zod.string().nullable(),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string().uuid(),
+  "description": zod.string(),
+  "quantity": zod.string()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+export const ListPurchaseOrdersResponse = zod.array(ListPurchaseOrdersResponseItem)
+
+
+/**
+ * @summary Raise an LPO; it waits for approval by someone else
+ */
+export const createPurchaseOrderBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createPurchaseOrderBodyNeededByRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createPurchaseOrderBodyNotesMax = 500;
+
+export const createPurchaseOrderBodyLinesItemDescriptionMax = 200;
+
+export const createPurchaseOrderBodyLinesItemUnitMax = 30;
+
+export const createPurchaseOrderBodyLinesItemQuantityRegExp = new RegExp('^\\d{1,8}(\\.\\d{1,2})?$');
+export const createPurchaseOrderBodyLinesItemUnitPriceRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const createPurchaseOrderBodyLinesMax = 50;
+
+
+
+export const CreatePurchaseOrderBody = zod.object({
+  "supplierId": zod.string().uuid(),
+  "date": zod.string().regex(createPurchaseOrderBodyDateRegExp).describe('A calendar day, YYYY-MM-DD.'),
+  "neededBy": zod.string().regex(createPurchaseOrderBodyNeededByRegExp).optional().describe('A calendar day, YYYY-MM-DD.'),
+  "notes": zod.string().max(createPurchaseOrderBodyNotesMax).optional(),
+  "lines": zod.array(zod.object({
+  "storeItemId": zod.string().uuid().optional().describe('Store item this line tops up when received'),
+  "description": zod.string().min(1).max(createPurchaseOrderBodyLinesItemDescriptionMax),
+  "unit": zod.string().max(createPurchaseOrderBodyLinesItemUnitMax).optional(),
+  "quantity": zod.string().regex(createPurchaseOrderBodyLinesItemQuantityRegExp),
+  "unitPrice": zod.string().regex(createPurchaseOrderBodyLinesItemUnitPriceRegExp)
+})).min(1).max(createPurchaseOrderBodyLinesMax)
+})
+
+export const createPurchaseOrderResponseTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const createPurchaseOrderResponseInvoicedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const createPurchaseOrderResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const createPurchaseOrderResponseLinesItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const CreatePurchaseOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.number().int(),
+  "reference": zod.string().describe('Printed LPO number, e.g. LPO-0007'),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "date": zod.string(),
+  "neededBy": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'partly_received', 'received', 'cancelled']),
+  "total": zod.string().regex(createPurchaseOrderResponseTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "invoiced": zod.string().regex(createPurchaseOrderResponseInvoicedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "createdBy": zod.string().uuid(),
+  "createdByName": zod.string().nullish(),
+  "decidedByName": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decisionNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "storeItemId": zod.string().uuid().nullish(),
+  "storeItemName": zod.string().nullish(),
+  "description": zod.string(),
+  "unit": zod.string().nullish(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string().regex(createPurchaseOrderResponseLinesItemUnitPriceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "amount": zod.string().regex(createPurchaseOrderResponseLinesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "receivedQty": zod.string()
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.string(),
+  "deliveryNote": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "receivedByName": zod.string().nullable(),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string().uuid(),
+  "description": zod.string(),
+  "quantity": zod.string()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+export const GetPurchaseOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const getPurchaseOrderResponseTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getPurchaseOrderResponseInvoicedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getPurchaseOrderResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const getPurchaseOrderResponseLinesItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const GetPurchaseOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.number().int(),
+  "reference": zod.string().describe('Printed LPO number, e.g. LPO-0007'),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "date": zod.string(),
+  "neededBy": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'partly_received', 'received', 'cancelled']),
+  "total": zod.string().regex(getPurchaseOrderResponseTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "invoiced": zod.string().regex(getPurchaseOrderResponseInvoicedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "createdBy": zod.string().uuid(),
+  "createdByName": zod.string().nullish(),
+  "decidedByName": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decisionNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "storeItemId": zod.string().uuid().nullish(),
+  "storeItemName": zod.string().nullish(),
+  "description": zod.string(),
+  "unit": zod.string().nullish(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string().regex(getPurchaseOrderResponseLinesItemUnitPriceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "amount": zod.string().regex(getPurchaseOrderResponseLinesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "receivedQty": zod.string()
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.string(),
+  "deliveryNote": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "receivedByName": zod.string().nullable(),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string().uuid(),
+  "description": zod.string(),
+  "quantity": zod.string()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Approve or reject a pending LPO
+ */
+export const DecidePurchaseOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const decidePurchaseOrderBodyNoteMax = 200;
+
+
+
+export const DecidePurchaseOrderBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "note": zod.string().max(decidePurchaseOrderBodyNoteMax).optional()
+})
+
+export const decidePurchaseOrderResponseTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const decidePurchaseOrderResponseInvoicedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const decidePurchaseOrderResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const decidePurchaseOrderResponseLinesItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const DecidePurchaseOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.number().int(),
+  "reference": zod.string().describe('Printed LPO number, e.g. LPO-0007'),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "date": zod.string(),
+  "neededBy": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'partly_received', 'received', 'cancelled']),
+  "total": zod.string().regex(decidePurchaseOrderResponseTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "invoiced": zod.string().regex(decidePurchaseOrderResponseInvoicedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "createdBy": zod.string().uuid(),
+  "createdByName": zod.string().nullish(),
+  "decidedByName": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decisionNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "storeItemId": zod.string().uuid().nullish(),
+  "storeItemName": zod.string().nullish(),
+  "description": zod.string(),
+  "unit": zod.string().nullish(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string().regex(decidePurchaseOrderResponseLinesItemUnitPriceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "amount": zod.string().regex(decidePurchaseOrderResponseLinesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "receivedQty": zod.string()
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.string(),
+  "deliveryNote": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "receivedByName": zod.string().nullable(),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string().uuid(),
+  "description": zod.string(),
+  "quantity": zod.string()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+export const CancelPurchaseOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const cancelPurchaseOrderBodyReasonMin = 3;
+export const cancelPurchaseOrderBodyReasonMax = 200;
+
+
+
+export const CancelPurchaseOrderBody = zod.object({
+  "reason": zod.string().min(cancelPurchaseOrderBodyReasonMin).max(cancelPurchaseOrderBodyReasonMax)
+})
+
+export const cancelPurchaseOrderResponseTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const cancelPurchaseOrderResponseInvoicedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const cancelPurchaseOrderResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const cancelPurchaseOrderResponseLinesItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const CancelPurchaseOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.number().int(),
+  "reference": zod.string().describe('Printed LPO number, e.g. LPO-0007'),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "date": zod.string(),
+  "neededBy": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'partly_received', 'received', 'cancelled']),
+  "total": zod.string().regex(cancelPurchaseOrderResponseTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "invoiced": zod.string().regex(cancelPurchaseOrderResponseInvoicedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "createdBy": zod.string().uuid(),
+  "createdByName": zod.string().nullish(),
+  "decidedByName": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decisionNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "storeItemId": zod.string().uuid().nullish(),
+  "storeItemName": zod.string().nullish(),
+  "description": zod.string(),
+  "unit": zod.string().nullish(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string().regex(cancelPurchaseOrderResponseLinesItemUnitPriceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "amount": zod.string().regex(cancelPurchaseOrderResponseLinesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "receivedQty": zod.string()
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.string(),
+  "deliveryNote": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "receivedByName": zod.string().nullable(),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string().uuid(),
+  "description": zod.string(),
+  "quantity": zod.string()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Record goods delivered against an approved LPO; store items are topped up
+ */
+export const ReceivePurchaseOrderParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const receivePurchaseOrderBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const receivePurchaseOrderBodyDeliveryNoteMax = 60;
+
+export const receivePurchaseOrderBodyNoteMax = 200;
+
+export const receivePurchaseOrderBodyLinesItemQuantityRegExp = new RegExp('^\\d{1,8}(\\.\\d{1,2})?$');
+export const receivePurchaseOrderBodyLinesMax = 50;
+
+
+
+export const ReceivePurchaseOrderBody = zod.object({
+  "date": zod.string().regex(receivePurchaseOrderBodyDateRegExp).describe('A calendar day, YYYY-MM-DD.'),
+  "deliveryNote": zod.string().max(receivePurchaseOrderBodyDeliveryNoteMax).optional(),
+  "note": zod.string().max(receivePurchaseOrderBodyNoteMax).optional(),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string().uuid(),
+  "quantity": zod.string().regex(receivePurchaseOrderBodyLinesItemQuantityRegExp)
+})).min(1).max(receivePurchaseOrderBodyLinesMax)
+})
+
+export const receivePurchaseOrderResponseTotalRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const receivePurchaseOrderResponseInvoicedRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const receivePurchaseOrderResponseLinesItemUnitPriceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const receivePurchaseOrderResponseLinesItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const ReceivePurchaseOrderResponse = zod.object({
+  "id": zod.string().uuid(),
+  "number": zod.number().int(),
+  "reference": zod.string().describe('Printed LPO number, e.g. LPO-0007'),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "date": zod.string(),
+  "neededBy": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'partly_received', 'received', 'cancelled']),
+  "total": zod.string().regex(receivePurchaseOrderResponseTotalRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "invoiced": zod.string().regex(receivePurchaseOrderResponseInvoicedRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "createdBy": zod.string().uuid(),
+  "createdByName": zod.string().nullish(),
+  "decidedByName": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decisionNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "storeItemId": zod.string().uuid().nullish(),
+  "storeItemName": zod.string().nullish(),
+  "description": zod.string(),
+  "unit": zod.string().nullish(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string().regex(receivePurchaseOrderResponseLinesItemUnitPriceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "amount": zod.string().regex(receivePurchaseOrderResponseLinesItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "receivedQty": zod.string()
+})),
+  "receipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "date": zod.string(),
+  "deliveryNote": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "receivedByName": zod.string().nullable(),
+  "lines": zod.array(zod.object({
+  "lineId": zod.string().uuid(),
+  "description": zod.string(),
+  "quantity": zod.string()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Bills from suppliers, with what has been paid on each
+ */
+export const ListSupplierInvoicesQueryParams = zod.object({
+  "supplierId": zod.coerce.string().uuid().optional(),
+  "state": zod.enum(['unpaid', 'paid', 'voided']).optional()
+})
+
+export const listSupplierInvoicesResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const listSupplierInvoicesResponsePaidRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const listSupplierInvoicesResponseBalanceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const listSupplierInvoicesResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const ListSupplierInvoicesResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "orderId": zod.string().uuid().nullish(),
+  "orderReference": zod.string().nullish(),
+  "invoiceNo": zod.string(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "amount": zod.string().regex(listSupplierInvoicesResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "paid": zod.string().regex(listSupplierInvoicesResponsePaidRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "balance": zod.string().regex(listSupplierInvoicesResponseBalanceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "attachmentUrl": zod.string().nullish(),
+  "status": zod.enum(['active', 'voided']),
+  "state": zod.enum(['unpaid', 'part_paid', 'paid', 'overdue', 'voided']).describe('Worked out from payments and the due date'),
+  "voidReason": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "payments": zod.array(zod.object({
+  "expenseId": zod.string().uuid(),
+  "date": zod.string(),
+  "amount": zod.string().regex(listSupplierInvoicesResponsePaymentsItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "method": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.string()
+}))
+})
+export const ListSupplierInvoicesResponse = zod.array(ListSupplierInvoicesResponseItem)
+
+
+export const createSupplierInvoiceBodyInvoiceNoMax = 60;
+
+export const createSupplierInvoiceBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createSupplierInvoiceBodyDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createSupplierInvoiceBodyDescriptionMin = 2;
+export const createSupplierInvoiceBodyDescriptionMax = 200;
+
+export const createSupplierInvoiceBodyCategoryMin = 2;
+export const createSupplierInvoiceBodyCategoryMax = 40;
+
+export const createSupplierInvoiceBodyAmountRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const createSupplierInvoiceBodyAttachmentUrlMax = 120;
+
+
+
+export const CreateSupplierInvoiceBody = zod.object({
+  "supplierId": zod.string().uuid(),
+  "orderId": zod.string().uuid().optional(),
+  "invoiceNo": zod.string().min(1).max(createSupplierInvoiceBodyInvoiceNoMax),
+  "date": zod.string().regex(createSupplierInvoiceBodyDateRegExp).describe('A calendar day, YYYY-MM-DD.'),
+  "dueDate": zod.string().regex(createSupplierInvoiceBodyDueDateRegExp).optional().describe('A calendar day, YYYY-MM-DD.'),
+  "description": zod.string().min(createSupplierInvoiceBodyDescriptionMin).max(createSupplierInvoiceBodyDescriptionMax),
+  "category": zod.string().min(createSupplierInvoiceBodyCategoryMin).max(createSupplierInvoiceBodyCategoryMax),
+  "amount": zod.string().regex(createSupplierInvoiceBodyAmountRegExp),
+  "attachmentUrl": zod.string().max(createSupplierInvoiceBodyAttachmentUrlMax).optional()
+})
+
+export const createSupplierInvoiceResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const createSupplierInvoiceResponsePaidRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const createSupplierInvoiceResponseBalanceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const createSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const CreateSupplierInvoiceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "orderId": zod.string().uuid().nullish(),
+  "orderReference": zod.string().nullish(),
+  "invoiceNo": zod.string(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "amount": zod.string().regex(createSupplierInvoiceResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "paid": zod.string().regex(createSupplierInvoiceResponsePaidRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "balance": zod.string().regex(createSupplierInvoiceResponseBalanceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "attachmentUrl": zod.string().nullish(),
+  "status": zod.enum(['active', 'voided']),
+  "state": zod.enum(['unpaid', 'part_paid', 'paid', 'overdue', 'voided']).describe('Worked out from payments and the due date'),
+  "voidReason": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "payments": zod.array(zod.object({
+  "expenseId": zod.string().uuid(),
+  "date": zod.string(),
+  "amount": zod.string().regex(createSupplierInvoiceResponsePaymentsItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "method": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.string()
+}))
+})
+
+
+export const VoidSupplierInvoiceParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const voidSupplierInvoiceBodyReasonMin = 3;
+export const voidSupplierInvoiceBodyReasonMax = 200;
+
+
+
+export const VoidSupplierInvoiceBody = zod.object({
+  "reason": zod.string().min(voidSupplierInvoiceBodyReasonMin).max(voidSupplierInvoiceBodyReasonMax)
+})
+
+export const voidSupplierInvoiceResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const voidSupplierInvoiceResponsePaidRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const voidSupplierInvoiceResponseBalanceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const voidSupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const VoidSupplierInvoiceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "orderId": zod.string().uuid().nullish(),
+  "orderReference": zod.string().nullish(),
+  "invoiceNo": zod.string(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "amount": zod.string().regex(voidSupplierInvoiceResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "paid": zod.string().regex(voidSupplierInvoiceResponsePaidRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "balance": zod.string().regex(voidSupplierInvoiceResponseBalanceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "attachmentUrl": zod.string().nullish(),
+  "status": zod.enum(['active', 'voided']),
+  "state": zod.enum(['unpaid', 'part_paid', 'paid', 'overdue', 'voided']).describe('Worked out from payments and the due date'),
+  "voidReason": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "payments": zod.array(zod.object({
+  "expenseId": zod.string().uuid(),
+  "date": zod.string(),
+  "amount": zod.string().regex(voidSupplierInvoiceResponsePaymentsItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "method": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.string()
+}))
+})
+
+
+/**
+ * @summary Pay all or part of a supplier invoice; records the payment as an expense
+ */
+export const PaySupplierInvoiceParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const paySupplierInvoiceBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const paySupplierInvoiceBodyAmountRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const paySupplierInvoiceBodyReferenceMax = 80;
+
+export const paySupplierInvoiceBodyAttachmentUrlMax = 120;
+
+
+
+export const PaySupplierInvoiceBody = zod.object({
+  "date": zod.string().regex(paySupplierInvoiceBodyDateRegExp).describe('A calendar day, YYYY-MM-DD.'),
+  "amount": zod.string().regex(paySupplierInvoiceBodyAmountRegExp),
+  "method": zod.enum(['cash', 'mpesa', 'bank', 'cheque']),
+  "reference": zod.string().max(paySupplierInvoiceBodyReferenceMax).optional(),
+  "attachmentUrl": zod.string().max(paySupplierInvoiceBodyAttachmentUrlMax).optional()
+})
+
+export const paySupplierInvoiceResponseAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const paySupplierInvoiceResponsePaidRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const paySupplierInvoiceResponseBalanceRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+export const paySupplierInvoiceResponsePaymentsItemAmountRegExp = new RegExp('^-?\\d{1,12}(\\.\\d{1,2})?$');
+
+
+export const PaySupplierInvoiceResponse = zod.object({
+  "id": zod.string().uuid(),
+  "supplierId": zod.string().uuid(),
+  "supplierName": zod.string(),
+  "orderId": zod.string().uuid().nullish(),
+  "orderReference": zod.string().nullish(),
+  "invoiceNo": zod.string(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "amount": zod.string().regex(paySupplierInvoiceResponseAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "paid": zod.string().regex(paySupplierInvoiceResponsePaidRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "balance": zod.string().regex(paySupplierInvoiceResponseBalanceRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "attachmentUrl": zod.string().nullish(),
+  "status": zod.enum(['active', 'voided']),
+  "state": zod.enum(['unpaid', 'part_paid', 'paid', 'overdue', 'voided']).describe('Worked out from payments and the due date'),
+  "voidReason": zod.string().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "payments": zod.array(zod.object({
+  "expenseId": zod.string().uuid(),
+  "date": zod.string(),
+  "amount": zod.string().regex(paySupplierInvoiceResponsePaymentsItemAmountRegExp).describe('Exact KES decimal, never a JSON number.'),
+  "method": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.string()
+}))
+})
+
+
+/**
+ * @summary Everything the store holds, with what is left of each
+ */
+export const ListStoreItemsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "sku": zod.string().nullish(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.string(),
+  "reorderLevel": zod.string(),
+  "low": zod.boolean().describe('At or below the reorder level'),
+  "unitCost": zod.string().nullish(),
+  "value": zod.string().nullish().describe('Quantity times last unit cost'),
+  "location": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastMovementAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListStoreItemsResponse = zod.array(ListStoreItemsResponseItem)
+
+
+export const createStoreItemBodyNameMin = 2;
+export const createStoreItemBodyNameMax = 120;
+
+export const createStoreItemBodySkuMax = 40;
+
+export const createStoreItemBodyCategoryMin = 2;
+export const createStoreItemBodyCategoryMax = 40;
+
+export const createStoreItemBodyUnitMax = 30;
+
+export const createStoreItemBodyReorderLevelRegExp = new RegExp('^\\d{1,8}(\\.\\d{1,2})?$');
+export const createStoreItemBodyUnitCostRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const createStoreItemBodyLocationMax = 60;
+
+export const createStoreItemBodyOpeningQuantityRegExp = new RegExp('^\\d{1,8}(\\.\\d{1,2})?$');
+
+
+export const CreateStoreItemBody = zod.object({
+  "name": zod.string().min(createStoreItemBodyNameMin).max(createStoreItemBodyNameMax),
+  "sku": zod.string().max(createStoreItemBodySkuMax).optional(),
+  "category": zod.string().min(createStoreItemBodyCategoryMin).max(createStoreItemBodyCategoryMax),
+  "unit": zod.string().min(1).max(createStoreItemBodyUnitMax),
+  "reorderLevel": zod.string().regex(createStoreItemBodyReorderLevelRegExp).optional(),
+  "unitCost": zod.string().regex(createStoreItemBodyUnitCostRegExp).optional(),
+  "location": zod.string().max(createStoreItemBodyLocationMax).optional(),
+  "openingQuantity": zod.string().regex(createStoreItemBodyOpeningQuantityRegExp).optional()
+})
+
+export const CreateStoreItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "sku": zod.string().nullish(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.string(),
+  "reorderLevel": zod.string(),
+  "low": zod.boolean().describe('At or below the reorder level'),
+  "unitCost": zod.string().nullish(),
+  "value": zod.string().nullish().describe('Quantity times last unit cost'),
+  "location": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastMovementAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const UpdateStoreItemParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateStoreItemBodyNameMin = 2;
+export const updateStoreItemBodyNameMax = 120;
+
+export const updateStoreItemBodySkuMax = 40;
+
+export const updateStoreItemBodyCategoryMin = 2;
+export const updateStoreItemBodyCategoryMax = 40;
+
+export const updateStoreItemBodyUnitMax = 30;
+
+export const updateStoreItemBodyReorderLevelRegExp = new RegExp('^\\d{1,8}(\\.\\d{1,2})?$');
+export const updateStoreItemBodyUnitCostRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const updateStoreItemBodyLocationMax = 60;
+
+
+
+export const UpdateStoreItemBody = zod.object({
+  "name": zod.string().min(updateStoreItemBodyNameMin).max(updateStoreItemBodyNameMax).optional(),
+  "sku": zod.string().max(updateStoreItemBodySkuMax).nullish(),
+  "category": zod.string().min(updateStoreItemBodyCategoryMin).max(updateStoreItemBodyCategoryMax).optional(),
+  "unit": zod.string().min(1).max(updateStoreItemBodyUnitMax).optional(),
+  "reorderLevel": zod.string().regex(updateStoreItemBodyReorderLevelRegExp).optional(),
+  "unitCost": zod.string().regex(updateStoreItemBodyUnitCostRegExp).nullish(),
+  "location": zod.string().max(updateStoreItemBodyLocationMax).nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateStoreItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "sku": zod.string().nullish(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.string(),
+  "reorderLevel": zod.string(),
+  "low": zod.boolean().describe('At or below the reorder level'),
+  "unitCost": zod.string().nullish(),
+  "value": zod.string().nullish().describe('Quantity times last unit cost'),
+  "location": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastMovementAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Stock in and out, newest first
+ */
+export const listStockMovementsQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listStockMovementsQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListStockMovementsQueryParams = zod.object({
+  "itemId": zod.coerce.string().uuid().optional(),
+  "from": zod.coerce.string().regex(listStockMovementsQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(listStockMovementsQueryToRegExp).optional(),
+  "type": zod.enum(['receive', 'issue', 'return', 'adjust']).optional()
+})
+
+export const ListStockMovementsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "itemId": zod.string().uuid(),
+  "itemName": zod.string(),
+  "unit": zod.string(),
+  "type": zod.enum(['receive', 'issue', 'return', 'adjust']),
+  "quantity": zod.string().describe('Signed; negative is stock going out'),
+  "balanceAfter": zod.string(),
+  "unitCost": zod.string().nullish(),
+  "date": zod.string(),
+  "issuedTo": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "orderId": zod.string().uuid().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListStockMovementsResponse = zod.array(ListStockMovementsResponseItem)
+
+
+/**
+ * @summary Receive, issue, return or count (adjust) stock
+ */
+export const createStockMovementBodyQuantityRegExp = new RegExp('^\\d{1,8}(\\.\\d{1,2})?$');
+export const createStockMovementBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createStockMovementBodyUnitCostRegExp = new RegExp('^\\d{1,10}(\\.\\d{1,2})?$');
+export const createStockMovementBodyIssuedToMax = 120;
+
+export const createStockMovementBodyReferenceMax = 60;
+
+export const createStockMovementBodyNoteMax = 200;
+
+
+
+export const CreateStockMovementBody = zod.object({
+  "itemId": zod.string().uuid(),
+  "type": zod.enum(['receive', 'issue', 'return', 'adjust']),
+  "quantity": zod.string().regex(createStockMovementBodyQuantityRegExp),
+  "date": zod.string().regex(createStockMovementBodyDateRegExp),
+  "unitCost": zod.string().regex(createStockMovementBodyUnitCostRegExp).optional(),
+  "issuedTo": zod.string().max(createStockMovementBodyIssuedToMax).optional().describe('Department or person receiving an issue'),
+  "reference": zod.string().max(createStockMovementBodyReferenceMax).optional(),
+  "note": zod.string().max(createStockMovementBodyNoteMax).optional()
+})
+
+export const CreateStockMovementResponse = zod.object({
+  "id": zod.string().uuid(),
+  "itemId": zod.string().uuid(),
+  "itemName": zod.string(),
+  "unit": zod.string(),
+  "type": zod.enum(['receive', 'issue', 'return', 'adjust']),
+  "quantity": zod.string().describe('Signed; negative is stock going out'),
+  "balanceAfter": zod.string(),
+  "unitCost": zod.string().nullish(),
+  "date": zod.string(),
+  "issuedTo": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "orderId": zod.string().uuid().nullish(),
+  "createdByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const GetLibrarySummaryResponse = zod.object({
+  "titles": zod.number().int(),
+  "copies": zod.number().int(),
+  "onShelf": zod.number().int(),
+  "out": zod.number().int(),
+  "overdue": zod.number().int(),
+  "lost": zod.number().int()
+})
+
+
+/**
+ * @summary The catalogue, with copies and how many are on the shelf
+ */
+export const ListLibraryBooksResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "author": zod.string().nullish(),
+  "isbn": zod.string().nullish(),
+  "publisher": zod.string().nullish(),
+  "category": zod.string(),
+  "subject": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "shelf": zod.string().nullish(),
+  "available": zod.number().int(),
+  "onLoan": zod.number().int(),
+  "copies": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "status": zod.enum(['available', 'on_loan', 'lost', 'damaged', 'withdrawn']),
+  "borrowerName": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})),
+  "createdAt": zod.coerce.date()
+})
+export const ListLibraryBooksResponse = zod.array(ListLibraryBooksResponseItem)
+
+
+export const createLibraryBookBodyTitleMax = 200;
+
+export const createLibraryBookBodyAuthorMax = 160;
+
+export const createLibraryBookBodyIsbnMax = 20;
+
+export const createLibraryBookBodyPublisherMax = 120;
+
+export const createLibraryBookBodyCategoryMin = 2;
+export const createLibraryBookBodyCategoryMax = 40;
+
+export const createLibraryBookBodySubjectMax = 60;
+
+export const createLibraryBookBodyLevelMax = 40;
+
+export const createLibraryBookBodyShelfMax = 30;
+
+export const createLibraryBookBodyCopiesMax = 500;
+
+export const createLibraryBookBodyAccessionNumbersItemMax = 30;
+
+export const createLibraryBookBodyAccessionNumbersMax = 500;
+
+
+
+export const CreateLibraryBookBody = zod.object({
+  "title": zod.string().min(1).max(createLibraryBookBodyTitleMax),
+  "author": zod.string().max(createLibraryBookBodyAuthorMax).optional(),
+  "isbn": zod.string().max(createLibraryBookBodyIsbnMax).optional(),
+  "publisher": zod.string().max(createLibraryBookBodyPublisherMax).optional(),
+  "category": zod.string().min(createLibraryBookBodyCategoryMin).max(createLibraryBookBodyCategoryMax),
+  "subject": zod.string().max(createLibraryBookBodySubjectMax).optional(),
+  "level": zod.string().max(createLibraryBookBodyLevelMax).optional(),
+  "shelf": zod.string().max(createLibraryBookBodyShelfMax).optional(),
+  "copies": zod.number().int().min(1).max(createLibraryBookBodyCopiesMax),
+  "accessionNumbers": zod.array(zod.string().min(1).max(createLibraryBookBodyAccessionNumbersItemMax)).max(createLibraryBookBodyAccessionNumbersMax).optional().describe('Numbers already written in the books; left out, the next free numbers are used')
+})
+
+export const CreateLibraryBookResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "author": zod.string().nullish(),
+  "isbn": zod.string().nullish(),
+  "publisher": zod.string().nullish(),
+  "category": zod.string(),
+  "subject": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "shelf": zod.string().nullish(),
+  "available": zod.number().int(),
+  "onLoan": zod.number().int(),
+  "copies": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "status": zod.enum(['available', 'on_loan', 'lost', 'damaged', 'withdrawn']),
+  "borrowerName": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a book and its copies, if no copy was ever lent
+ */
+export const DeleteLibraryBookParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteLibraryBookResponse = zod.void()
+
+
+export const UpdateLibraryBookParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateLibraryBookBodyTitleMax = 200;
+
+export const updateLibraryBookBodyAuthorMax = 160;
+
+export const updateLibraryBookBodyIsbnMax = 20;
+
+export const updateLibraryBookBodyPublisherMax = 120;
+
+export const updateLibraryBookBodyCategoryMin = 2;
+export const updateLibraryBookBodyCategoryMax = 40;
+
+export const updateLibraryBookBodySubjectMax = 60;
+
+export const updateLibraryBookBodyLevelMax = 40;
+
+export const updateLibraryBookBodyShelfMax = 30;
+
+
+
+export const UpdateLibraryBookBody = zod.object({
+  "title": zod.string().min(1).max(updateLibraryBookBodyTitleMax).optional(),
+  "author": zod.string().max(updateLibraryBookBodyAuthorMax).nullish(),
+  "isbn": zod.string().max(updateLibraryBookBodyIsbnMax).nullish(),
+  "publisher": zod.string().max(updateLibraryBookBodyPublisherMax).nullish(),
+  "category": zod.string().min(updateLibraryBookBodyCategoryMin).max(updateLibraryBookBodyCategoryMax).optional(),
+  "subject": zod.string().max(updateLibraryBookBodySubjectMax).nullish(),
+  "level": zod.string().max(updateLibraryBookBodyLevelMax).nullish(),
+  "shelf": zod.string().max(updateLibraryBookBodyShelfMax).nullish()
+})
+
+export const UpdateLibraryBookResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "author": zod.string().nullish(),
+  "isbn": zod.string().nullish(),
+  "publisher": zod.string().nullish(),
+  "category": zod.string(),
+  "subject": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "shelf": zod.string().nullish(),
+  "available": zod.number().int(),
+  "onLoan": zod.number().int(),
+  "copies": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "status": zod.enum(['available', 'on_loan', 'lost', 'damaged', 'withdrawn']),
+  "borrowerName": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const AddLibraryCopiesParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const addLibraryCopiesBodyCountMax = 500;
+
+export const addLibraryCopiesBodyAccessionNumbersItemMax = 30;
+
+export const addLibraryCopiesBodyAccessionNumbersMax = 500;
+
+
+
+export const AddLibraryCopiesBody = zod.object({
+  "count": zod.number().int().min(1).max(addLibraryCopiesBodyCountMax),
+  "accessionNumbers": zod.array(zod.string().min(1).max(addLibraryCopiesBodyAccessionNumbersItemMax)).max(addLibraryCopiesBodyAccessionNumbersMax).optional()
+})
+
+export const AddLibraryCopiesResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "author": zod.string().nullish(),
+  "isbn": zod.string().nullish(),
+  "publisher": zod.string().nullish(),
+  "category": zod.string(),
+  "subject": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "shelf": zod.string().nullish(),
+  "available": zod.number().int(),
+  "onLoan": zod.number().int(),
+  "copies": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "status": zod.enum(['available', 'on_loan', 'lost', 'damaged', 'withdrawn']),
+  "borrowerName": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove one copy that was never lent, e.g. added by mistake
+ */
+export const DeleteLibraryCopyParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteLibraryCopyResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "author": zod.string().nullish(),
+  "isbn": zod.string().nullish(),
+  "publisher": zod.string().nullish(),
+  "category": zod.string(),
+  "subject": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "shelf": zod.string().nullish(),
+  "available": zod.number().int(),
+  "onLoan": zod.number().int(),
+  "copies": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "status": zod.enum(['available', 'on_loan', 'lost', 'damaged', 'withdrawn']),
+  "borrowerName": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark a copy damaged, lost, withdrawn, or back on the shelf
+ */
+export const UpdateLibraryCopyParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const UpdateLibraryCopyBody = zod.object({
+  "status": zod.enum(['available', 'damaged', 'lost', 'withdrawn'])
+})
+
+export const UpdateLibraryCopyResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "author": zod.string().nullish(),
+  "isbn": zod.string().nullish(),
+  "publisher": zod.string().nullish(),
+  "category": zod.string(),
+  "subject": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "shelf": zod.string().nullish(),
+  "available": zod.number().int(),
+  "onLoan": zod.number().int(),
+  "copies": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "status": zod.enum(['available', 'on_loan', 'lost', 'damaged', 'withdrawn']),
+  "borrowerName": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const ListLibraryLoansQueryParams = zod.object({
+  "state": zod.enum(['out', 'overdue', 'returned', 'lost', 'all']).optional(),
+  "studentId": zod.coerce.string().uuid().optional()
+})
+
+export const ListLibraryLoansResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "copyId": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "bookId": zod.string().uuid(),
+  "title": zod.string(),
+  "studentId": zod.string().uuid().nullish(),
+  "userId": zod.string().uuid().nullish(),
+  "borrowerName": zod.string(),
+  "borrowerKind": zod.enum(['learner', 'staff']),
+  "borrowerDetail": zod.string().nullish().describe('Admission number and class'),
+  "issuedAt": zod.string(),
+  "dueDate": zod.string(),
+  "returnedAt": zod.string().nullish(),
+  "status": zod.enum(['out', 'returned', 'lost']),
+  "overdue": zod.boolean(),
+  "daysOverdue": zod.number().int(),
+  "returnNote": zod.string().nullish(),
+  "issuedByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListLibraryLoansResponse = zod.array(ListLibraryLoansResponseItem)
+
+
+/**
+ * @summary Lend a copy, found by accession number, to a learner or staff member
+ */
+export const issueLibraryBookBodyAccessionNoMax = 30;
+
+export const issueLibraryBookBodyDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const IssueLibraryBookBody = zod.object({
+  "accessionNo": zod.string().min(1).max(issueLibraryBookBodyAccessionNoMax),
+  "studentId": zod.string().uuid().optional(),
+  "userId": zod.string().uuid().optional(),
+  "dueDate": zod.string().regex(issueLibraryBookBodyDueDateRegExp)
+})
+
+export const IssueLibraryBookResponse = zod.object({
+  "id": zod.string().uuid(),
+  "copyId": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "bookId": zod.string().uuid(),
+  "title": zod.string(),
+  "studentId": zod.string().uuid().nullish(),
+  "userId": zod.string().uuid().nullish(),
+  "borrowerName": zod.string(),
+  "borrowerKind": zod.enum(['learner', 'staff']),
+  "borrowerDetail": zod.string().nullish().describe('Admission number and class'),
+  "issuedAt": zod.string(),
+  "dueDate": zod.string(),
+  "returnedAt": zod.string().nullish(),
+  "status": zod.enum(['out', 'returned', 'lost']),
+  "overdue": zod.boolean(),
+  "daysOverdue": zod.number().int(),
+  "returnNote": zod.string().nullish(),
+  "issuedByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+export const ReturnLibraryBookParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const returnLibraryBookBodyNoteMax = 200;
+
+
+
+export const ReturnLibraryBookBody = zod.object({
+  "lost": zod.boolean().optional().describe('The borrower lost the book; the copy leaves the shelf count'),
+  "damaged": zod.boolean().optional(),
+  "note": zod.string().max(returnLibraryBookBodyNoteMax).optional()
+})
+
+export const ReturnLibraryBookResponse = zod.object({
+  "id": zod.string().uuid(),
+  "copyId": zod.string().uuid(),
+  "accessionNo": zod.string(),
+  "bookId": zod.string().uuid(),
+  "title": zod.string(),
+  "studentId": zod.string().uuid().nullish(),
+  "userId": zod.string().uuid().nullish(),
+  "borrowerName": zod.string(),
+  "borrowerKind": zod.enum(['learner', 'staff']),
+  "borrowerDetail": zod.string().nullish().describe('Admission number and class'),
+  "issuedAt": zod.string(),
+  "dueDate": zod.string(),
+  "returnedAt": zod.string().nullish(),
+  "status": zod.enum(['out', 'returned', 'lost']),
+  "overdue": zod.boolean(),
+  "daysOverdue": zod.number().int(),
+  "returnNote": zod.string().nullish(),
+  "issuedByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Find a learner or staff member to lend to
+ */
+export const searchLibraryBorrowersQueryQMin = 2;
+export const searchLibraryBorrowersQueryQMax = 60;
+
+
+
+export const SearchLibraryBorrowersQueryParams = zod.object({
+  "q": zod.coerce.string().min(searchLibraryBorrowersQueryQMin).max(searchLibraryBorrowersQueryQMax)
+})
+
+export const SearchLibraryBorrowersResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['learner', 'staff']),
+  "name": zod.string(),
+  "detail": zod.string().nullish(),
+  "booksOut": zod.number().int().optional()
+})
+export const SearchLibraryBorrowersResponse = zod.array(SearchLibraryBorrowersResponseItem)
+
+
 export const requestFileUploadBodyNameMax = 180;
 
 export const requestFileUploadBodySizeMax = 5242880;
@@ -4460,8 +7388,8 @@ export const requestFileUploadBodySizeMax = 5242880;
 export const RequestFileUploadBody = zod.object({
   "name": zod.string().min(1).max(requestFileUploadBodyNameMax),
   "size": zod.number().int().min(1).max(requestFileUploadBodySizeMax),
-  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']),
-  "purpose": zod.enum(['school_logo', 'student_photo']),
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
+  "purpose": zod.enum(['school_logo', 'student_photo', 'finance_document']).describe('finance_document: a receipt or invoice scan; entityId is the school'),
   "entityId": zod.string().uuid()
 })
 
@@ -4573,6 +7501,38 @@ export const updatePlatformSchoolResponseSettingsReminderDaysMax = 20;
 export const updatePlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const updatePlatformSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const updatePlatformSchoolResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const UpdatePlatformSchoolResponse = zod.object({
@@ -4616,11 +7576,40 @@ export const UpdatePlatformSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(updatePlatformSchoolResponseSettingsReminderDaysItemMin).max(updatePlatformSchoolResponseSettingsReminderDaysItemMax)).max(updatePlatformSchoolResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(updatePlatformSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(updatePlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(updatePlatformSchoolResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(updatePlatformSchoolResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -4630,9 +7619,46 @@ export const UpdatePlatformSchoolResponse = zod.object({
 })
 
 
+/**
+ * @summary Email a one-time link to choose a new password; the reply is the same whether or not the address has an account
+ */
+export const requestPasswordResetBodyEmailMax = 180;
+
+
+
+export const RequestPasswordResetBody = zod.object({
+  "email": zod.string().email().max(requestPasswordResetBodyEmailMax)
+})
+
+export const RequestPasswordResetResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Choose a new password with the token from an emailed link
+ */
+export const resetPasswordWithLinkBodyTokenMin = 20;
+export const resetPasswordWithLinkBodyTokenMax = 100;
+
+export const resetPasswordWithLinkBodyPasswordMin = 6;
+export const resetPasswordWithLinkBodyPasswordMax = 128;
+
+
+
+export const ResetPasswordWithLinkBody = zod.object({
+  "token": zod.string().min(resetPasswordWithLinkBodyTokenMin).max(resetPasswordWithLinkBodyTokenMax),
+  "password": zod.string().min(resetPasswordWithLinkBodyPasswordMin).max(resetPasswordWithLinkBodyPasswordMax)
+})
+
+export const ResetPasswordWithLinkResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const changeOwnPasswordBodyCurrentPasswordMax = 128;
 
-export const changeOwnPasswordBodyNewPasswordMin = 10;
+export const changeOwnPasswordBodyNewPasswordMin = 6;
 export const changeOwnPasswordBodyNewPasswordMax = 128;
 
 
@@ -4645,6 +7671,555 @@ export const ChangeOwnPasswordBody = zod.object({
 export const ChangeOwnPasswordResponse = zod.object({
   "message": zod.string()
 })
+
+
+/**
+ * @summary The signed-in staff member's conversation with support; opening it marks support's replies as read
+ */
+export const ListSupportMessagesResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string(),
+  "fromSupport": zod.boolean(),
+  "byAi": zod.boolean().describe('Written by the assistant rather than a person'),
+  "senderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+export const ListSupportMessagesResponse = zod.array(ListSupportMessagesResponseItem)
+
+
+/**
+ * @summary Send a message to support
+ */
+export const sendSupportMessageBodyBodyMax = 2000;
+
+
+
+export const SendSupportMessageBody = zod.object({
+  "body": zod.string().min(1).max(sendSupportMessageBodyBodyMax)
+})
+
+export const SendSupportMessageResponse = zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string(),
+  "fromSupport": zod.boolean(),
+  "byAi": zod.boolean().describe('Written by the assistant rather than a person'),
+  "senderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Whether the school collects M-Pesa through SunPay, and how parents pay
+ */
+export const GetSunpayConnectionResponse = zod.object({
+  "available": zod.boolean().describe('The platform\'s SunPay account is switched on'),
+  "connected": zod.boolean(),
+  "feePercent": zod.string(),
+  "collectionPaybill": zod.string().nullable().describe('SunPay\'s paybill that parents pay into'),
+  "type": zod.enum(['till', 'paybill']).nullable(),
+  "shortcode": zod.string().nullable(),
+  "merchantRef": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Register the school's till or paybill with SunPay as a sub-merchant
+ */
+export const connectSunpayBodyShortcodeRegExp = new RegExp('^[0-9]{4,9}$');
+export const connectSunpayBodyPhoneMax = 20;
+
+
+
+export const ConnectSunpayBody = zod.object({
+  "type": zod.enum(['till', 'paybill']),
+  "shortcode": zod.string().regex(connectSunpayBodyShortcodeRegExp),
+  "phone": zod.string().max(connectSunpayBodyPhoneMax).optional()
+})
+
+export const ConnectSunpayResponse = zod.object({
+  "available": zod.boolean().describe('The platform\'s SunPay account is switched on'),
+  "connected": zod.boolean(),
+  "feePercent": zod.string(),
+  "collectionPaybill": zod.string().nullable().describe('SunPay\'s paybill that parents pay into'),
+  "type": zod.enum(['till', 'paybill']).nullable(),
+  "shortcode": zod.string().nullable(),
+  "merchantRef": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Stop collecting through SunPay; the registration at SunPay is kept
+ */
+export const DisconnectSunpayResponse = zod.object({
+  "available": zod.boolean().describe('The platform\'s SunPay account is switched on'),
+  "connected": zod.boolean(),
+  "feePercent": zod.string(),
+  "collectionPaybill": zod.string().nullable().describe('SunPay\'s paybill that parents pay into'),
+  "type": zod.enum(['till', 'paybill']).nullable(),
+  "shortcode": zod.string().nullable(),
+  "merchantRef": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary The questions offered to signed-in school staff when the helper opens
+ */
+export const ListStaffSupportStartersResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string()
+})
+export const ListStaffSupportStartersResponse = zod.array(ListStaffSupportStartersResponseItem)
+
+
+/**
+ * @summary How many replies from support the staff member has not opened
+ */
+export const GetSupportUnreadResponse = zod.object({
+  "count": zod.number().int()
+})
+
+
+/**
+ * @summary Every support conversation, most recent first
+ */
+export const ListSupportThreadsResponseItem = zod.object({
+  "threadId": zod.string(),
+  "kind": zod.enum(['staff', 'visitor']),
+  "name": zod.string(),
+  "detail": zod.string().describe('Role and school for staff; the contact a visitor left, if any'),
+  "lastBody": zod.string(),
+  "lastAt": zod.coerce.date(),
+  "lastFromSupport": zod.boolean(),
+  "unread": zod.number().int()
+})
+export const ListSupportThreadsResponse = zod.array(ListSupportThreadsResponseItem)
+
+
+/**
+ * @summary How many staff messages support has not opened
+ */
+export const GetPlatformSupportUnreadResponse = zod.object({
+  "count": zod.number().int()
+})
+
+
+/**
+ * @summary The questions offered to website visitors when the chat opens
+ */
+export const ListSupportStartersResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string()
+})
+export const ListSupportStartersResponse = zod.array(ListSupportStartersResponseItem)
+
+
+/**
+ * @summary Every knowledge base article and whether the assistant is switched on
+ */
+export const GetKnowledgeBaseResponse = zod.object({
+  "aiConfigured": zod.boolean(),
+  "model": zod.string(),
+  "articles": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "isPublished": zod.boolean(),
+  "isStarter": zod.boolean(),
+  "audience": zod.enum(['all', 'visitors', 'staff']).describe('Website visitors, signed-in school staff, or both'),
+  "position": zod.number().int(),
+  "updatedAt": zod.coerce.date()
+})),
+  "missingStarters": zod.number().int().describe('Ready-made articles not in the knowledge base yet')
+})
+
+
+export const createKnowledgeArticleBodyQuestionMin = 3;
+export const createKnowledgeArticleBodyQuestionMax = 200;
+
+export const createKnowledgeArticleBodyAnswerMin = 3;
+export const createKnowledgeArticleBodyAnswerMax = 4000;
+
+export const createKnowledgeArticleBodyPositionMin = 0;
+export const createKnowledgeArticleBodyPositionMax = 9999;
+
+
+
+export const CreateKnowledgeArticleBody = zod.object({
+  "question": zod.string().min(createKnowledgeArticleBodyQuestionMin).max(createKnowledgeArticleBodyQuestionMax),
+  "answer": zod.string().min(createKnowledgeArticleBodyAnswerMin).max(createKnowledgeArticleBodyAnswerMax),
+  "isPublished": zod.boolean(),
+  "isStarter": zod.boolean(),
+  "audience": zod.enum(['all', 'visitors', 'staff']).describe('Website visitors, signed-in school staff, or both'),
+  "position": zod.number().int().min(createKnowledgeArticleBodyPositionMin).max(createKnowledgeArticleBodyPositionMax).optional()
+})
+
+export const CreateKnowledgeArticleResponse = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "isPublished": zod.boolean(),
+  "isStarter": zod.boolean(),
+  "audience": zod.enum(['all', 'visitors', 'staff']).describe('Website visitors, signed-in school staff, or both'),
+  "position": zod.number().int(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Add the ready-made articles that are not in the knowledge base yet
+ */
+export const SeedKnowledgeBaseResponse = zod.object({
+  "aiConfigured": zod.boolean(),
+  "model": zod.string(),
+  "articles": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "isPublished": zod.boolean(),
+  "isStarter": zod.boolean(),
+  "audience": zod.enum(['all', 'visitors', 'staff']).describe('Website visitors, signed-in school staff, or both'),
+  "position": zod.number().int(),
+  "updatedAt": zod.coerce.date()
+})),
+  "missingStarters": zod.number().int().describe('Ready-made articles not in the knowledge base yet')
+})
+
+
+/**
+ * @summary Try a question against the assistant without sending anything to anyone
+ */
+export const askKnowledgeBaseQueryAudienceDefault = `visitors`;
+
+export const AskKnowledgeBaseQueryParams = zod.object({
+  "audience": zod.enum(['visitors', 'staff']).default(askKnowledgeBaseQueryAudienceDefault)
+})
+
+export const askKnowledgeBaseBodyBodyMax = 2000;
+
+
+
+export const AskKnowledgeBaseBody = zod.object({
+  "body": zod.string().min(1).max(askKnowledgeBaseBodyBodyMax)
+})
+
+export const AskKnowledgeBaseResponse = zod.object({
+  "answer": zod.string(),
+  "answered": zod.boolean().describe('False when the knowledge base did not cover the question'),
+  "source": zod.enum(['article', 'assistant', 'unavailable'])
+})
+
+
+export const UpdateKnowledgeArticleParams = zod.object({
+  "articleId": zod.coerce.string().uuid()
+})
+
+export const updateKnowledgeArticleBodyQuestionMin = 3;
+export const updateKnowledgeArticleBodyQuestionMax = 200;
+
+export const updateKnowledgeArticleBodyAnswerMin = 3;
+export const updateKnowledgeArticleBodyAnswerMax = 4000;
+
+export const updateKnowledgeArticleBodyPositionMin = 0;
+export const updateKnowledgeArticleBodyPositionMax = 9999;
+
+
+
+export const UpdateKnowledgeArticleBody = zod.object({
+  "question": zod.string().min(updateKnowledgeArticleBodyQuestionMin).max(updateKnowledgeArticleBodyQuestionMax),
+  "answer": zod.string().min(updateKnowledgeArticleBodyAnswerMin).max(updateKnowledgeArticleBodyAnswerMax),
+  "isPublished": zod.boolean(),
+  "isStarter": zod.boolean(),
+  "audience": zod.enum(['all', 'visitors', 'staff']).describe('Website visitors, signed-in school staff, or both'),
+  "position": zod.number().int().min(updateKnowledgeArticleBodyPositionMin).max(updateKnowledgeArticleBodyPositionMax).optional()
+})
+
+export const UpdateKnowledgeArticleResponse = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "isPublished": zod.boolean(),
+  "isStarter": zod.boolean(),
+  "audience": zod.enum(['all', 'visitors', 'staff']).describe('Website visitors, signed-in school staff, or both'),
+  "position": zod.number().int(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const DeleteKnowledgeArticleParams = zod.object({
+  "articleId": zod.coerce.string().uuid()
+})
+
+export const DeleteKnowledgeArticleResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Start a chat from the public website; returns the token the visitor's browser keeps
+ */
+export const startVisitorChatBodyNameMin = 2;
+export const startVisitorChatBodyNameMax = 80;
+
+export const startVisitorChatBodyContactMax = 120;
+
+
+
+export const StartVisitorChatBody = zod.object({
+  "name": zod.string().min(startVisitorChatBodyNameMin).max(startVisitorChatBodyNameMax).optional().describe('Optional; visitors are numbered when they give none'),
+  "contact": zod.string().max(startVisitorChatBodyContactMax).optional().describe('Phone or email, so support can follow up')
+})
+
+export const StartVisitorChatResponse = zod.object({
+  "token": zod.string(),
+  "name": zod.string()
+})
+
+
+/**
+ * @summary The visitor's conversation, identified by the X-Support-Token header
+ */
+export const ListVisitorMessagesResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string(),
+  "fromSupport": zod.boolean(),
+  "byAi": zod.boolean().describe('Written by the assistant rather than a person'),
+  "senderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+export const ListVisitorMessagesResponse = zod.array(ListVisitorMessagesResponseItem)
+
+
+/**
+ * @summary Send a message as the visitor identified by the X-Support-Token header
+ */
+export const sendVisitorMessageBodyBodyMax = 2000;
+
+
+
+export const SendVisitorMessageBody = zod.object({
+  "body": zod.string().min(1).max(sendVisitorMessageBodyBodyMax)
+})
+
+export const SendVisitorMessageResponse = zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string(),
+  "fromSupport": zod.boolean(),
+  "byAi": zod.boolean().describe('Written by the assistant rather than a person'),
+  "senderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary One conversation; opening it marks the other person's messages as read
+ */
+export const listSupportThreadMessagesPathThreadIdRegExp = new RegExp('^(staff|visitor)-[0-9a-fA-F-]{36}$');
+
+
+export const ListSupportThreadMessagesParams = zod.object({
+  "threadId": zod.coerce.string().regex(listSupportThreadMessagesPathThreadIdRegExp)
+})
+
+export const ListSupportThreadMessagesResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string(),
+  "fromSupport": zod.boolean(),
+  "byAi": zod.boolean().describe('Written by the assistant rather than a person'),
+  "senderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+export const ListSupportThreadMessagesResponse = zod.array(ListSupportThreadMessagesResponseItem)
+
+
+/**
+ * @summary Reply in a conversation as support
+ */
+export const replySupportThreadPathThreadIdRegExp = new RegExp('^(staff|visitor)-[0-9a-fA-F-]{36}$');
+
+
+export const ReplySupportThreadParams = zod.object({
+  "threadId": zod.coerce.string().regex(replySupportThreadPathThreadIdRegExp)
+})
+
+export const replySupportThreadBodyBodyMax = 2000;
+
+
+
+export const ReplySupportThreadBody = zod.object({
+  "body": zod.string().min(1).max(replySupportThreadBodyBodyMax)
+})
+
+export const ReplySupportThreadResponse = zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string(),
+  "fromSupport": zod.boolean(),
+  "byAi": zod.boolean().describe('Written by the assistant rather than a person'),
+  "senderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Set a new temporary password for a staff member who is locked out
+ */
+export const ResetStaffPasswordParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const resetStaffPasswordBodyPasswordMin = 6;
+export const resetStaffPasswordBodyPasswordMax = 128;
+
+
+
+export const ResetStaffPasswordBody = zod.object({
+  "password": zod.string().min(resetStaffPasswordBodyPasswordMin).max(resetStaffPasswordBodyPasswordMax)
+})
+
+export const ResetStaffPasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const GetStaffProfileParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const GetStaffProfileResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "schoolId": zod.string().uuid().nullable(),
+  "lastLoginAt": zod.coerce.date().nullish(),
+  "name": zod.string(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}),
+  "assignments": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['class_teacher', 'stream_access', 'subject']),
+  "recordId": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "userName": zod.string(),
+  "userRole": zod.string(),
+  "userActive": zod.boolean(),
+  "gradeId": zod.string().uuid(),
+  "gradeName": zod.string(),
+  "streamId": zod.string().uuid(),
+  "streamName": zod.string(),
+  "subject": zod.string().nullable(),
+  "termName": zod.string().nullable(),
+  "isCurrentTerm": zod.boolean(),
+  "assignedAt": zod.coerce.date()
+})),
+  "stats": zod.object({
+  "classes": zod.number().int(),
+  "learners": zod.number().int(),
+  "subjects": zod.number().int(),
+  "attendanceMarked": zod.number().int(),
+  "registersMarked": zod.number().int(),
+  "assessments": zod.number().int(),
+  "actions": zod.number().int(),
+  "lastActivityAt": zod.coerce.date().nullable()
+}),
+  "activity": zod.array(zod.object({
+  "before": zod.record(zod.string(), zod.unknown()).nullish(),
+  "after": zod.record(zod.string(), zod.unknown()).nullish(),
+  "ip": zod.string().nullish(),
+  "userAgent": zod.string().nullish(),
+  "id": zod.string().uuid(),
+  "userName": zod.string().nullish(),
+  "action": zod.string(),
+  "entityType": zod.string(),
+  "entityId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+export const DeleteSubjectAssignmentParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const DeleteSubjectAssignmentResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const GetStudentRemovalParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const GetStudentRemovalResponse = zod.object({
+  "mode": zod.enum(['delete', 'anonymize']),
+  "admissionNo": zod.string(),
+  "name": zod.string(),
+  "attendance": zod.number().int(),
+  "marks": zod.number().int(),
+  "ratings": zod.number().int(),
+  "reportCards": zod.number().int(),
+  "files": zod.number().int(),
+  "guardiansRemoved": zod.number().int(),
+  "guardiansKept": zod.number().int(),
+  "financeRecords": zod.number().int()
+})
+
+
+export const RemoveStudentParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const RemoveStudentBody = zod.object({
+  "confirmAdmissionNo": zod.string().min(1)
+})
+
+export const RemoveStudentResponse = zod.object({
+  "mode": zod.enum(['delete', 'anonymize']),
+  "admissionNo": zod.string(),
+  "name": zod.string(),
+  "attendance": zod.number().int(),
+  "marks": zod.number().int(),
+  "ratings": zod.number().int(),
+  "reportCards": zod.number().int(),
+  "files": zod.number().int(),
+  "guardiansRemoved": zod.number().int(),
+  "guardiansKept": zod.number().int(),
+  "financeRecords": zod.number().int()
+})
+
+
+export const ListStaffAssignmentsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['class_teacher', 'stream_access', 'subject']),
+  "recordId": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "userName": zod.string(),
+  "userRole": zod.string(),
+  "userActive": zod.boolean(),
+  "gradeId": zod.string().uuid(),
+  "gradeName": zod.string(),
+  "streamId": zod.string().uuid(),
+  "streamName": zod.string(),
+  "subject": zod.string().nullable(),
+  "termName": zod.string().nullable(),
+  "isCurrentTerm": zod.boolean(),
+  "assignedAt": zod.coerce.date()
+})
+export const ListStaffAssignmentsResponse = zod.array(ListStaffAssignmentsResponseItem)
 
 
 export const ListTeacherAssignmentsResponseItem = zod.object({
@@ -4813,6 +8388,38 @@ export const listSchoolsResponseSettingsReminderDaysMax = 20;
 export const listSchoolsResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const listSchoolsResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const listSchoolsResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const ListSchoolsResponseItem = zod.object({
@@ -4856,11 +8463,40 @@ export const ListSchoolsResponseItem = zod.object({
   "reminderDays": zod.array(zod.number().int().min(listSchoolsResponseSettingsReminderDaysItemMin).max(listSchoolsResponseSettingsReminderDaysItemMax)).max(listSchoolsResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(listSchoolsResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(listSchoolsResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(listSchoolsResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(listSchoolsResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(listSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(listSchoolsResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(listSchoolsResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(listSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(listSchoolsResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(listSchoolsResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(listSchoolsResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -4887,7 +8523,7 @@ export const createSchoolBodyOneAdminNameMax = 160;
 export const createSchoolBodyOnePhoneMin = 9;
 export const createSchoolBodyOnePhoneMax = 20;
 
-export const createSchoolBodyOnePasswordMin = 10;
+export const createSchoolBodyOnePasswordMin = 6;
 export const createSchoolBodyOnePasswordMax = 128;
 
 export const createSchoolBodyTwoReasonMin = 3;
@@ -4958,6 +8594,38 @@ export const createSchoolResponseSettingsReminderDaysMax = 20;
 export const createSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const createSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createSchoolResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const createSchoolResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const CreateSchoolResponse = zod.object({
@@ -5001,11 +8669,40 @@ export const CreateSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(createSchoolResponseSettingsReminderDaysItemMin).max(createSchoolResponseSettingsReminderDaysItemMax)).max(createSchoolResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(createSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(createSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(createSchoolResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(createSchoolResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(createSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(createSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(createSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(createSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(createSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(createSchoolResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(createSchoolResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -5040,6 +8737,15 @@ export const UpdateGradeResponse = zod.object({
 })
 
 
+export const DeleteGradeParams = zod.object({
+  "gradeId": zod.coerce.string().uuid()
+})
+
+export const DeleteGradeResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const UpdateStreamParams = zod.object({
   "streamId": zod.coerce.string().uuid()
 })
@@ -5062,6 +8768,71 @@ export const UpdateStreamResponse = zod.object({
   "classTeacherUserId": zod.string().uuid().nullish(),
   "classTeacherName": zod.string().nullish(),
   "studentCount": zod.number().int()
+})
+
+
+export const DeleteStreamParams = zod.object({
+  "streamId": zod.coerce.string().uuid()
+})
+
+export const DeleteStreamResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const GetClassSummaryQueryParams = zod.object({
+  "streamId": zod.coerce.string().uuid().optional(),
+  "gradeId": zod.coerce.string().uuid().optional()
+})
+
+export const GetClassSummaryResponse = zod.object({
+  "kind": zod.enum(['stream', 'grade']),
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "gradeId": zod.string().uuid(),
+  "gradeName": zod.string(),
+  "levelBand": zod.string(),
+  "streamName": zod.string().nullable(),
+  "classTeacher": zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string()
+}).nullable(),
+  "teachers": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "subjects": zod.array(zod.string())
+})),
+  "learners": zod.object({
+  "total": zod.number().int(),
+  "male": zod.number().int(),
+  "female": zod.number().int(),
+  "other": zod.number().int(),
+  "boarders": zod.number().int(),
+  "day": zod.number().int(),
+  "former": zod.number().int()
+}),
+  "attendance": zod.object({
+  "days": zod.number().int(),
+  "records": zod.number().int(),
+  "percent": zod.string().nullable(),
+  "todayMarked": zod.number().int(),
+  "todayPresent": zod.number().int(),
+  "todayAbsent": zod.number().int()
+}),
+  "fees": zod.object({
+  "outstanding": zod.string(),
+  "credit": zod.string(),
+  "owing": zod.number().int()
+}).nullable(),
+  "students": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "admissionNo": zod.string(),
+  "fullName": zod.string(),
+  "gender": zod.string().nullable(),
+  "boardingStatus": zod.string(),
+  "balance": zod.string().nullable(),
+  "attendancePercent": zod.string().nullable()
+}))
 })
 
 
@@ -5208,7 +8979,7 @@ export const createInitialSchoolBodyAdminNameMax = 160;
 export const createInitialSchoolBodyPhoneMin = 9;
 export const createInitialSchoolBodyPhoneMax = 20;
 
-export const createInitialSchoolBodyPasswordMin = 10;
+export const createInitialSchoolBodyPasswordMin = 6;
 export const createInitialSchoolBodyPasswordMax = 128;
 
 
@@ -5273,6 +9044,38 @@ export const createInitialSchoolResponseSchoolOneSettingsReminderDaysMax = 20;
 export const createInitialSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const createInitialSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const CreateInitialSchoolResponse = zod.object({
@@ -5283,7 +9086,8 @@ export const CreateInitialSchoolResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
@@ -5328,11 +9132,40 @@ export const CreateInitialSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(createInitialSchoolResponseSchoolOneSettingsReminderDaysItemMin).max(createInitialSchoolResponseSchoolOneSettingsReminderDaysItemMax)).max(createInitialSchoolResponseSchoolOneSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(createInitialSchoolResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(createInitialSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(createInitialSchoolResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(createInitialSchoolResponseSchoolOneSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -5414,6 +9247,38 @@ export const loginResponseSchoolOneSettingsReminderDaysMax = 20;
 export const loginResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const loginResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const loginResponseSchoolOneSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const LoginResponse = zod.object({
@@ -5424,7 +9289,8 @@ export const LoginResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
@@ -5469,11 +9335,40 @@ export const LoginResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(loginResponseSchoolOneSettingsReminderDaysItemMin).max(loginResponseSchoolOneSettingsReminderDaysItemMax)).max(loginResponseSchoolOneSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(loginResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(loginResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(loginResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(loginResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(loginResponseSchoolOneSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -5551,6 +9446,38 @@ export const getCurrentUserResponseSchoolOneSettingsReminderDaysMax = 20;
 export const getCurrentUserResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const getCurrentUserResponseSchoolOneSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const GetCurrentUserResponse = zod.object({
@@ -5561,7 +9488,8 @@ export const GetCurrentUserResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),
@@ -5606,11 +9534,40 @@ export const GetCurrentUserResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(getCurrentUserResponseSchoolOneSettingsReminderDaysItemMin).max(getCurrentUserResponseSchoolOneSettingsReminderDaysItemMax)).max(getCurrentUserResponseSchoolOneSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(getCurrentUserResponseSchoolOneSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(getCurrentUserResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(getCurrentUserResponseSchoolOneSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(getCurrentUserResponseSchoolOneSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -5708,6 +9665,38 @@ export const getSchoolResponseSettingsReminderDaysMax = 20;
 export const getSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const getSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getSchoolResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const getSchoolResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const GetSchoolResponse = zod.object({
@@ -5751,11 +9740,40 @@ export const GetSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(getSchoolResponseSettingsReminderDaysItemMin).max(getSchoolResponseSettingsReminderDaysItemMax)).max(getSchoolResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(getSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(getSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(getSchoolResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(getSchoolResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(getSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(getSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(getSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(getSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(getSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(getSchoolResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(getSchoolResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -5816,6 +9834,38 @@ export const updateSchoolBodySettingsReminderDaysMax = 20;
 export const updateSchoolBodySettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const updateSchoolBodySettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateSchoolBodySettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const updateSchoolBodySettingsFeeStructureTemplatesMax = 20;
+
 export const updateSchoolBodyNameMin = 2;
 export const updateSchoolBodyNameMax = 180;
 
@@ -5858,7 +9908,36 @@ export const UpdateSchoolBody = zod.object({
   "reminderDays": zod.array(zod.number().int().min(updateSchoolBodySettingsReminderDaysItemMin).max(updateSchoolBodySettingsReminderDaysItemMax)).max(updateSchoolBodySettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(updateSchoolBodySettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(updateSchoolBodySettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(updateSchoolBodySettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateSchoolBodySettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(updateSchoolBodySettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(updateSchoolBodySettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(updateSchoolBodySettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(updateSchoolBodySettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(updateSchoolBodySettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(updateSchoolBodySettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(updateSchoolBodySettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "name": zod.string().min(updateSchoolBodyNameMin).max(updateSchoolBodyNameMax).optional(),
   "county": zod.string().max(updateSchoolBodyCountyMax).nullish(),
@@ -5916,6 +9995,38 @@ export const updateSchoolResponseSettingsReminderDaysMax = 20;
 export const updateSchoolResponseSettingsDefaultAfterMissedInstallmentsMax = 24;
 
 export const updateSchoolResponseSettingsAbsenceAlertTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemIdMax = 40;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemNameMax = 80;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemGradeMax = 40;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemTitleMax = 120;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax = 200;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax = 2000;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax = 120;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax = 120;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax = 30;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax = 120;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax = 4000;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax = 10;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax = 60;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax = 4;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesItemFooterMax = 400;
+
+export const updateSchoolResponseSettingsFeeStructureTemplatesMax = 20;
+
 
 
 export const UpdateSchoolResponse = zod.object({
@@ -5959,11 +10070,40 @@ export const UpdateSchoolResponse = zod.object({
   "reminderDays": zod.array(zod.number().int().min(updateSchoolResponseSettingsReminderDaysItemMin).max(updateSchoolResponseSettingsReminderDaysItemMax)).max(updateSchoolResponseSettingsReminderDaysMax).optional(),
   "defaultAfterMissedInstallments": zod.number().int().min(1).max(updateSchoolResponseSettingsDefaultAfterMissedInstallmentsMax).optional(),
   "absenceAlertsEnabled": zod.boolean().optional(),
-  "absenceAlertTime": zod.string().regex(updateSchoolResponseSettingsAbsenceAlertTimeRegExp).optional()
+  "statusDigest": zod.enum(['off', 'weekly', 'monthly']).optional().describe('How often school administrators get a status message on their phone. Weekly when not set.'),
+  "statusDigestChannel": zod.enum(['sms', 'whatsapp']).optional().describe('SMS when not set. WhatsApp needs an approved template named school_digest.'),
+  "absenceAlertTime": zod.string().regex(updateSchoolResponseSettingsAbsenceAlertTimeRegExp).optional(),
+  "requireSecondApproval": zod.boolean().optional().describe('When true (the default), discounts, refunds, reversals, bounced cheques and fee changes after billing wait for a second person. When false they apply as soon as they are saved, and are still audited.'),
+  "feeStructureTemplates": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateSchoolResponseSettingsFeeStructureTemplatesItemIdMax).optional(),
+  "name": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemNameMax).optional(),
+  "grade": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemGradeMax).optional().describe('A grade id'),
+  "period": zod.enum(['current', 'year']).optional().describe('The current term'),
+  "who": zod.enum(['both', 'day', 'boarder']).optional(),
+  "title": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemTitleMax).optional(),
+  "subtitle": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemSubtitleMax).optional().describe('Motto or a line under the school name.'),
+  "showLogo": zod.boolean().optional(),
+  "showContacts": zod.boolean().optional(),
+  "showYearTotal": zod.boolean().optional(),
+  "showExtras": zod.boolean().optional(),
+  "showPayment": zod.boolean().optional(),
+  "showSignatures": zod.boolean().optional(),
+  "payment": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemPaymentMax).optional().describe('Paybill'),
+  "extras": zod.array(zod.object({
+  "name": zod.string().min(1).max(updateSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemNameMax),
+  "amount": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemExtrasItemAmountMax).optional()
+})).max(updateSchoolResponseSettingsFeeStructureTemplatesItemExtrasMax).optional().describe('Optional charges, such as transport or lunch, with the amount or rule written as the school wants it shown.'),
+  "sections": zod.array(zod.object({
+  "heading": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemHeadingMax),
+  "body": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemSectionsItemBodyMax)
+})).max(updateSchoolResponseSettingsFeeStructureTemplatesItemSectionsMax).optional(),
+  "signatories": zod.array(zod.string().min(1).max(updateSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesItemMax)).max(updateSchoolResponseSettingsFeeStructureTemplatesItemSignatoriesMax).optional(),
+  "footer": zod.string().max(updateSchoolResponseSettingsFeeStructureTemplatesItemFooterMax).optional()
+}).describe('A saved fee structure printout. Every layout field is optional; missing ones use the defaults.')).max(updateSchoolResponseSettingsFeeStructureTemplatesMax).optional().describe('Saved fee structure printouts. Each keeps its layout and what it prints; fees always come from the latest approved amounts.')
 }).optional().describe('Optional per-school settings; PATCH replaces settings, not merges. Academic term dates are maintained through the terms API.'),
   "subscriptionPlan": zod.string().optional(),
   "licenceManaged": zod.boolean().optional(),
-  "licenceStatus": zod.enum(['unmanaged', 'active', 'scheduled', 'expired']).optional(),
+  "licenceStatus": zod.enum(['unmanaged', 'trial', 'active', 'scheduled', 'expired']).optional(),
   "licencePlanName": zod.string().nullish(),
   "licenceExpiresAt": zod.coerce.date().nullish(),
   "subscriptionStatus": zod.enum(['trial', 'active', 'expired', 'cancelled']).optional(),
@@ -5983,7 +10123,8 @@ export const ListUsersResponseItem = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -5999,8 +10140,10 @@ export const createUserBodyNameMax = 160;
 export const createUserBodyPhoneMin = 9;
 export const createUserBodyPhoneMax = 20;
 
-export const createUserBodyPasswordMin = 10;
+export const createUserBodyPasswordMin = 6;
 export const createUserBodyPasswordMax = 128;
+
+export const createUserBodyPermissionsMax = 10;
 
 
 
@@ -6009,7 +10152,8 @@ export const CreateUserBody = zod.object({
   "email": zod.string().email().nullish(),
   "phone": zod.string().min(createUserBodyPhoneMin).max(createUserBodyPhoneMax).nullish(),
   "password": zod.string().min(createUserBodyPasswordMin).max(createUserBodyPasswordMax),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher'])
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).max(createUserBodyPermissionsMax).optional()
 })
 
 export const CreateUserResponse = zod.object({
@@ -6019,7 +10163,8 @@ export const CreateUserResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -6038,13 +10183,16 @@ export const updateUserBodyNameMax = 160;
 export const updateUserBodyPhoneMin = 9;
 export const updateUserBodyPhoneMax = 20;
 
+export const updateUserBodyPermissionsMax = 10;
+
 
 
 export const UpdateUserBody = zod.object({
   "name": zod.string().min(updateUserBodyNameMin).max(updateUserBodyNameMax).optional(),
   "email": zod.string().email().nullish(),
   "phone": zod.string().min(updateUserBodyPhoneMin).max(updateUserBodyPhoneMax).nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']).optional(),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']).optional(),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).max(updateUserBodyPermissionsMax).optional(),
   "isActive": zod.boolean().optional()
 })
 
@@ -6055,7 +10203,8 @@ export const UpdateUserResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher']),
+  "role": zod.enum(['super_admin', 'school_admin', 'principal', 'bursar', 'teacher', 'class_teacher', 'storekeeper', 'librarian']),
+  "permissions": zod.array(zod.enum(['expenses', 'procurement', 'approve_lpo', 'store', 'library']).describe('Extra access a school admin can give one person on top of their role.')).describe('Extra access on top of the role'),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -6368,7 +10517,7 @@ export const CreateStudentBody = zod.object({
   "pathway": zod.string().max(createStudentBodyPathwayMax).nullish(),
   "photoUrl": zod.string().max(createStudentBodyPhotoUrlMax).regex(createStudentBodyPhotoUrlRegExp).nullish().describe('Private App Storage objectPath, never an external URL; server verifies same-school ownership.'),
   "transportRouteId": zod.string().max(createStudentBodyTransportRouteIdMax).nullish(),
-  "admissionNo": zod.string().min(1).max(createStudentBodyAdmissionNoMax),
+  "admissionNo": zod.string().min(1).max(createStudentBodyAdmissionNoMax).optional(),
   "firstName": zod.string().min(1).max(createStudentBodyFirstNameMax),
   "middleName": zod.string().max(createStudentBodyMiddleNameMax).nullish(),
   "lastName": zod.string().min(1).max(createStudentBodyLastNameMax),
@@ -6423,6 +10572,59 @@ export const CreateStudentResponse = zod.object({
   "guardianPhones": zod.array(zod.string()),
   "siblingCount": zod.number().int(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary How many parents a message to everyone (or to one grade) would reach
+ */
+export const GetMessageAudienceQueryParams = zod.object({
+  "gradeId": zod.coerce.string().uuid().optional()
+})
+
+export const GetMessageAudienceResponse = zod.object({
+  "parents": zod.number().int()
+})
+
+
+/**
+ * @summary Send one message to every parent of an active learner, or to one grade's parents
+ */
+export const broadcastSchoolMessageBodyTemplateMax = 60;
+
+export const broadcastSchoolMessageBodyContentMin = 5;
+export const broadcastSchoolMessageBodyContentMax = 1000;
+
+export const broadcastSchoolMessageBodyIdempotencyKeyMin = 8;
+export const broadcastSchoolMessageBodyIdempotencyKeyMax = 80;
+
+
+
+export const BroadcastSchoolMessageBody = zod.object({
+  "channel": zod.enum(['whatsapp', 'sms']),
+  "template": zod.string().min(1).max(broadcastSchoolMessageBodyTemplateMax),
+  "content": zod.string().min(broadcastSchoolMessageBodyContentMin).max(broadcastSchoolMessageBodyContentMax),
+  "gradeId": zod.string().uuid().optional().describe('Only this grade\'s parents. Left out'),
+  "idempotencyKey": zod.string().min(broadcastSchoolMessageBodyIdempotencyKeyMin).max(broadcastSchoolMessageBodyIdempotencyKeyMax)
+})
+
+export const BroadcastSchoolMessageResponse = zod.object({
+  "queued": zod.number().int(),
+  "skipped": zod.number().int().describe('Parents who could not be sent to on this channel (for WhatsApp')
+})
+
+
+/**
+ * @summary The learner's identity card as a print-ready PDF (front and back, bank-card size)
+ */
+export const GenerateStudentIdCardParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const GenerateStudentIdCardResponse = zod.object({
+  "id": zod.string().uuid(),
+  "downloadUrl": zod.string(),
+  "expiresAt": zod.coerce.date().optional()
 })
 
 
@@ -6707,9 +10909,17 @@ export const CommitStudentImportResponse = zod.object({
 export const listAuditLogsQueryLimitMax = 100;
 
 
+export const listAuditLogsQuerySearchMax = 100;
+
+export const listAuditLogsQueryEntityTypeMax = 60;
+
+
 
 export const ListAuditLogsQueryParams = zod.object({
-  "limit": zod.coerce.number().int().min(1).max(listAuditLogsQueryLimitMax).optional()
+  "limit": zod.coerce.number().int().min(1).max(listAuditLogsQueryLimitMax).optional(),
+  "page": zod.coerce.number().int().min(1).optional().describe('1-based page of `limit` entries, newest first.'),
+  "search": zod.coerce.string().max(listAuditLogsQuerySearchMax).optional().describe('Words to find in the action, record type or the person\'s name.'),
+  "entityType": zod.coerce.string().max(listAuditLogsQueryEntityTypeMax).optional().describe('Only entries about this kind of record.')
 })
 
 export const ListAuditLogsResponseItem = zod.object({

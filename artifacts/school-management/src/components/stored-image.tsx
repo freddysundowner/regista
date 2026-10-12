@@ -33,8 +33,10 @@ export function StoredImage({ refPath, alt, className, fallback }: { refPath?: s
  * Upload flow: requestFileUpload -> PUT bytes to signed URL -> completeFileUpload -> onSaved(objectPath).
  * onSaved must PATCH the owning record with the returned reference.
  */
-export function ImageUploadButton({ purpose, entityId, label, onSaved, testid }: {
+export function ImageUploadButton({ purpose, entityId, label, onSaved, testid, hideButton }: {
   purpose: FileUploadInputPurpose; entityId: string; label: string; testid: string;
+  /** Keep only the file input (opened from elsewhere, e.g. a menu) and its messages. */
+  hideButton?: boolean;
   onSaved: (objectPath: string) => Promise<unknown>;
 }) {
   const req = useRequestFileUpload();
@@ -66,9 +68,11 @@ export function ImageUploadButton({ purpose, entityId, label, onSaved, testid }:
     <div className="flex flex-col gap-1">
       <input ref={input} type="file" accept={TYPES.join(",")} className="sr-only" aria-label={label} data-testid={`input-${testid}`}
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void handle(f); }} />
-      <Btn type="button" variant="outline" className="h-8" disabled={busy} data-testid={`button-${testid}`} onClick={() => input.current?.click()}>
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageUp className="h-3.5 w-3.5" />}{busy ? "Uploading" : label}
-      </Btn>
+      {hideButton ? busy && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Uploading photo</span> : (
+        <Btn type="button" variant="outline" className="h-8" disabled={busy} data-testid={`button-${testid}`} onClick={() => input.current?.click()}>
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageUp className="h-3.5 w-3.5" />}{busy ? "Uploading" : label}
+        </Btn>
+      )}
       {err && <span role="alert" data-testid={`text-${testid}-error`} className="max-w-56 text-[11px] text-destructive">{err}</span>}
     </div>
   );

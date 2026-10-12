@@ -3,7 +3,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, readFile } from "node:fs/promises";
+import { appName, rebrand } from "../../brand.config.mjs";
+
+/** Swaps the product name (APP_NAME) into the API's own source. See brand.config.mjs. */
+function brandName() {
+  const name = appName();
+  return {
+    name: "brand-name",
+    setup(build) {
+      build.onLoad({ filter: /[\\/]api-server[\\/]src[\\/].*\.ts$/ }, async (args) => ({ contents: rebrand(await readFile(args.path, "utf8"), name), loader: "ts" }));
+    },
+  };
+}
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -105,6 +117,7 @@ async function buildAll() {
     ],
     sourcemap: "linked",
     plugins: [
+      brandName(),
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
       esbuildPluginPino({ transports: ["pino-pretty"] })
     ],

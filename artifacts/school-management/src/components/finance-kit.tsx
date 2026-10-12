@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
-  useListStudents, useListFinanceRecords, useListTerms, useListGrades, useListAcademicYears, useCreateFinanceDocument, downloadFinanceDocument,
+  useGetSchool, getGetSchoolQueryKey, useListStudents, useListFinanceRecords, useListTerms, useListGrades, useListAcademicYears, useCreateFinanceDocument, downloadFinanceDocument,
   getListStudentsQueryKey, getListFinanceRecordsQueryKey, getListTermsQueryKey, getListGradesQueryKey, getListAcademicYearsQueryKey,
-  type FinanceRecord, type ListFinanceRecordsParams,
+  type FinanceRecord, type ListFinanceRecordsParams, type Student,
 } from "@workspace/api-client-react";
 import { Download, Loader2, Plus, X } from "lucide-react";
 import { CardTable, Field, NativeSelect, TextInput, Btn, Pill } from "@/components/kit";
@@ -12,6 +12,12 @@ import { useToast } from "@/hooks/use-toast";
 
 export function useFinanceRecords(params?: ListFinanceRecordsParams & { page?: number; pageSize?: number; status?: string; search?: string; id?: string }, enabled = true) {
   return useListFinanceRecords(params, { query: { queryKey: getListFinanceRecordsQueryKey(params), enabled, staleTime: 15000, refetchInterval: 30000 } });
+}
+
+/** Whether money changes wait for a second person at this school (on unless switched off in Settings). */
+export function useSecondApproval() {
+  const q = useGetSchool({ query: { queryKey: getGetSchoolQueryKey() } });
+  return q.data?.settings?.requireSecondApproval !== false;
 }
 
 export function useStudentNames() {
@@ -52,19 +58,49 @@ export function MoneyInput({ value, onChange, testid }: { value: string; onChang
 }
 
 /** Server-scoped student picker with search. */
-export function StudentPicker({ value, onChange, label = "Student", required = true }: { value: string; onChange: (id: string) => void; label?: string; required?: boolean }) {
+/**
+ * One search box for choosing a learner: type a name or admission number, pick from the matches.
+ * `onPick` also gets the learner record, e.g. to prefill a parent's phone.
+ */
+export function StudentPicker({ value, onChange, onPick, label = "Learner", required = true }: {
+  value: string; onChange: (id: string) => void; onPick?: (s: Student) => void; label?: string; required?: boolean;
+}) {
   const [search, setSearch] = useState("");
+  const [changing, setChanging] = useState(false);
+  const name = useStudentNames();
   const params = search.trim().length >= 2 ? { search: search.trim() } : undefined;
-  const q = useListStudents(params, { query: { queryKey: getListStudentsQueryKey(params) } });
-  const list = q.data?.slice(0, 200) ?? [];
+  const q = useListStudents(params, { query: { queryKey: getListStudentsQueryKey(params), enabled: !!params } });
+  const matches = (q.data ?? []).slice(0, 8);
+  const choose = (s: Student) => { onChange(s.id); onPick?.(s); setSearch(""); setChanging(false); };
+  if (value && !changing) return (
+    <Field label={label} required={required} className="sm:col-span-2">
+      <div className="flex h-10 items-center gap-3 rounded-md border border-input bg-card px-3 text-sm" data-testid="select-student">
+        <span className="min-w-0 flex-1 truncate font-medium">{name(value)}</span>
+        <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setChanging(true)}>Change</button>
+      </div>
+    </Field>
+  );
   return (
-    <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
-      <Field label="Find student" hint="Name or admission no."><TextInput data-testid="input-student-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Type 2+ letters" /></Field>
-      <Field label={label} required={required}><NativeSelect data-testid="select-student" value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{q.isLoading ? "Loading" : list.length ? "Select student" : "No match"}</option>
-        {list.map((s) => <option key={s.id} value={s.id}>{s.fullName} · {s.admissionNo}</option>)}
-      </NativeSelect></Field>
-    </div>
+    <Field label={label} required={required} className="sm:col-span-2">
+      <div className="relative">
+        <TextInput data-testid="input-student-search" autoFocus={changing} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Type a name or admission number"
+          onKeyDown={(e) => { if (e.key === "Enter" && matches[0]) { e.preventDefault(); choose(matches[0]); } if (e.key === "Escape" && value) setChanging(false); }} />
+        {params && (
+          <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-auto rounded-md border border-border bg-card py-1 shadow-lg" role="listbox">
+            {q.isLoading ? <li className="px-3 py-2 text-sm text-muted-foreground">Searching…</li>
+              : !matches.length ? <li className="px-3 py-2 text-sm text-muted-foreground">No learner matches “{search.trim()}”</li>
+              : matches.map((s) => (
+                <li key={s.id} role="option" aria-selected={s.id === value}>
+                  <button type="button" onClick={() => choose(s)} className="flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm hover:bg-muted">
+                    <span className="font-medium">{s.fullName}</span>
+                    <span className="text-xs text-muted-foreground">{s.admissionNo}{s.gradeName ? ` · ${s.gradeName}${s.streamName ? ` ${s.streamName}` : ""}` : ""}</span>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
+      </div>
+    </Field>
   );
 }
 
@@ -130,18 +166,19 @@ export function LinesEditor({ lines, onChange, optional }: { lines: Line[]; onCh
 }
 
 /** Generates a PDF on the server and downloads it with the authenticated client. Independent from posting. */
-export function DocumentButton({ type, referenceId, label, children, fileName }: { type: "receipt" | "statement"; referenceId: string; label?: string; children?: ReactNode; fileName?: string }) {
+/** Generates a private PDF (receipt, statement, invoice) and downloads it. Used by buttons and menu items. */
+export function useDocumentDownload() {
   const create = useCreateFinanceDocument();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
-  const run = () => {
+  const run = (type: "receipt" | "statement" | "invoice", referenceId: string, fileName?: string) => {
     setBusy(true);
     create.mutate({ data: { type, referenceId } }, {
       onSuccess: async (doc) => {
         try {
           const blob = await downloadFinanceDocument(doc.id);
           const url = URL.createObjectURL(blob);
-          const a = document.createElement("a"); a.href = url; a.download = `${fileName ?? type}.pdf`; a.click();
+          const a = document.createElement("a"); a.href = url; a.download = `${(fileName ?? type).trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-")}.pdf`; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(() => URL.revokeObjectURL(url), 5000);
         } catch (x) { toast({ title: "Download failed", description: `${errMsg(x)} The record is unaffected; try again.`, variant: "destructive" }); }
         setBusy(false);
@@ -149,8 +186,13 @@ export function DocumentButton({ type, referenceId, label, children, fileName }:
       onError: (x) => { setBusy(false); toast({ title: `Could not generate ${type}`, description: `${errMsg(x)} The record is unaffected; try again.`, variant: "destructive" }); },
     });
   };
-  return <Btn type="button" variant="outline" className="h-7 px-2 text-xs" disabled={busy} data-testid={`button-${type}-${referenceId}`} aria-label={label ?? `Download ${type}`} onClick={run}>
-    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}{children ?? (type === "receipt" ? "Receipt" : "Statement PDF")}
+  return { run, busy };
+}
+
+export function DocumentButton({ type, referenceId, label, children, fileName }: { type: "receipt" | "statement" | "invoice"; referenceId: string; label?: string; children?: ReactNode; fileName?: string }) {
+  const { run, busy } = useDocumentDownload();
+  return <Btn type="button" variant="outline" className="h-7 px-2 text-xs" disabled={busy} data-testid={`button-${type}-${referenceId}`} aria-label={label ?? `Download ${type}`} onClick={() => run(type, referenceId, fileName)}>
+    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}{children ?? (type === "receipt" ? "Receipt" : type === "invoice" ? "Invoice" : "Statement PDF")}
   </Btn>;
 }
 

@@ -19,7 +19,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0]?.replace(/(\/whatsapp\/inbound\/|\/email\/unsubscribe\/|\/payments\/(?:validation|confirmation|prompt)\/|\/integrations\/leadsintel\/events\/|\/integrations\/(?:message-delivery|messaging-delivery)\/events\/|\/integrations\/kcb\/(?:account|till)-notification\/)[^/]+/, "$1[REDACTED]"),
+          url: req.url?.split("?")[0]?.replace(/(\/whatsapp\/inbound\/|\/email\/unsubscribe\/|\/payments\/(?:validation|confirmation|prompt)\/|\/integrations\/leadsintel\/events\/|\/integrations\/(?:message-delivery|messaging-delivery)\/events\/|\/integrations\/kcb\/(?:account|till)-notification\/|\/integrations\/ncba\/notification\/|\/integrations\/sunpay\/webhook\/)[^/]+/, "$1[REDACTED]"),
         };
       },
       res(res) {
@@ -48,7 +48,13 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   }
   if ((err as { type?: string })?.type === "entity.too.large") { res.status(413).json({ error: "Request body exceeds the 2 MB limit" }); return; }
   if ((err as { type?: string })?.type === "entity.parse.failed") { res.status(400).json({ error: "Invalid JSON body" }); return; }
-  req.log.error({ errorType: err instanceof Error ? err.name : "UnknownError" }, "API request failed");
+  // Where it failed, without the message for database errors: those can quote learner or guardian details.
+  const error = err instanceof Error ? err : null, database = !!error?.name.startsWith("PrismaClient");
+  req.log.error({
+    errorType: error?.name ?? "UnknownError", code: (err as { code?: unknown })?.code,
+    ...(error && !database ? { message: error.message } : {}),
+    stack: error?.stack?.split("\n").filter(line => line.trimStart().startsWith("at ")).slice(0, 8),
+  }, "API request failed");
   res.status(500).json({ error: "Unable to complete request" });
 });
 

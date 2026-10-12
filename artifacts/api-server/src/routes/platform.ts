@@ -8,12 +8,16 @@ import { hashPassword } from "../lib/password";
 import { provision } from "./auth";
 import billingRouter from "./platform-billing";
 import { platformLicensing } from "./licensing";
+import { platformBilling } from "./billing";
+import { trialEnd } from "../lib/billing";
+import { isStandalone } from "../lib/installation";
 import { coverage } from "../lib/licensing";
 import { platformMessagingRouter } from "./messaging-settings";
 import { platformSubscriptions } from "./platform-subscriptions";
 import { platformEmailRouter } from "./platform-email";
 import { platformCampaignRouter } from "./email-campaigns";
 import { platformWhatsappRouter } from "./whatsapp-setup";
+import { platformSupport } from "./support";
 
 const router = Router();
 // Mount only on platform paths: tenant endpoints retain their own middleware.
@@ -30,19 +34,21 @@ router.use(["/platform", "/schools"], authenticateIdentity, async (req, _res, ne
 const ids = validator.object({ schoolId: validator.string().uuid(), userId: validator.string().uuid().optional() });
 router.use("/platform/schools/:schoolId/billing", billingRouter);
 router.use(platformLicensing);
+router.use(platformBilling);
 router.use(platformMessagingRouter);
 router.use(platformSubscriptions);
 router.use(platformEmailRouter);
 router.use(platformCampaignRouter);
 router.use(platformWhatsappRouter);
+router.use(platformSupport);
 async function schoolExists(id: string) {
   const school = await db.school.findUnique({ where: { id }, include: { licences: { where: { revokedAt: null }, orderBy: { startsAt: "desc" } } } });
   if (!school) throw new ApiError(404, "School not found");
   return licensedSchoolView(school);
 }
-function licensedSchoolView<T extends { licenceManaged: boolean; licences: { startsAt: Date; expiresAt: Date; revokedAt: Date | null; planName: string }[] }>(school: T) {
+function licensedSchoolView<T extends { licenceManaged: boolean; trialEndsAt: Date | null; licences: { startsAt: Date; expiresAt: Date; revokedAt: Date | null; planName: string }[] }>(school: T) {
   const now = new Date();
-  const current = coverage(school.licenceManaged, school.licences, now);
+  const current = coverage(school.licenceManaged, school.licences, now, school.trialEndsAt);
   const plan = school.licences.find(l => l.startsAt <= now && l.expiresAt > now) ?? school.licences.at(-1);
   return { ...school, licenceStatus: current.status, licenceExpiresAt: current.currentEndsAt, licencePlanName: plan?.planName ?? null };
 }
@@ -61,6 +67,7 @@ router.get("/platform/schools/:schoolId", async (req, res) => {
   send(res, "GetPlatformSchool", await schoolExists(parse(ids, req.params).schoolId));
 });
 router.post(["/platform/schools", "/schools"], async (req, res) => {
+  if (isStandalone()) throw new ApiError(409, "A standalone installation runs a single school.");
   const { reason, confirmation: _confirmation, ...input } = body(z.ProvisionPlatformSchoolBody, req.body);
   const result = await db.$transaction(async tx => {
     const result = await provision(tx, input, "school_admin", { initiator: req.identity.user, ip: req.ip, userAgent: req.identity.userAgent });
@@ -99,6 +106,7 @@ router.post("/platform/schools/:schoolId/registration", async (req, res) => {
     if (old.status === "rejected" && input.decision === "reject") throw new ApiError(409, "This registration has already been declined.");
     const updated = await tx.school.update({ where: { id: schoolId }, data: {
       status: input.decision === "approve" ? "active" : "rejected",
+      ...(input.decision === "approve" && !old.licenceManaged ? { trialEndsAt: await trialEnd(tx) } : {}),
       registrationNote: input.decision === "reject" ? reason : null,
     } });
     await platformAudit(tx, req.identity, `school.registration_${input.decision === "approve" ? "approved" : "rejected"}`,

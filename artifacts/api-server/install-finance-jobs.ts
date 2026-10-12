@@ -1,7 +1,11 @@
 import { PgBoss } from "pg-boss";
-if (process.env.NODE_ENV !== "development" || process.env.REPLIT_DEPLOYMENT === "1") {
-  throw new Error("Development-only job schema installer. Production requires an explicit reviewed deployment migration.");
+// Creates the pg-boss schema, queues and schedules. Safe to re-run: existing queues and schedules are kept.
+// Development runs it after merges; production only through the deploy script, which passes --production.
+const production = process.argv.includes("--production");
+if (!production && (process.env.NODE_ENV !== "development" || process.env.REPLIT_DEPLOYMENT === "1")) {
+  throw new Error("Development job schema installer. In production run it from deploy/install.sh (pnpm run jobs:install).");
 }
+if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 const boss = new PgBoss({ connectionString: process.env.DATABASE_URL });
 await boss.start();
 await boss.createQueue("finance-nightly", { retryLimit: 3, retryDelay: 60, retryBackoff: true });

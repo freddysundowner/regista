@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
+import { ListSearch, matches } from "@/components/list-search";
+import { Pager, usePaged } from "@/components/pager";
 import { useCreateFinanceRecord, useDecideFinanceRecord, type FinanceRecord, type FinanceInputAdjustmentType } from "@workspace/api-client-react";
 import { CheckCircle2, Inbox, Loader2 } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill } from "@/components/kit";
-import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, StatusPill, Money, MoneyInput, StudentPicker, TermSelect, RecordSelect, Table, td } from "@/components/finance-kit";
+import { useSecondApproval, useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, StatusPill, Money, MoneyInput, StudentPicker, TermSelect, RecordSelect, Table, td } from "@/components/finance-kit";
 import { usePerms, useSession, errMsg, fmtDateTime } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, rd, recLines, recordTitle, KIND_LABEL, ADJ_LABEL, SPONSOR_LABEL } from "@/lib/finance";
 import { ApprovalInboxPanel } from "@/components/collections-extra";
@@ -45,10 +47,12 @@ function Decide({ r, onDone }: { r: FinanceRecord; onDone: () => void }) {
   </form>;
 }
 
-type Req = "adjustment" | "reversal" | "refund" | "refund_paid";
+export type Req = "adjustment" | "reversal" | "refund" | "refund_paid";
 const emptyF = { studentId: "", amount: "", adjustmentType: "discount" as FinanceInputAdjustmentType, reason: "", sponsorId: "", recurring: false, termId: "", parentId: "", reference: "", method: "mpesa" };
 
-function RequestForm({ kind, onDone }: { kind: Req; onDone: () => void }) {
+/** With `studentId` the learner is fixed, for use on the learner page. */
+export function RequestForm({ kind, onDone, studentId }: { kind: Req; onDone: () => void; studentId?: string }) {
+  const secondApproval = useSecondApproval();
   const create = useCreateFinanceRecord();
   const inv = useFinanceInvalidate();
   const sponsors = useFinanceRecords({ kind: "sponsor" });
@@ -56,7 +60,8 @@ function RequestForm({ kind, onDone }: { kind: Req; onDone: () => void }) {
   const paid = useFinanceRecords({ kind: "refund_paid" });
   const sname = useStudentNames();
   const { toast } = useToast();
-  const [f, setF] = useState(emptyF);
+  const init = { ...emptyF, studentId: studentId ?? "" };
+  const [f, setF] = useState(init);
   const [err, setErr] = useState<string | null>(null);
   const idem = useIdemKey(JSON.stringify([kind, f]));
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -90,7 +95,7 @@ function RequestForm({ kind, onDone }: { kind: Req; onDone: () => void }) {
       }
     }
     create.mutate({ data }, {
-      onSuccess: (r) => { idem.renew(); inv(); toast({ title: r.status === "pending" ? "Request sent for approval" : "Recorded", description: r.status === "pending" ? "Nothing is posted until a principal or admin approves." : undefined }); setF(emptyF); onDone(); },
+      onSuccess: (r) => { idem.renew(); inv(); toast({ title: r.status === "pending" ? "Request sent for approval" : "Recorded", description: r.status === "pending" ? "Nothing is posted until a principal or admin approves." : undefined }); setF(init); onDone(); },
       onError: (x) => setErr(errMsg(x)),
     });
   };
@@ -101,7 +106,7 @@ function RequestForm({ kind, onDone }: { kind: Req; onDone: () => void }) {
           <Field label="Approved refund" required className="sm:col-span-2"><NativeSelect data-testid="select-refund" value={f.parentId} onChange={set("parentId")}><option value="">{payable.length ? "Select" : "No approved unpaid refunds"}</option>{payable.map((r) => <option key={r.id} value={r.id}>{sname(r.studentId)} · {r.amount} · {rd(r, "method")}</option>)}</NativeSelect></Field>
           <Field label="Payout reference" required hint="M-Pesa code or cheque no."><TextInput data-testid="input-payout-ref" className="font-mono" value={f.reference} onChange={set("reference")} /></Field>
         </> : <>
-          <StudentPicker value={f.studentId} onChange={(v) => setF({ ...f, studentId: v, parentId: "" })} />
+          {!studentId && <StudentPicker value={f.studentId} onChange={(v) => setF({ ...f, studentId: v, parentId: "" })} />}
           {kind === "adjustment" && <Field label="Type" required><NativeSelect data-testid="select-adjustment-type" value={f.adjustmentType} onChange={(e) => setF({ ...f, adjustmentType: e.target.value as FinanceInputAdjustmentType, parentId: "" })}>{Object.entries(ADJ_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></Field>}
           {kind !== "reversal" && <Field label="Amount (KES)" required hint={isCorrection ? "Must equal the original exactly" : undefined}><MoneyInput testid="input-request-amount" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>}
           {needsSponsor && <Field label="Sponsor" required><NativeSelect data-testid="select-sponsor" value={f.sponsorId} onChange={set("sponsorId")}><option value="">{sponsors.data?.length ? "Select sponsor" : "Add a sponsor first"}</option>{sponsors.data?.map((s) => <option key={s.id} value={s.id}>{rd(s, "name")} ({SPONSOR_LABEL[rd(s, "sponsorType") ?? ""] ?? rd(s, "sponsorType")})</option>)}</NativeSelect></Field>}
@@ -120,7 +125,7 @@ function RequestForm({ kind, onDone }: { kind: Req; onDone: () => void }) {
         </>}
       </div>
       <FormError msg={err} />
-      <FormActions><Btn type="submit" data-testid="button-submit-request" disabled={create.isPending}>{create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{kind === "refund_paid" ? "Record payout" : "Submit for approval"}</Btn><Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn></FormActions>
+      <FormActions><Btn type="submit" data-testid="button-submit-request" disabled={create.isPending}>{create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{kind === "refund_paid" ? "Record payout" : secondApproval ? "Submit for approval" : "Save"}</Btn><Btn type="button" variant="ghost" onClick={onDone}>Cancel</Btn></FormActions>
     </form>
   );
 }
@@ -134,9 +139,11 @@ export default function Approvals() {
   const [deciding, setDeciding] = useState<FinanceRecord | null>(null);
   const [tab, setTab] = useState<"pending" | "decided">("pending");
   const all = (q.data ?? []).filter((r) => REQUEST_KINDS.includes(r.kind) && (r.kind !== "cheque_status" || r.status !== "posted"));
-  const pending = all.filter((r) => r.status === "pending");
-  const decided = all.filter((r) => r.status !== "pending");
-  const rows = tab === "pending" ? pending : decided;
+  const [text, setText] = useState("");
+  const found = all.filter((r) => matches(text, sname(r.studentId), recordTitle(r), KIND_LABEL[r.kind], rd(r, "reason"), rd(r, "adjustmentType"), r.amount));
+  const pending = found.filter((r) => r.status === "pending");
+  const decided = found.filter((r) => r.status !== "pending");
+  const { rows, pager } = usePaged(tab === "pending" ? pending : decided, [tab, text]);
   const label = (id: string) => { const x = q.data?.find((y) => y.id === id); return x ? `${recordTitle(x)} (${KIND_LABEL[x.kind] ?? x.kind}, KES ${x.amount})` : "Linked record"; };
   const REQ_LABEL: Record<Req, string> = { adjustment: "Adjustment", reversal: "Reversal", refund: "Refund", refund_paid: "Refund payout" };
   return (
@@ -150,6 +157,7 @@ export default function Approvals() {
       <Panel title={tab === "pending" ? "Awaiting decision" : "Decided"} action={<div className="flex gap-1" role="tablist">
         <Btn role="tab" aria-selected={tab === "pending"} variant={tab === "pending" ? "primary" : "ghost"} className="h-8" onClick={() => setTab("pending")}>Pending ({pending.length})</Btn>
         <Btn role="tab" aria-selected={tab === "decided"} variant={tab === "decided" ? "primary" : "ghost"} className="h-8" onClick={() => setTab("decided")}>History</Btn></div>}>
+        <div className="border-b border-border/70 p-3"><ListSearch value={text} onChange={setText} placeholder="Search learner, request type, reason or amount" /></div>
         {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !rows.length ? <Empty icon={tab === "pending" ? <CheckCircle2 className="h-5 w-5" /> : <Inbox className="h-5 w-5" />} title={tab === "pending" ? "Inbox clear" : "No decisions yet"} body={tab === "pending" ? "Nothing waits for approval." : "Approved and rejected requests appear here."} /> : (
           <Table head={["Request", "Student", "Amount", "Details", "Raised", "Status", ""]}>{rows.map((r) => {
             const mine = r.requestedBy === me.id;
@@ -162,6 +170,7 @@ export default function Approvals() {
             </tr>;
           })}</Table>
         )}
+        <Pager {...pager} />
       </Panel>
     </div>
   );

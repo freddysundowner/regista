@@ -8,10 +8,18 @@
 import type { LicenceCoverageStatus } from './licenceCoverageStatus';
 import type { LicenceOrder } from './licenceOrder';
 import type { LicencePlan } from './licencePlan';
+import type { PricingSettings } from './pricingSettings';
 import type { SchoolLicence } from './schoolLicence';
+import type { SchoolSubscriptionLearners } from './schoolSubscriptionLearners';
 import type { SchoolSubscriptionPaymentMethodsItem } from './schoolSubscriptionPaymentMethodsItem';
+import type { SubscriptionPackage } from './subscriptionPackage';
 
 export interface SchoolSubscription {
+  packages: SubscriptionPackage[];
+  /** @nullable */
+  trialEndsAt: Date | null;
+  pricing: PricingSettings;
+  learners: SchoolSubscriptionLearners;
   managed: boolean;
   accessAllowed: boolean;
   status: LicenceCoverageStatus;

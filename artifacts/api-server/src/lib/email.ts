@@ -17,11 +17,14 @@ export function cleanEmailHtml(html: string) {
 }
 export const escapeEmailText = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export async function queueWelcome(tx: Tx, user: { id: string; email: string | null; name: string }, school: { name: string; status: string }) {
+export async function queueWelcome(tx: Tx, user: { id: string; email: string | null; name: string }, school: { name: string; status: string; trialEndsAt?: Date | null }, options: { selfRegistered?: boolean } = {}) {
   if (!user.email) return;
   const account = await tx.messagingAccount.findUnique({ where: { scope_channel: { scope: "platform", channel: "email" } } });
   const ready = !!account?.enabled && !!account.encryptedCredentials;
-  const text = `Hello ${user.name},\n\nWelcome to Rejista. ${school.name} has been registered.${school.status === "pending" ? " Your registration is awaiting administrator approval. You can sign in to check its status." : " You can sign in using the credentials provided to you."}\n\nThank you for joining Rejista.`;
+  const trial = school.trialEndsAt ? ` Your free trial, with every feature included, runs until ${school.trialEndsAt.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" })}.` : "";
+  const next = school.status === "pending" ? " Your registration is awaiting administrator approval. You can sign in to check its status."
+    : options.selfRegistered ? ` Your school is ready: sign in with the email and password you chose.${trial}` : ` You can sign in using the credentials provided to you.${trial}`;
+  const text = `Hello ${user.name},\n\nWelcome to Rejista. ${school.name} has been registered.${next}\n\nThank you for joining Rejista.`;
   await tx.emailCampaign.upsert({
     where: { scope_idempotencyKey: { scope: "platform", idempotencyKey: `welcome:${user.id}` } },
     update: {},

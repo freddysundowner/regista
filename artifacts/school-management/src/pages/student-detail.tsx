@@ -2,16 +2,17 @@ import { usePageTitle } from "@/lib/page-title";
 import { useState, type FormEvent } from "react";
 import { Link, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGetStudent, useUpdateStudent, useLinkStudentGuardian, useListGuardians, getListGuardiansQueryKey, type Student, getGetStudentQueryKey, getListStudentsQueryKey, getGetDashboardSummaryQueryKey, getListFamiliesQueryKey, getListGradesQueryKey } from "@workspace/api-client-react";
-import { ArrowLeft, Loader2, Pencil, Phone, Plus, Users } from "lucide-react";
+import { useGenerateStudentIdCard, useGetStudent, useUpdateStudent, useLinkStudentGuardian, useListGuardians, getListGuardiansQueryKey, type Student, getGetStudentQueryKey, getListStudentsQueryKey, getGetDashboardSummaryQueryKey, getListFamiliesQueryKey, getListGradesQueryKey } from "@workspace/api-client-react";
+import { ArrowLeft, IdCard, ImageUp, Loader2, MoreHorizontal, Pencil, Phone, Plus, Trash2, Users } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { LearnerOverview } from "@/components/learner-overview";
 import { Panel, ErrorState, Pill, Btn, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
 import { FormDialog } from "@/components/form-dialog";
 import { StudentForm, fromStudent, toPayload } from "@/components/student-form";
 import { usePerms, errMsg, fmtDate, initials, blank } from "@/lib/session";
 import { useToast } from "@/hooks/use-toast";
 import { StoredImage, ImageUploadButton } from "@/components/stored-image";
-import { StudentFinancePanel } from "@/components/student-finance";
-import { StudentAcademicPanels } from "@/components/student-academic";
+import { RemoveLearner } from "@/components/remove-learner";
 
 const RELS = ["Mother", "Father", "Guardian", "Grandparent", "Sibling", "Other"];
 
@@ -73,10 +74,12 @@ export default function StudentDetail() {
   const q = useGetStudent(id, { query: { queryKey: getGetStudentQueryKey(id), enabled: !!id } });
   const [editing, setEditing] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const qc = useQueryClient();
   const { toast } = useToast();
   const upd = useUpdateStudent();
+  const idCard = useGenerateStudentIdCard();
   const s = q.data;
   usePageTitle(s?.fullName);
 
@@ -90,20 +93,38 @@ export default function StudentDetail() {
   ];
 
   return (
-    <div className="space-y-6">
-      <Link href="/students" data-testid="link-back" className="max-md:hidden inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> All students</Link>
-      <header className="rise flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center">
-        <div className="flex items-end gap-3">
-          <StoredImage refPath={s.photoUrl} alt={`Photo of ${s.fullName}`} className="h-16 w-16 rounded-md" fallback={<div className="flex h-16 w-16 items-center justify-center rounded-md bg-primary font-display text-2xl font-semibold text-primary-foreground">{initials(s.fullName)}</div>} />
-          {p.writeStudents && <ImageUploadButton purpose="student_photo" entityId={s.id} label={s.photoUrl ? "Replace photo" : "Add photo"} testid="upload-student-photo"
-            onSaved={(ref) => upd.mutateAsync({ studentId: s.id, data: { photoUrl: ref } }).then((n) => { qc.setQueryData(getGetStudentQueryKey(s.id), n); qc.invalidateQueries({ queryKey: getListStudentsQueryKey() }); toast({ title: "Photo saved" }); })} />}
-        </div>
+    <div className="space-y-5">
+      <Link href="/students" data-testid="link-back" className="max-md:hidden inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Learners</Link>
+      {/* Phone: the top bar already shows the name, so this is one slim row: photo, class line, edit and more. */}
+      <header className="rise flex flex-wrap items-center gap-x-4 gap-y-3 max-md:flex-nowrap max-md:gap-x-2.5">
+        <StoredImage refPath={s.photoUrl} alt={`Photo of ${s.fullName}`} className="h-14 w-14 shrink-0 rounded-full object-cover max-md:h-10 max-md:w-10 md:h-16 md:w-16" fallback={<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-xl font-semibold text-primary max-md:h-10 max-md:w-10 max-md:text-sm md:h-16 md:w-16">{initials(s.fullName)}</div>} />
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-xs text-amber-800">{s.admissionNo}</div>
-          <h1 data-testid="text-student-name" className="max-md:hidden font-display text-[1.75rem] font-semibold leading-tight [overflow-wrap:anywhere] md:text-4xl">{s.fullName}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2"><Pill tone={s.status}>{s.status}</Pill>{s.siblingCount > 0 && <span className="text-xs text-muted-foreground">{s.siblingCount} sibling{s.siblingCount > 1 ? "s" : ""} in school</span>}</div>
+          <h1 data-testid="text-student-name" className="font-display text-2xl font-semibold leading-tight [overflow-wrap:anywhere] max-md:hidden md:text-3xl">{s.fullName}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground max-md:mt-0 max-md:gap-x-1.5 max-md:text-[13px]">
+            <span>{s.gradeName ? `${s.gradeName}${s.streamName ? " " + s.streamName : ""}` : "No class yet"}</span><span aria-hidden="true">·</span>
+            <span className="font-mono text-xs">{s.admissionNo}</span><span aria-hidden="true">·</span>
+            <span>{s.boardingStatus === "boarder" ? "Boarder" : "Day scholar"}</span>
+            {s.status !== "active" && <Pill tone={s.status}>{s.status}</Pill>}
+          </div>
         </div>
-        {p.writeStudents && <Btn data-testid="button-edit-student" variant="outline" className="w-full md:w-auto" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit record</Btn>}
+        {/* The identity card: a print-ready PDF, front and back. Open to anyone who can see the learner. */}
+        <Btn data-testid="button-student-id-card" variant="outline" aria-label="ID card" className="shrink-0 max-md:px-2.5" disabled={idCard.isPending}
+          onClick={() => idCard.mutate({ studentId: s.id }, { onSuccess: (d) => window.open(d.downloadUrl, "_blank", "noopener"), onError: (x) => toast({ title: "Couldn't create the ID card", description: errMsg(x), variant: "destructive" }) })}>
+          {idCard.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <IdCard className="h-4 w-4" />}<span className="max-md:hidden"> ID card</span>
+        </Btn>
+        {p.writeStudents && <div className="flex shrink-0 items-center gap-2 max-md:gap-1.5">
+          <Btn data-testid="button-edit-student" variant="outline" aria-label="Edit details" className="max-md:px-2.5" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /><span className="max-md:hidden"> Edit details</span></Btn>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Btn variant="outline" className="px-2.5" aria-label={`More for ${s.fullName}`} data-testid="button-student-more"><MoreHorizontal className="h-4 w-4" /></Btn></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              <DropdownMenuItem onSelect={() => document.querySelector<HTMLInputElement>("[data-testid=input-upload-student-photo]")?.click()}><ImageUp className="h-4 w-4" />{s.photoUrl ? "Change photo" : "Add photo"}</DropdownMenuItem>
+              {p.manageSchool && <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => setRemoving(true)} className="text-destructive focus:text-destructive" data-testid="button-remove-student"><Trash2 className="h-4 w-4" />Delete learner</DropdownMenuItem></>}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ImageUploadButton hideButton purpose="student_photo" entityId={s.id} label={s.photoUrl ? "Change photo" : "Add photo"} testid="upload-student-photo"
+            onSaved={(ref) => upd.mutateAsync({ studentId: s.id, data: { photoUrl: ref } }).then((n) => { qc.setQueryData(getGetStudentQueryKey(s.id), n); qc.invalidateQueries({ queryKey: getListStudentsQueryKey() }); toast({ title: "Photo saved" }); })} />
+          {p.manageSchool && <RemoveLearner student={s} open={removing} onOpenChange={setRemoving} />}
+        </div>}
       </header>
 
       {p.writeStudents && (
@@ -130,34 +151,20 @@ export default function StudentDetail() {
           <LinkGuardianForm student={s} canSearch={p.viewGuardians} onDone={() => setLinking(false)} />
         </FormDialog>
       )}
-      {(
-        <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-          <Panel title="Record" className="rise-1">
-            <dl className="grid grid-cols-2">
-              {facts.map(([k, v]) => (
-                <div key={k} className="min-w-0 border-b border-border/60 px-4 py-3 odd:border-r md:px-5">
-                  <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{k}</dt>
-                  <dd className={`mt-0.5 text-sm [overflow-wrap:anywhere] ${k === "Admission no." || k === "UPI" ? "font-mono" : "font-medium"}`}>{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
-          <Panel title="Guardians" note={s.familyId ? "Linked to a family group" : undefined} className="rise-2" action={p.writeStudents ? <Btn variant="outline" className="h-8" data-testid="button-add-guardian" onClick={() => setLinking(true)}><Plus className="h-3.5 w-3.5" /> Link</Btn> : undefined}>
-            {s.guardianNames.length === 0 ? <div className="flex items-center gap-3 px-5 py-6 text-sm text-muted-foreground"><Users className="h-4 w-4" /> No guardian linked yet.</div> : (
-              <ul className="divide-y divide-border/60">
-                {s.guardianNames.map((g, i) => (
-                  <li key={i} className="flex items-center gap-3 px-4 py-3 md:px-5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">{initials(g)}</div>
-                    <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{g}</div>{s.guardianPhones[i] && <a href={`tel:${s.guardianPhones[i]}`} className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-primary"><Phone className="h-3 w-3" />{s.guardianPhones[i]}</a>}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </div>
-      )}
-      {p.financeRead && <StudentFinancePanel studentId={s.id} />}
-      {(p.academicRead || p.financeRead) && <StudentAcademicPanels studentId={s.id} />}
+
+      <LearnerOverview student={s} onLinkGuardian={p.writeStudents ? () => setLinking(true) : undefined} />
+
+      <details className="group rounded-xl border border-border bg-card" data-testid="learner-details">
+        <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold">Learner details <span className="font-normal text-muted-foreground">· date of birth, UPI, admission date</span></summary>
+        <dl className="grid grid-cols-2 border-t border-border/60">
+          {facts.map(([k, v]) => (
+            <div key={k} className="min-w-0 border-b border-border/60 px-4 py-3 odd:border-r md:px-5">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{k}</dt>
+              <dd className={`mt-0.5 text-sm [overflow-wrap:anywhere] ${k === "Admission no." || k === "UPI" ? "font-mono" : "font-medium"}`}>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
     </div>
   );
 }

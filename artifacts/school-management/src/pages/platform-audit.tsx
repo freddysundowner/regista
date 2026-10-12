@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Pager } from "@/components/pager";
 import { useListPlatformSchools, getListPlatformAuditQueryKey, getListPlatformAuditUrl, getListPlatformSchoolsQueryKey, type PlatformAudit } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, ScrollText, Search } from "lucide-react";
@@ -77,14 +78,7 @@ export default function PlatformAuditPage() {
               </tr>
             ))}</tbody>
           </table></CardTable>
-          <div className="flex items-center justify-between border-t border-border/60 px-5 py-2.5 text-xs text-muted-foreground">
-            <span data-testid="text-audit-range">{(page - 1) * limit + 1} to {(page - 1) * limit + rows.length} of {total} matching entries</span>
-            <div className="flex gap-1">
-              <Btn variant="outline" className="h-8 px-2" aria-label="Previous page" data-testid="button-audit-prev" disabled={page === 1 || q.isFetching} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Btn>
-              <span className="px-2 py-1.5">Page {page} of {pages}</span>
-              <Btn variant="outline" className="h-8 px-2" aria-label="Next page" data-testid="button-audit-next" disabled={page >= pages || q.isFetching} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Btn>
-            </div>
-          </div>
+          <Pager page={page} size={limit} total={total} pages={pages} busy={q.isFetching} onPage={setPage} />
         </>)}
       </Panel>
     </div>

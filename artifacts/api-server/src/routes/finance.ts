@@ -1,12 +1,15 @@
 import { Router, type IRouter } from "express";
+import { financeSummary, listExpenses, createExpense, voidExpense, createPromise, cancelPromise } from "../lib/finance/books";
+import { arrears, sendFeeReminders } from "../lib/finance/arrears";
 import { refreshSponsorBatch } from "../lib/payments/settlements";
 import { db } from "@workspace/db";
 import {
   CreateFinanceRecordBody, DecideFinanceRecordBody, PreviewFinanceInvoicesBody,
   CommitFinanceInvoicesBody, CreateFinanceDocumentBody,
-  UpdateFinanceRecordBody,
+  UpdateFinanceRecordBody, SendFeeRemindersBody, GetFinanceSummaryQueryParams, ListExpensesQueryParams, CreateExpenseBody, VoidExpenseBody, CreatePaymentPromiseBody,
 } from "@workspace/api-zod";
 import { allow, readers, writers, admin, body, owned, ApiError, audit } from "../lib/core";
+import { need } from "../lib/access";
 import { financeTransaction, view, record, metadata, json } from "../lib/finance/posting";
 import { createRecord, decideRecord, invoiceBatch } from "../lib/finance/service";
 import { createDocument } from "../lib/finance/documents";
@@ -55,6 +58,67 @@ router.patch("/finance/records/:id", async (req, res) => {
   });
   res.json(view(result));
 });
+router.get("/finance/summary", async (req, res) => {
+  allow(req, readers);
+  const q = body(GetFinanceSummaryQueryParams, req.query);
+  res.json(await financeSummary(req.actor.school.id, q.termId));
+});
+// Finance readers see expenses; whoever records them (the bursar, or anyone given "expenses") can add and void them.
+const expenseReader = (req: Parameters<typeof allow>[0]) => { if (!readers.includes(req.actor.user.role)) need(req, "expenses"); };
+router.get("/finance/expenses", async (req, res) => {
+  expenseReader(req);
+  const q = body(ListExpensesQueryParams, req.query);
+  res.json(await listExpenses(req.actor.school.id, { from: q.from, to: q.to, category: q.category }));
+});
+router.post("/finance/expenses", async (req, res) => {
+  need(req, "expenses");
+  const input = body(CreateExpenseBody, req.body);
+  res.json(await createExpense(req.actor, { ...input, date: input.date.toISOString().slice(0, 10) }));
+});
+router.post("/finance/expenses/:id/void", async (req, res) => {
+  need(req, "expenses");
+  res.json(await voidExpense(req.actor, String(req.params.id), body(VoidExpenseBody, req.body).reason));
+});
+router.post("/finance/promises", async (req, res) => {
+  allow(req, writers);
+  const input = body(CreatePaymentPromiseBody, req.body);
+  res.json(await createPromise(req.actor, { ...input, promisedFor: input.promisedFor.toISOString().slice(0, 10) }));
+});
+router.post("/finance/promises/:id/cancel", async (req, res) => {
+  allow(req, writers);
+  res.json(await cancelPromise(req.actor, String(req.params.id)));
+});
+router.get("/finance/arrears", async (req, res) => {
+  allow(req, readers);
+  res.json(await arrears(req.actor.school.id));
+});
+router.post("/finance/reminders", async (req, res) => {
+  allow(req, writers);
+  const input = body(SendFeeRemindersBody, req.body);
+  res.json(await sendFeeReminders(req.actor, input.studentIds, input.channel ?? "whatsapp"));
+});
+/** Removes a fee item that nothing uses yet (archived, so audit history keeps it). */
+router.delete("/finance/records/:id", async (req, res) => {
+  allow(req, writers);
+  const result = await financeTransaction(req.actor, async tx => {
+    const schoolId = req.actor.school.id;
+    const item = await record(tx, schoolId, String(req.params.id));
+    if (item.kind !== "fee_item") throw new ApiError(409, "Only fee items can be removed; other financial records are reversed instead");
+    if (item.status === "archived") return item;
+    const name = String(metadata(item).name ?? "This fee item");
+    const structures = await tx.financeRecord.findMany({ where: { schoolId, kind: "fee_structure", status: { in: ["approved", "pending"] } }, select: { data: true } });
+    if (structures.some(s => ((s.data as { lines?: { feeItemId?: string }[] }).lines ?? []).some(l => l.feeItemId === item.id)))
+      throw new ApiError(409, `${name} is in saved fees. Clear its amounts and save the fees, then remove it.`);
+    if (await tx.invoiceLine.findFirst({ where: { schoolId, feeItemId: item.id }, select: { id: true } }))
+      throw new ApiError(409, `${name} has already been billed, so it can't be removed. Rename it instead.`);
+    if (await tx.financeRecord.findFirst({ where: { schoolId, kind: "optional_charge", status: "active", data: { path: ["feeItemId"], equals: item.id } }, select: { id: true } }))
+      throw new ApiError(409, `${name} is charged to some learners. End those charges first.`);
+    const archived = await tx.financeRecord.update({ where: { id: item.id }, data: { status: "archived" } });
+    await audit(tx, req.actor, "archived", "fee_item", item.id, view(item), view(archived));
+    return archived;
+  });
+  res.json(view(result));
+});
 router.post("/finance/records/:id/decision", async (req, res) => {
   const input = body(DecideFinanceRecordBody, req.body);
   res.json(view(await financeTransaction(req.actor, async tx => {
@@ -76,11 +140,38 @@ router.post("/finance/invoices/commit", async (req, res) => {
 router.get("/finance/overview", async (req, res) => {
   allow(req, readers);
   const schoolId = req.actor.school.id;
-  const [entries, balances, pendingApprovals] = await Promise.all([
+  // Midnight in Nairobi (UTC+3, no daylight saving) as a UTC instant.
+  const nairobiMidnight = (d: string) => new Date(`${d}T00:00:00+03:00`);
+  const todayEat = new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Nairobi" }).format(new Date());
+  const [entries, balances, pendingApprovals, term, todays] = await Promise.all([
     db.ledgerEntry.findMany({ where: { schoolId } }), db.studentBalance.findMany({ where: { schoolId } }),
     db.financeRecord.count({ where: { schoolId, status: "pending" } }),
+    db.term.findFirst({ where: { schoolId, isCurrent: true } }),
+    db.financeRecord.findMany({ where: { schoolId, kind: "payment", status: { notIn: ["reversed", "cancelled"] }, createdAt: { gte: nairobiMidnight(todayEat) } }, select: { amount: true, data: true } }),
   ]);
+  // Term collections: payments received between the term's opening and closing days, net of reversals and refunds.
+  const termInvoices = term ? await db.financeRecord.findMany({ where: { schoolId, kind: "invoice", termId: term.id }, select: { id: true } }) : [];
+  // Split what settled this term's invoices into money and discounts, so "paid" never counts a waiver.
+  const termAllocations = termInvoices.length ? await db.feeAllocation.findMany({ where: { schoolId, invoiceId: { in: termInvoices.map(i => i.id) } }, select: { sourceId: true, amount: true } }) : [];
+  const discountSources = new Set((termAllocations.length ? await db.financeRecord.findMany({ where: { schoolId, kind: "adjustment", id: { in: [...new Set(termAllocations.map(a => a.sourceId))] } }, select: { id: true } }) : []).map(r => r.id));
+  const termDiscounts = sum(termAllocations.filter(a => discountSources.has(a.sourceId)).map(a => a.amount));
+  const paidToTerm = sum(termAllocations.filter(a => !discountSources.has(a.sourceId)).map(a => a.amount));
+  const termView = term ? (() => {
+    const from = nairobiMidnight(term.startDate.toISOString().slice(0, 10)), until = new Date(+nairobiMidnight(term.endDate.toISOString().slice(0, 10)) + 86_400_000);
+    const inTerm = entries.filter(e => e.createdAt >= from && e.createdAt < until);
+    const received = sum(inTerm.filter(e => e.type === "payment").map(e => e.credit));
+    const returned = sum(inTerm.filter(e => e.type === "refund" || (e.type === "reversal" && entries.some(o => o.id === e.reversesId && o.type === "payment"))).map(e => e.debit));
+    return { name: term.name, paid: paidToTerm.toFixed(2), discounts: termDiscounts.toFixed(2), billed: sum(entries.filter(e => e.type === "invoice" && e.termId === term.id).map(e => e.debit)).toFixed(2), collected: received.minus(returned).toFixed(2) };
+  })() : null;
+  const byChannel = new Map<string, { amount: ReturnType<typeof sum>; count: number }>();
+  for (const p of todays) {
+    const channel = String((p.data as Record<string, unknown> | null)?.channel ?? "other");
+    const cur = byChannel.get(channel) ?? { amount: sum([]), count: 0 };
+    byChannel.set(channel, { amount: cur.amount.plus(p.amount), count: cur.count + 1 });
+  }
   res.json({
+    term: termView,
+    today: { total: sum(todays.map(p => p.amount)).toFixed(2), channels: [...byChannel].map(([channel, v]) => ({ channel, amount: v.amount.toFixed(2), count: v.count })) },
     invoiced: sum(entries.filter(e => e.type === "invoice").map(e => e.debit)).toFixed(2),
     collected: sum(entries.filter(e => e.type === "payment").map(e => e.credit)).minus(sum(entries.filter(e => e.type === "refund" || (e.type === "reversal" && entries.some(original => original.id === e.reversesId && original.type === "payment"))).map(e => e.debit))).toFixed(2),
     outstanding: sum(balances.filter(b => b.balance.isPositive()).map(b => b.balance)).toFixed(2),

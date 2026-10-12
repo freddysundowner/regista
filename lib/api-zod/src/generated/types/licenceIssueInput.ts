@@ -8,6 +8,18 @@
 
 export interface LicenceIssueInput {
   requestId: string;
-  planId: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  durationDays: number;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     * @nullable
+     */
+  maxLearners: number | null;
+  /** @maxLength 100 */
+  label?: string;
   startsAt?: Date;
 }

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetPlatformEmailSettings, getGetPlatformEmailSettingsQueryKey,
@@ -149,19 +150,19 @@ export default function PlatformEmailSettingsPanel({ school = false }: { school?
     <div className="space-y-4">
       <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <p>{school ? <>This school sends email through <b>its own Brevo account</b>. There is no platform fallback: if this is not configured or disabled, school email (including campaigns) is not sent.</> : <>Platform email is sent through <b>Brevo</b>.</>} The sender address must be an approved Brevo sender or belong to an authenticated domain. Results are reported as accepted by Brevo, not delivered.</p>
+        <p>{school ? <>School email goes out through <b>your own Brevo account</b>; nothing is sent until it is set up. Use a sender address Brevo has approved.</> : <>Platform email is sent through <b>Brevo</b>. The sender address must be an approved Brevo sender or belong to an authenticated domain. Results are reported as accepted by Brevo, not delivered.</>}</p>
       </div>
       {!school && <p className="text-xs text-muted-foreground" data-testid="text-welcome-note">When email is enabled, a welcome email is queued automatically after each school registration. Sending problems never fail the registration; check the result under Emails history.</p>}
       <Panel title="Email provider">
         {q.isLoading ? <SkeletonRows rows={2} cols={3} /> : q.isError ? <ErrorState msg={errMsg(q.error, "Could not load email settings.")} onRetry={() => q.refetch()} />
           : !s ? <Empty icon={<Mail className="h-5 w-5" />} title="No email settings" body="The server returned nothing. Retry shortly." />
           : (
-            <div className="space-y-5 p-5" data-testid="panel-email-summary">
+            <div className={cn("p-5", (s.configured || !school) && "space-y-5")} data-testid="panel-email-summary">
               <div className="flex flex-wrap items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" /><span className="font-semibold">Brevo</span>
                 {status && <Pill tone={status.tone}>{status.label}</Pill>}
                 <div className="ml-auto flex flex-wrap gap-2">
-                  <Btn variant="outline" disabled={!canTest} data-testid="button-open-test-email" title={!canTest ? "Configure and enable email first" : undefined} onClick={() => open("test")}><Send className="h-4 w-4" />Test email</Btn>
+                  {(s.configured || !school) && <Btn variant="outline" disabled={!canTest} data-testid="button-open-test-email" title={!canTest ? "Configure and enable email first" : undefined} onClick={() => open("test")}><Send className="h-4 w-4" />Test email</Btn>}
                   <Btn disabled={ro} data-testid="button-configure-email" onClick={() => open("edit")}><Settings2 className="h-4 w-4" />{s.configured ? "Edit" : "Configure"}</Btn>
                 </div>
               </div>
@@ -172,7 +173,7 @@ export default function PlatformEmailSettingsPanel({ school = false }: { school?
                   <Row label="Reply-to" value={s.replyTo || "Same as sender"} />
                   <Row label="Last updated" value={s.updatedAt ? new Date(s.updatedAt).toLocaleString() : "—"} />
                 </dl>
-              ) : <p className="text-sm text-muted-foreground">Email is not configured yet. Add a Brevo API key and an approved sender to enable {school ? "this school's" : "platform"} email.</p>}
+              ) : !school && <p className="text-sm text-muted-foreground">Email is not configured yet. Add a Brevo API key and an approved sender to enable platform email.</p>}
               {s.configured && !s.enabled && <p className="text-xs text-amber-800">Email is disabled. No {school ? "school" : "platform"} email will be sent until it is enabled.</p>}
             </div>
           )}

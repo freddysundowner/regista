@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { Link, useSearch } from "wouter";
 import { useListPlatformSchools, getListPlatformSchoolsQueryKey, type School } from "@workspace/api-client-react";
 import { Building2, ChevronRight, ClipboardCheck, DoorOpen, KeyRound, Plus, Search } from "lucide-react";
@@ -28,6 +29,7 @@ export default function Schools() {
       (sub === "all" || s.licenceStatus === sub) &&
       (!t || [s.name, s.code, s.county, s.email, s.licencePlanName].some((v) => v?.toLowerCase().includes(t))));
   }, [q.data, term, status, sub]);
+  const { rows: pageRows, pager } = usePaged(rows, [term, status, sub]);
 
   return (
     <div className="space-y-6">
@@ -56,7 +58,7 @@ export default function Schools() {
         ) : !rows.length ? <Empty icon={<Search className="h-5 w-5" />} title="No matches" body="Try a different search or clear the filters." /> : (
           <><CardTable testid="table-schools"><table className="w-full text-sm">
             <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground"><tr className="border-b border-border/70"><th className="px-5 py-2.5">School</th><th className="px-3 py-2.5">Code</th><th className="hidden px-3 py-2.5 md:table-cell">County · level</th><th className="hidden px-3 py-2.5 lg:table-cell">Registered</th><th className="px-3 py-2.5">Subscription</th><th className="px-3 py-2.5">Status</th><th className="px-3 py-2.5"><span className="sr-only">Actions</span></th></tr></thead>
-            <tbody>{rows.map((s) => (
+            <tbody>{pageRows.map((s) => (
               <tr key={s.id} data-testid={`row-school-${s.id}`} className="border-b border-border/50 last:border-0 hover:bg-accent/30">
                 <td className="px-5 py-3"><Link href={`/schools/${s.id}`} data-testid={`link-school-${s.id}`} className="font-semibold hover:text-primary hover:underline">{s.name}</Link>{s.email && <div className="text-[11px] text-muted-foreground">{s.email}</div>}</td>
                 <td className="px-3 py-3 font-mono text-xs">{s.code}</td>
@@ -71,7 +73,7 @@ export default function Schools() {
               </tr>
             ))}</tbody>
           </table></CardTable>
-          <div className="border-t border-border/60 px-5 py-2 text-xs text-muted-foreground" data-testid="text-school-count">{rows.length} of {q.data.length} schools</div></>
+          <div className="border-t border-border/60 px-5 py-2 text-xs text-muted-foreground" data-testid="text-school-count">{rows.length} of {q.data.length} schools</div><Pager {...pager} /></>
           
         )}
       </Panel>

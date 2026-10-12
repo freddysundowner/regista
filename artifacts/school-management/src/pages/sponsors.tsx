@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { ListSearch, matches } from "@/components/list-search";
+import { Pager, usePaged } from "@/components/pager";
 import { useCreateFinanceRecord, useUpdateFinanceRecord, type FinanceRecord, type FinanceInputSponsorType } from "@workspace/api-client-react";
 import { HandHeart, Loader2, Pencil, Plus } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Fab } from "@/components/kit";
@@ -12,6 +14,9 @@ export default function Sponsors() {
   const p = usePerms();
   const q = useFinanceRecords({ kind: "sponsor" });
   const adj = useFinanceRecords({ kind: "adjustment" });
+  const [text, setText] = useState("");
+  const found = (q.data ?? []).filter((r) => matches(text, rd(r, "name"), rd(r, "contact"), rd(r, "sponsorType")));
+  const { rows, pager } = usePaged(found, text);
   const create = useCreateFinanceRecord();
   const upd = useUpdateFinanceRecord();
   const inv = useFinanceInvalidate();
@@ -36,7 +41,7 @@ export default function Sponsors() {
       <PageHeader eyebrow="Bursaries & sponsorship" title="Sponsors" meta="NG-CDF, county, church and other funders behind bursary and sponsorship adjustments.">
         {p.financeConfigure && <Btn data-testid="button-new-sponsor" className="max-md:hidden" onClick={() => open()}><Plus className="h-4 w-4" /> Add sponsor</Btn>}
       </PageHeader>
-      <FormDialog open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Add a sponsor" : mode ? `Edit ${rd(mode, "name")}` : "Sponsor"} description="Funders behind bursary and sponsorship adjustments.">
+      <FormDialog phonePage open={!!mode} onOpenChange={(o) => { if (!o) setMode(null); }} busy={create.isPending || upd.isPending} title={mode === "new" ? "Add a sponsor" : mode ? `Edit ${rd(mode, "name")}` : "Sponsor"} description="Funders behind bursary and sponsorship adjustments.">
         <form onSubmit={submit} className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name" required><TextInput data-testid="input-sponsor-name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Kibra NG-CDF" /></Field>
@@ -49,14 +54,16 @@ export default function Sponsors() {
         </form>
       </FormDialog>
       <Panel>
+        {(q.data?.length ?? 0) > 0 && <div className="border-b border-border/70 p-3"><ListSearch value={text} onChange={setText} placeholder="Search sponsor, contact or type" /></div>}
         {q.isLoading ? <SkeletonRows rows={4} cols={4} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !q.data?.length ? <Empty icon={<HandHeart className="h-5 w-5" />} title="No sponsors" body="Add funders before requesting bursary or sponsorship adjustments." /> : (
-          <ul className="divide-y divide-border/60">{q.data.map((r) => { const fs = funded(r.id); return (
+          <ul className="divide-y divide-border/60">{rows.map((r) => { const fs = funded(r.id); return (
             <li key={r.id} data-testid={`row-sponsor-${r.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
               <div className="min-w-[12rem] flex-1"><div className="font-semibold">{rd(r, "name")}</div><div className="text-xs text-muted-foreground">{SPONSOR_LABEL[rd(r, "sponsorType") ?? ""] ?? rd(r, "sponsorType")} · {rd(r, "contact")}</div></div>
               <div className="text-right text-xs"><Money v={sumMoney(fs.map((a) => a.amount))} className="text-sm font-semibold" /><div className="text-muted-foreground">{fs.length} approved award{fs.length === 1 ? "" : "s"}</div></div>
               {p.financeConfigure && <button aria-label={`Edit ${rd(r, "name")}`} onClick={() => open(r)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>}
             </li>); })}</ul>
         )}
+        <Pager {...pager} />
       </Panel>
       {p.financeConfigure && <Fab testid="fab-new-sponsor" label="Add sponsor" icon={<Plus className="h-4 w-4" />} onClick={() => open()} />}
     </div>

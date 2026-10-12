@@ -12,4 +12,19 @@ export type ListAuditLogsParams = {
  * @maximum 100
  */
 limit?: number;
+/**
+ * 1-based page of `limit` entries, newest first.
+ * @minimum 1
+ */
+page?: number;
+/**
+ * Words to find in the action, record type or the person's name.
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * Only entries about this kind of record.
+ * @maxLength 60
+ */
+entityType?: string;
 };

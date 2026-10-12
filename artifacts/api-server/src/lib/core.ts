@@ -4,6 +4,8 @@ import * as schemas from "@workspace/api-zod";
 import type { ZodTypeAny } from "zod";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
+import { standaloneBlock } from "./installation";
+import { RESTRICTED_ROLES, restrictedPathAllowed } from "./access";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -83,6 +85,15 @@ export function session(req: Request, res: Response, user: User, binding?: { ses
 export function clearSession(req: Request, res: Response) {
   res.clearCookie(cookieName, { httpOnly: true, secure: req.secure, sameSite: "lax", path: "/api" });
 }
+/** Ends the signed-in user's sessions on the server, so a copied cookie stops working at sign-out. */
+export async function revokeSessions(req: Request) {
+  try {
+    const payload = jwt.verify(req.cookies?.[cookieName] || "", jwtSecret, { algorithms: ["HS256"], issuer: "school-api", audience: "school-web" });
+    if (typeof payload === "string" || !payload.sub || typeof payload.version !== "number") return;
+    // Only the current session may end itself: an already-replaced cookie changes nothing.
+    await db.user.updateMany({ where: { id: payload.sub, sessionVersion: payload.version }, data: { sessionVersion: { increment: 1 } } });
+  } catch { /* not signed in, or the cookie has expired: nothing to end */ }
+}
 export async function authenticateIdentity(req: Request, _res: Response, next: NextFunction) {
   try {
     let id: string;
@@ -98,7 +109,7 @@ export async function authenticateIdentity(req: Request, _res: Response, next: N
       grantId = typeof payload.grantId === "string" ? payload.grantId : undefined;
     } catch { throw new ApiError(401, "Not signed in"); }
     const user = await db.user.findUnique({ where: { id }, include: { school: true } });
-    if (!user?.isActive || ![...readers, "teacher", "class_teacher"].includes(user.role) || user.sessionVersion !== version || !sessionId) throw new ApiError(401, "Account is inactive or session is invalid");
+    if (!user?.isActive || ![...readers, "teacher", "class_teacher", ...RESTRICTED_ROLES].includes(user.role) || user.sessionVersion !== version || !sessionId) throw new ApiError(401, "Account is inactive or session is invalid");
     req.identity = { user, sessionId, grantId, ip: req.ip, userAgent: req.get("user-agent")?.slice(0, 500) };
     next();
   } catch (e) { next(e); }
@@ -127,6 +138,11 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     if (error) { next(error); return; }
     try {
       req.actor = await resolveTenant(req);
+      const blocked = req.actor.user.role !== "super_admin" ? await standaloneBlock() : null;
+      if (blocked) throw new ApiError(402, blocked);
+      if (req.actor.user.role !== "super_admin" && !req.actor.school.licenceManaged && req.actor.school.trialEndsAt && req.actor.school.trialEndsAt <= new Date()) {
+        throw new ApiError(402, "The free trial has ended. A school administrator can subscribe or enter a licence key from Subscription.");
+      }
       if (req.actor.user.role !== "super_admin" && req.actor.school.licenceManaged) {
         const now = new Date();
         const active = await db.schoolLicence.findFirst({ where: {
@@ -135,6 +151,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         if (!active) throw new ApiError(402, "The school licence has expired or has not started. A school administrator can renew from Subscription.");
       }
       if (req.actor.tenantAccess && !req.actor.tenantAccess.writeEnabled && !safeTenantRequest(req.method, req.path)) throw new ApiError(403, "This tenant access grant is read-only");
+      if (!restrictedPathAllowed(req.actor.user, req.method, req.path)) throw new ApiError(403, "Your role does not have access to this part of the school system");
       next();
     } catch (e) { next(e); }
   });
@@ -152,7 +169,9 @@ export function csrf(req: Request, _res: Response, next: NextFunction) {
   }
   // Non-browser clients without Origin are supported; browsers send Origin on JSON mutations.
   const hasBody = Number(req.get("content-length") ?? 0) > 0 || !!req.get("transfer-encoding");
-  if (hasBody && !req.is("application/json")) { next(new ApiError(415, "Use application/json")); return; }
+  // The one exception: image (or receipt PDF) bytes sent to this server's own upload route (when files are stored on this server).
+  const imageUpload = req.method === "PUT" && /^\/api\/storage\/uploads\/[0-9a-f-]{36}\/content$/i.test(req.path) && !!req.is(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+  if (hasBody && !imageUpload && !req.is("application/json")) { next(new ApiError(415, "Use application/json")); return; }
   next();
 }
 export async function lock(tx: Tx, schoolId: string) {
@@ -164,6 +183,7 @@ export function redactSnapshot(value: unknown): Prisma.InputJsonValue {
   const sensitive = /password|secret|token|credential|phone|email|idnumber|^name$|firstname|middlename|lastname|dateofbirth|address|upi|photourl|logourl|filename|objectkey/i;
   const walk = (v: any): any => {
     if (v instanceof Date) return v.toISOString();
+    if (Prisma.Decimal.isDecimal(v)) return v.toString();
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).filter(([, item]) => item !== undefined).map(([key, item]) => [key, sensitive.test(key) ? "[REDACTED]" : walk(item)]));
     return v;

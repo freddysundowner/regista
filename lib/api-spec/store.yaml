@@ -1,0 +1,149 @@
+paths:
+  items:
+    get:
+      operationId: listStoreItems
+      summary: Everything the store holds, with what is left of each
+      responses:
+        '200':
+          description: Store items by name
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/StoreItem' } }
+    post:
+      operationId: createStoreItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StoreItemInput' }
+      responses:
+        '200':
+          description: Item added; an opening quantity is recorded as a movement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreItem' }
+  item:
+    patch:
+      operationId: updateStoreItem
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StoreItemUpdate' }
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreItem' }
+  movements:
+    get:
+      operationId: listStockMovements
+      summary: Stock in and out, newest first
+      parameters:
+        - { name: itemId, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' } }
+        - { name: to, in: query, schema: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' } }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/StockMovementType' } }
+      responses:
+        '200':
+          description: Movements
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/StockMovement' } }
+    post:
+      operationId: createStockMovement
+      summary: Receive, issue, return or count (adjust) stock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StockMovementInput' }
+      responses:
+        '200':
+          description: Movement recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockMovement' }
+components:
+  schemas:
+    StoreQty:
+      type: string
+      pattern: '^\d{1,8}(\.\d{1,2})?$'
+    StockMovementType:
+      type: string
+      enum: [receive, issue, return, adjust]
+    StoreItemInput:
+      type: object
+      required: [name, category, unit]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        sku: { type: string, maxLength: 40 }
+        category: { type: string, minLength: 2, maxLength: 40 }
+        unit: { type: string, minLength: 1, maxLength: 30 }
+        reorderLevel: { $ref: '#/components/schemas/StoreQty' }
+        unitCost: { type: string, pattern: '^\d{1,10}(\.\d{1,2})?$' }
+        location: { type: string, maxLength: 60 }
+        openingQuantity: { $ref: '#/components/schemas/StoreQty' }
+    StoreItemUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        sku: { type: [string, 'null'], maxLength: 40 }
+        category: { type: string, minLength: 2, maxLength: 40 }
+        unit: { type: string, minLength: 1, maxLength: 30 }
+        reorderLevel: { $ref: '#/components/schemas/StoreQty' }
+        unitCost: { type: [string, 'null'], pattern: '^\d{1,10}(\.\d{1,2})?$' }
+        location: { type: [string, 'null'], maxLength: 60 }
+        isActive: { type: boolean }
+    StoreItem:
+      type: object
+      required: [id, name, category, unit, quantity, reorderLevel, low, isActive, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        sku: { type: [string, 'null'] }
+        category: { type: string }
+        unit: { type: string }
+        quantity: { type: string }
+        reorderLevel: { type: string }
+        low: { type: boolean, description: At or below the reorder level }
+        unitCost: { type: [string, 'null'] }
+        value: { type: [string, 'null'], description: Quantity times last unit cost }
+        location: { type: [string, 'null'] }
+        isActive: { type: boolean }
+        lastMovementAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    StockMovementInput:
+      type: object
+      required: [itemId, type, quantity, date]
+      properties:
+        itemId: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/StockMovementType' }
+        quantity: { $ref: '#/components/schemas/StoreQty', description: 'For adjust: the quantity actually counted. Otherwise how many came in or went out.' }
+        date: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        unitCost: { type: string, pattern: '^\d{1,10}(\.\d{1,2})?$' }
+        issuedTo: { type: string, maxLength: 120, description: Department or person receiving an issue, or returning stock }
+        reference: { type: string, maxLength: 60 }
+        note: { type: string, maxLength: 200 }
+    StockMovement:
+      type: object
+      required: [id, itemId, itemName, unit, type, quantity, balanceAfter, date, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        itemName: { type: string }
+        unit: { type: string }
+        type: { $ref: '#/components/schemas/StockMovementType' }
+        quantity: { type: string, description: Signed; negative is stock going out }
+        balanceAfter: { type: string }
+        unitCost: { type: [string, 'null'] }
+        date: { type: string }
+        issuedTo: { type: [string, 'null'] }
+        reference: { type: [string, 'null'] }
+        note: { type: [string, 'null'] }
+        orderId: { type: [string, 'null'], format: uuid }
+        createdByName: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }

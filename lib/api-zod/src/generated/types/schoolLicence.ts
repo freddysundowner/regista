@@ -11,7 +11,10 @@ import type { SchoolLicenceStatus } from './schoolLicenceStatus';
 export interface SchoolLicence {
   id: string;
   schoolId: string;
-  planId: string;
+  /** @nullable */
+  planId: string | null;
+  /** @nullable */
+  maxLearners: number | null;
   planName: string;
   durationDays: number;
   price: string;

@@ -11,4 +11,6 @@ export type CurriculumViewLearningAreasItem = {
   gradeId: string;
   name: string;
   code: string;
+  isCore?: boolean;
+  pathway?: string | null;
 };

@@ -6,6 +6,7 @@ import * as schemas from "@workspace/api-zod";
 import { ApiError, admin, allow, body, lock, audit } from "../lib/core";
 import { platformAudit } from "../lib/platform";
 import { decryptCredentials, encryptCredentials } from "../lib/integrations/security";
+import { fullPhone } from "../lib/payments/matching";
 import { connectionPath, leadsIntelRequest, platformKey, remoteConnection, setupSecrets, setupState, syncConnection } from "../lib/integrations/whatsapp-setup";
 
 export const platformWhatsappRouter = Router(), schoolWhatsappRouter = Router(), whatsappInboundRouter = Router();
@@ -117,9 +118,10 @@ whatsappInboundRouter.post("/whatsapp/inbound/:token", async (req, res) => {
     await tx.whatsappInbound.create({ data: { eventId, scope: setup.scope, payload: req.body } });
     if (setup.scope !== "platform" && Array.isArray(req.body.messages)) {
       for (const message of req.body.messages) {
-        const at = new Date(Number(message.timestamp) * 1000);
-        if (typeof message.from === "string" && /^\d{7,15}$/.test(message.from) && Number.isFinite(at.getTime()) && at.getTime() <= Date.now() + 300000 && at.getTime() >= Date.now() - 86400000) {
-          await tx.guardian.updateMany({ where: { schoolId: setup.scope, phone: `+${message.from}`, OR: [{ whatsappLastInboundAt: null }, { whatsappLastInboundAt: { lt: at } }] }, data: { whatsappLastInboundAt: at } });
+        // Guardians are stored as 2547XXXXXXXX, the same form payments use.
+        const phone = typeof message.from === "string" ? fullPhone(message.from) : null, at = new Date(Number(message.timestamp) * 1000);
+        if (phone && Number.isFinite(at.getTime()) && at.getTime() <= Date.now() + 300000 && at.getTime() >= Date.now() - 86400000) {
+          await tx.guardian.updateMany({ where: { schoolId: setup.scope, phone, OR: [{ whatsappLastInboundAt: null }, { whatsappLastInboundAt: { lt: at } }] }, data: { whatsappLastInboundAt: at } });
         }
       }
     }

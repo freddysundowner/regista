@@ -126,9 +126,11 @@ export async function recordDeliveryEvent(tx: Tx, schoolId: string, provider: st
   if (channel !== "whatsapp" || status !== "rejected") return;
   await queueSmsFallback(tx, schoolId, message);
 }
+/** Templates always queued on SMS as well as WhatsApp; a fallback would text the family twice. */
+const SMS_SENT_ALONGSIDE = new Set(["absence_alert"]);
 async function queueSmsFallback(tx: Tx, schoolId: string, message: { id: string; guardianId: string | null; phone: string; template: string; content: string }) {
   const school = await tx.school.findUniqueOrThrow({ where: { id: schoolId } });
-  if ((school.settings as Record<string, unknown>).smsFallbackEnabled === false || !message.guardianId) return;
+  if ((school.settings as Record<string, unknown>).smsFallbackEnabled === false || !message.guardianId || SMS_SENT_ALONGSIDE.has(message.template)) return;
   const guardian = await tx.guardian.findFirst({ where: { id: message.guardianId, schoolId, phone: message.phone, anonymizedAt: null, students: { some: { schoolId, receivesNotifications: true } } } });
   if (!guardian) return;
   await queueMessage(tx, schoolId, { guardianId: guardian.id, phone: guardian.phone, channel: "sms", template: message.template, content: message.content, idempotencyKey: `sms-fallback:${message.id}` });

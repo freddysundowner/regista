@@ -1,25 +1,28 @@
 import { useState, useEffect, type FormEvent } from "react";
+import { Pager, useServerPage } from "@/components/pager";
+import { NoLearnersNotice, useHasLearners } from "@/components/no-learners";
 import { usePreviewFinanceInvoices, useCommitFinanceInvoices, useCreateFinanceRecord, type InvoiceProposal } from "@workspace/api-client-react";
 import { FileText, Loader2, Plus } from "lucide-react";
 import { PageHeader, Panel, SkeletonRows, ErrorState, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions, Pill, Fab } from "@/components/kit";
-import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, StatusPill, Money, StudentPicker, TermSelect, GradeSelect, LinesEditor, Table, td } from "@/components/finance-kit";
+import { useFinanceRecords, useStudentNames, useTermNames, useFeeItemNames, StatusPill, DocumentButton, Money, StudentPicker, TermSelect, GradeSelect, LinesEditor, Table, td } from "@/components/finance-kit";
 import { usePerms, errMsg, fmtDate, fmtDateTime, localToday } from "@/lib/session";
 import { useFinanceInvalidate, useIdemKey, validMoney, sumMoney, rd, type Line } from "@/lib/finance";
 import { useToast } from "@/hooks/use-toast";
 import { FormDialog } from "@/components/form-dialog";
 
-function Batch({ onClose }: { onClose: () => void }) {
+function Batch({ onClose, initial }: { onClose: () => void; initial?: { termId: string; gradeId: string } }) {
   const preview = usePreviewFinanceInvoices();
   const commit = useCommitFinanceInvoices();
   const inv = useFinanceInvalidate();
   const sname = useStudentNames(); const item = useFeeItemNames();
   const { toast } = useToast();
-  const [f, setF] = useState({ termId: "", gradeId: "", dueDate: "" });
+  const [f, setF] = useState({ termId: initial?.termId ?? "", gradeId: initial?.gradeId ?? "", dueDate: "" });
   const [rows, setRows] = useState<InvoiceProposal[] | null>(null);
   const [previewToken, setPreviewToken] = useState<string>();
   const [done, setDone] = useState<InvoiceProposal[] | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const hasLearners = useHasLearners();
   const body = () => ({ termId: f.termId, dueDate: f.dueDate, previewToken, ...(f.gradeId ? { gradeId: f.gradeId } : {}) });
   const change = (p: Partial<typeof f>) => { setF({ ...f, ...p }); setRows(null); setConfirm(false); };
   const run = (e: FormEvent) => {
@@ -32,6 +35,7 @@ function Batch({ onClose }: { onClose: () => void }) {
     onSuccess: (r) => { inv(); setDone(r.invoices); setRows(null); setConfirm(false); toast({ title: "Invoices generated", description: `${r.invoices.filter((x) => !x.existing).length} new; existing invoices were left untouched.` }); onClose(); },
     onError: (x) => setErr(`${errMsg(x)} If the connection failed, retry this same preview safely. A stale-preview rejection requires a fresh preview.`),
   });
+  if (hasLearners === false) return <NoLearnersNotice onGo={onClose} />;
   return (
     <div>
       <form onSubmit={run} className="space-y-4 p-5">
@@ -46,7 +50,7 @@ function Batch({ onClose }: { onClose: () => void }) {
       {rows && (
         <div className="border-t border-border/70" aria-live="polite">
           <div className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm"><strong>{fresh.length} new</strong><span className="text-muted-foreground">{rows.length - fresh.length} already invoiced</span><span className="ml-auto">New total <Money v={sumMoney(fresh.map((r) => r.amount))} className="font-semibold" /></span></div>
-          {!rows.length ? <p className="px-5 pb-5 text-sm text-muted-foreground">No learners match an approved structure for this term.</p> : (
+          {!rows.length ? <p className="px-5 pb-5 text-sm text-muted-foreground">{f.gradeId ? "No active learners in this grade. Choose another grade, or add learners to it on the Register." : "No learners to bill for this term. Check that every grade with learners has approved fees under Fee setup."}</p> : (
             <div className="max-h-96 overflow-auto"><Table head={["Student", "Lines", "Amount", "State"]}>{rows.map((r) => (
               <tr key={r.studentId} className={r.existing ? "opacity-60" : ""}><td className={td}>{sname(r.studentId)}</td><td className={`${td} text-xs`}>{r.lines.map((l, i) => <div key={i}>{item(l.feeItemId)} <span className="font-mono">{l.amount}</span></div>)}</td><td className={td}><Money v={r.amount} /></td><td className={td}>{r.existing ? <Pill tone="left">Exists</Pill> : <Pill tone="duplicate">Will create</Pill>}</td></tr>))}</Table></div>
           )}
@@ -94,30 +98,31 @@ export default function Invoices() {
   const p = usePerms();
   const sname = useStudentNames(); const term = useTermNames();
   const [oneoff, setOneoff] = useState(false);
-  const [batch, setBatch] = useState(false);
+  // A learner page can send "?bill=1&term=…&grade=…" to open billing for their grade.
+  const [preset] = useState(() => { const q = new URLSearchParams(window.location.search); return q.get("bill") ? { termId: q.get("term") ?? "", gradeId: q.get("grade") ?? "" } : undefined; });
+  const [batch, setBatch] = useState(!!preset);
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState("");
-  const [page, setPage] = useState(1);
-  useEffect(() => setPage(1), [status, filter]);
-  const q = useFinanceRecords({ kind: "invoice", page, pageSize: 50, status, search: filter });
+  const sp = useServerPage([status, filter]);
+  const q = useFinanceRecords({ kind: "invoice", page: sp.page, pageSize: sp.size, status, search: filter });
   const list = q.data ?? [];
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Billing" title="Invoices" meta="Term invoices from approved structures, plus one-off charges.">
+      <PageHeader title="Fees & balances" meta="Every learner's invoices and what they still owe.">
         {p.financeConfigure && <Btn variant="outline" data-testid="button-generate-invoices" onClick={() => setBatch(true)}><FileText className="h-4 w-4" /> Generate term invoices</Btn>}
         {p.financeConfigure && <Btn data-testid="button-new-invoice" className="max-md:hidden" onClick={() => setOneoff(true)}><Plus className="h-4 w-4" /> One-off invoice</Btn>}
       </PageHeader>
       {p.financeConfigure && <>
         <FormDialog open={oneoff} onOpenChange={setOneoff} size="lg" title="Post a one-off invoice" description="Trips, damages, uniforms. Posts to the ledger immediately."><OneOff onDone={() => setOneoff(false)} /></FormDialog>
-        <FormDialog open={batch} onOpenChange={setBatch} size="full" title="Generate term invoices" description="Preview against approved structures and optional charges, then commit. Re-running never duplicates."><Batch onClose={() => setBatch(false)} /></FormDialog>
+        <FormDialog open={batch} onOpenChange={setBatch} size="full" title="Generate term invoices" description="Preview against approved structures and optional charges, then commit. Re-running never duplicates."><Batch initial={preset} onClose={() => setBatch(false)} /></FormDialog>
       </>}
       <Panel title="All invoices" action={<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><NativeSelect aria-label="Invoice status" className="w-full text-xs sm:h-8 sm:w-36" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option><option value="open">Open</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="cancelled">Cancelled</option></NativeSelect><TextInput aria-label="Filter invoices" placeholder="Filter by student or no." className="w-full text-xs sm:h-8 sm:w-52" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>}>
         {q.isLoading ? <SkeletonRows cols={5} /> : q.isError ? <ErrorState msg={errMsg(q.error)} onRetry={() => q.refetch()} /> : !list.length ? <Empty icon={<FileText className="h-5 w-5" />} title="No invoices" body="Generate term invoices once structures are approved." /> : (
-          <Table head={["Invoice no.", "Student", "Term", "Issued / due", "Amount", "Status", "Created"]}>{list.map((r) => (
-            <tr key={r.id} data-testid={`row-invoice-${r.id}`}><td className={`${td} font-mono text-xs`}>{rd(r, "invoiceNo") ?? "\u2014"}<div className="font-sans text-[11px] text-muted-foreground">{rd(r, "type") === "one_off" ? "One-off" : "Term"}</div></td><td className={td}>{sname(r.studentId)}</td><td className={`${td} text-xs`}>{term(r.termId)}</td><td className={`${td} text-xs`}>{fmtDate(rd(r, "issueDate"))}<div className="text-muted-foreground">Due {fmtDate(rd(r, "dueDate"))}</div></td><td className={td}><Money v={r.amount} /></td><td className={td}><StatusPill status={r.status} /></td><td className={`${td} text-xs text-muted-foreground`}>{fmtDateTime(r.createdAt)}</td></tr>))}</Table>
+          <Table head={["Invoice no.", "Student", "Term", "Issued / due", "Amount", "Status", "Created", ""]}>{list.map((r) => (
+            <tr key={r.id} data-testid={`row-invoice-${r.id}`}><td className={`${td} font-mono text-xs`}>{rd(r, "invoiceNo") ?? "\u2014"}<div className="font-sans text-[11px] text-muted-foreground">{rd(r, "type") === "one_off" ? "One-off" : "Term"}</div></td><td className={td}>{sname(r.studentId)}</td><td className={`${td} text-xs`}>{term(r.termId)}</td><td className={`${td} text-xs`}>{fmtDate(rd(r, "issueDate"))}<div className="text-muted-foreground">Due {fmtDate(rd(r, "dueDate"))}</div></td><td className={td}><Money v={r.amount} /></td><td className={td}><StatusPill status={r.status} /></td><td className={`${td} text-xs text-muted-foreground`}>{fmtDateTime(r.createdAt)}</td><td className={td}><DocumentButton type="invoice" referenceId={r.id} fileName={`Invoice-${rd(r, "invoiceNo") ?? r.id}`} /></td></tr>))}</Table>
         )}
+        <Pager {...sp.pager(list.length, q.isFetching)} />
       </Panel>
-      <div className="flex items-center justify-end gap-3"><Btn variant="outline" disabled={page === 1 || q.isFetching} onClick={() => setPage(page - 1)}>Previous</Btn><span>Page {page}</span><Btn variant="outline" disabled={list.length < 50 || q.isFetching} onClick={() => setPage(page + 1)}>Next</Btn></div>
       {p.financeConfigure && <Fab testid="fab-new-invoice" label="One-off invoice" icon={<Plus className="h-4 w-4" />} onClick={() => setOneoff(true)} />}
     </div>
   );

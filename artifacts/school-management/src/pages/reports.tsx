@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Pager, usePaged } from "@/components/pager";
 import { useGetSchoolReport, useExportSchoolReport, useExportKnecResults, type ReportView, type ReportFilterInput } from "@workspace/api-client-react";
 import { ArrowDown, ArrowUp, BarChart3, Download, FileDown, Loader2 } from "lucide-react";
 import { PageHeader, Panel, Empty, Btn, Field, TextInput, NativeSelect, FormError, FormActions } from "@/components/kit";
@@ -8,19 +9,17 @@ import { exportXlsx, exportCsv } from "@/lib/sheets";
 import { useToast } from "@/hooks/use-toast";
 
 type F = "dates" | "term" | "grade" | "student" | "balance" | "plan";
+// The six reports from the simplified spec (collections also offers a by-fee-item view).
 const TYPES: { id: string; label: string; f: F[]; finance?: boolean; academic?: boolean }[] = [
   { id: "collections", label: "Collections", f: ["dates", "grade"], finance: true },
   { id: "fee-items", label: "Collections by fee item", f: ["dates", "term", "grade"], finance: true },
-  { id: "balances", label: "Balances", f: ["term", "grade", "balance"], finance: true },
-  { id: "defaulters", label: "Defaulters", f: ["term", "grade", "balance", "plan"], finance: true },
-  { id: "aged-arrears", label: "Aged arrears", f: ["grade", "balance"], finance: true },
-  { id: "unmatched", label: "Unmatched payments", f: ["dates"], finance: true },
-  { id: "reconciliation", label: "Reconciliation", f: ["dates"], finance: true },
-  { id: "adjustments", label: "Waivers and adjustments", f: ["dates", "term"], finance: true },
-  { id: "sponsors", label: "Sponsors", f: ["term"], finance: true },
+  { id: "balances", label: "Fee balances", f: ["term", "grade", "balance"], finance: true },
+  { id: "defaulters", label: "Defaulters", f: ["term", "grade", "balance"], finance: true },
+  { id: "aged-arrears", label: "Arrears by age", f: ["term", "grade"], finance: true },
   { id: "plans", label: "Payment plans", f: ["term", "grade"], finance: true },
+  { id: "adjustments", label: "Discounts and adjustments", f: ["dates", "grade"], finance: true },
   { id: "statement", label: "Learner statement", f: ["student", "dates"], finance: true },
-  { id: "performance", label: "Performance / KNEC", f: ["term", "grade", "student"], academic: true },
+  { id: "performance", label: "Class results", f: ["term", "grade", "student"], academic: true },
   { id: "attendance", label: "Attendance", f: ["dates", "grade", "student"], academic: true },
 ];
 
@@ -83,14 +82,15 @@ export default function Reports() {
     ex.mutate({ type, data: { ...b, format } }, { onSuccess: (d) => window.open(d.downloadUrl, "_blank", "noopener"), onError: (x) => toast({ title: `${format.toUpperCase()} export failed`, description: errMsg(x), variant: "destructive" }) }); };
   const show = (k: F) => t?.f.includes(k);
   const r = result?.type === type ? result.r : null;
+  const { rows: pageRows, pager } = usePaged(r?.rows, r?.generatedAt, 50);
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Insight" title="Reports" meta={p.limitedToAssigned ? "Academic reports for your assigned classes." : "Run a report, read it here, then export. Exports contain exactly the rows shown."} />
       {!types.length ? <Panel><Empty icon={<BarChart3 className="h-5 w-5" />} title="No reports for your role" body="Ask your administrator if you need access." /></Panel> : (
         <Panel>
           <form onSubmit={submit} data-readonly-safe="report-run" className="space-y-4 p-5">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Field label="Report type">
+            <div className="grid gap-4 max-md:grid-cols-2 max-md:[&>*]:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
+              <Field label="Report type" className="max-md:col-span-2">
                 <NativeSelect data-testid="select-report-type" value={type} onChange={e => { setType(e.target.value); setErr(null); }}>
                   {types.some(x => x.finance) && <optgroup label="Finance">{types.filter(x => x.finance).map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>}
                   {types.some(x => x.academic) && <optgroup label="Academics">{types.filter(x => x.academic).map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>}
@@ -117,9 +117,9 @@ export default function Reports() {
           <Btn variant="outline" className="h-8" disabled={!r.rows.length} onClick={() => void exportXlsx(r.title, r.columns, r.rows, `${type}-report`)}><FileDown className="h-4 w-4" />Excel</Btn>
           <Btn variant="outline" className="h-8" disabled={!r.rows.length} onClick={() => exportCsv(r.columns, r.rows, `${type}-report`)}><FileDown className="h-4 w-4" />CSV</Btn></div>}>
           {!r.rows.length ? <Empty icon={<BarChart3 className="h-5 w-5" />} title="No rows" body="Nothing matches these filters." /> : (
-            <Table head={r.columns.map((c) => c.label)}>{r.rows.slice(0, 500).map((row, i) => <tr key={i}>{r.columns.map((c) => <td key={c.key} className={`${td} whitespace-nowrap text-xs tabular-nums`}>{row[c.key] == null ? "\u2014" : String(row[c.key])}</td>)}</tr>)}</Table>
+            <Table head={r.columns.map((c) => c.label)}>{pageRows.map((row, i) => <tr key={i}>{r.columns.map((c) => <td key={c.key} className={`${td} whitespace-nowrap text-xs tabular-nums`}>{row[c.key] == null ? "\u2014" : String(row[c.key])}</td>)}</tr>)}</Table>
           )}
-          {r.rows.length > 500 && <p className="border-t border-border/70 px-4 py-2 text-xs text-muted-foreground">Showing 500 of {r.rows.length}; exports include all rows.</p>}
+          <Pager {...pager} />
         </Panel>
       )}
       {type === "performance" && <KnecServer />}
