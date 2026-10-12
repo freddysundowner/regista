@@ -177,6 +177,21 @@ systemctl status rejista-api
 
 ## Existing PostgreSQL / shared VPS
 
+If the existing PostgreSQL server does not yet have a Rejista database/login:
+
+```bash
+bash deploy/create-database.sh
+bash deploy/install.sh --db-url-file /root/rejista-db-url
+```
+
+Run as root. The setup script uses the existing local `postgres` account through
+its Unix socket, defaults to port 5432, and accepts `--port` / `--socket-dir`.
+It creates only the `rejista` role and database, refuses existing names, leaves
+PostgreSQL packages/services/authentication rules alone, and verifies TCP access.
+Credentials are saved mode 600 without printing the password. If creation stops
+partway through, it retains a root-only pending credentials file and log; do not
+delete databases or reset an existing role to retry.
+
 Use `--db-url` with a **dedicated Rejista database and account** provisioned by your
 database administrator. Do not point it at another application's database: Rejista
 still applies its own schema migrations to the database you select.
@@ -245,6 +260,7 @@ bash -n deploy/*.sh
 python3 deploy/test-postgres-checks.py
 python3 deploy/test-host-safety.py
 python3 deploy/test-installer-flow.py
+python3 deploy/test-create-database.py
 ```
 
 The flow suite executes the installer's control flow in a temporary filesystem
