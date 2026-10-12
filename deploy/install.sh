@@ -96,7 +96,7 @@ env_set() {
   atomic_env_set "$ENV_FILE" "$1" "$2"
 }
 # Runs a command as the app user with the settings loaded and pnpm's store shared between releases.
-as_app() { sudo -u "$APP_USER" -H env HOME="$APP_ROOT" npm_config_store_dir="$APP_ROOT/.pnpm-store" CI=true "$APP_ROOT/bin/rejista-env" "$@"; }
+as_app() { sudo -u "$APP_USER" -H env PATH="$RUNTIME_PATH" HOME="$APP_ROOT" npm_config_store_dir="$APP_ROOT/.pnpm-store" CI=true "$APP_ROOT/bin/rejista-env" "$@"; }
 render() { # render TEMPLATE > file, replacing __KEYS__
   sed -e "s|__DOMAIN__|$DOMAIN|g" -e "s|__APP_ROOT__|$APP_ROOT|g" -e "s|__API_PORT__|$API_PORT|g" -e "s|__NODE_BIN__|$NODE_BIN|g" "$1"
 }
@@ -109,8 +109,9 @@ install -d -m 700 -o root -g root /run/rejista-installer
 exec 9>/run/rejista-installer/deploy.lock
 flock -n 9 || die "Another Rejista deployment or rollback is running."
 [[ -f $REPO_DIR/pnpm-workspace.yaml && -d $REPO_DIR/artifacts/api-server ]] || die "Run this from the Rejista project folder (deploy/install.sh inside it)."
-. /etc/os-release
-[[ ${ID:-} == ubuntu || ${ID:-} == debian || ${ID_LIKE:-} == *debian* ]] || die "Supported on Ubuntu and Debian only (found ${PRETTY_NAME:-unknown})."
+# os-release contains NAME=Ubuntu; keep it out of the product-name setting.
+OS_SUPPORTED=$( . /etc/os-release; [[ ${ID:-} == ubuntu || ${ID:-} == debian || ${ID_LIKE:-} == *debian* ]] && echo yes || echo no )
+[[ $OS_SUPPORTED == yes ]] || die "Supported on Ubuntu and Debian only."
 
 FIRST_INSTALL=0; [[ -f $ENV_FILE ]] || FIRST_INSTALL=1
 # Before swap, apt, users, files or services are changed, decide database ownership.
@@ -185,6 +186,8 @@ if [[ -z $DOMAIN && $FIRST_INSTALL -eq 1 ]]; then DOMAIN=$DEFAULT_DOMAIN; fi
 if [[ $SSL -eq 1 && $FIRST_INSTALL -eq 1 && -z $EMAIL ]]; then die "--email is required for the SSL certificate (or use --no-ssl)."; fi
 SCHEME=https; [[ $SSL -eq 1 ]] || SCHEME=http
 . "$REPO_DIR/deploy/host-safety.sh"
+. "$REPO_DIR/deploy/runtime.sh"
+ensure_runtime
 host_preflight
 NODE_BIN=$(command -v node)
 [[ $NODE_BIN =~ ^/[A-Za-z0-9/_.-]+$ ]] || die "Node must have a safe absolute executable path."
@@ -300,11 +303,11 @@ rsync -a \
 chown -R "$APP_USER:$APP_USER" "$RELEASE"
 cd "$RELEASE"
 info "Installing dependencies"
-sudo -u "$APP_USER" -H env HOME="$APP_ROOT" npm_config_store_dir="$APP_ROOT/.pnpm-store" CI=true pnpm install --frozen-lockfile --reporter=silent
+sudo -u "$APP_USER" -H env PATH="$RUNTIME_PATH" HOME="$APP_ROOT" npm_config_store_dir="$APP_ROOT/.pnpm-store" CI=true pnpm install --frozen-lockfile --reporter=silent
 info "Building the API"
-sudo -u "$APP_USER" -H env HOME="$APP_ROOT" NODE_ENV=production APP_NAME="$(env_get APP_NAME)" pnpm --filter @workspace/api-server run build >/dev/null
+sudo -u "$APP_USER" -H env PATH="$RUNTIME_PATH" HOME="$APP_ROOT" NODE_ENV=production APP_NAME="$(env_get APP_NAME)" pnpm --filter @workspace/api-server run build >/dev/null
 info "Building the web app"
-sudo -u "$APP_USER" -H env HOME="$APP_ROOT" NODE_ENV=production PORT=5173 BASE_PATH=/ SITE_URL="$(env_get SITE_URL)" APP_NAME="$(env_get APP_NAME)" BRAND_IMAGES_READY="$(env_get BRAND_IMAGES_READY)" \
+sudo -u "$APP_USER" -H env PATH="$RUNTIME_PATH" HOME="$APP_ROOT" NODE_ENV=production PORT=5173 BASE_PATH=/ SITE_URL="$(env_get SITE_URL)" APP_NAME="$(env_get APP_NAME)" BRAND_IMAGES_READY="$(env_get BRAND_IMAGES_READY)" \
   GOOGLE_SITE_VERIFICATION="$(env_get GOOGLE_SITE_VERIFICATION)" BING_SITE_VERIFICATION="$(env_get BING_SITE_VERIFICATION)" \
   pnpm --filter @workspace/school-management run build >/dev/null
 [[ -f $RELEASE/artifacts/api-server/dist/index.mjs ]] || die "API build missing"

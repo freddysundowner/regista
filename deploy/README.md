@@ -37,8 +37,13 @@ git clone YOUR_REPOSITORY_URL /root/rejista
 
 ## 3. Run the installer
 
-**Shared-server safety:** install the required tools yourself first: Node 24+,
-pnpm 10.32.1, running nginx, curl, rsync, openssl, sudo, Python 3, util-linux
+**Shared-server safety:** Node 24+ and pnpm 10.32.1 are reused when compatible;
+otherwise the installer downloads private copies under `/opt/rejista-toolchain`.
+It checks the Node archive against the official release checksum and does not
+replace system Node or global pnpm. Private runtimes are passed explicitly to
+builds and the API service.
+
+Other required tools are: running nginx, curl, tar, sha256sum, rsync, openssl, sudo, Python 3, util-linux
 (flock), iproute2 (ss), and PostgreSQL client tools. For automatic certificate
 issuance, certbot is also required. The installer no longer updates shared
 packages/runtimes, creates swap, changes UFW, or removes nginx's default site.
@@ -218,7 +223,7 @@ before APT can run; this installer does not silently change shared repository se
 
 ## What the installer sets up
 
-- Existing Node.js 24+, pnpm and nginx are required; PostgreSQL installation is opt-in
+- Compatible Node.js/pnpm or private copies; running nginx is required; PostgreSQL installation is opt-in
 - A `rejista` system user that runs the system with no shell and no access outside its own folders
 - A new database with a generated password only for an explicitly requested new PostgreSQL installation
 - The API as a service that restarts by itself and starts on boot
@@ -266,6 +271,7 @@ python3 deploy/test-host-safety.py
 python3 deploy/test-installer-flow.py
 python3 deploy/test-create-database.py
 python3 deploy/test-postgres-client.py
+python3 deploy/test-runtime.py
 ```
 
 The flow suite executes the installer's control flow in a temporary filesystem

@@ -24,3 +24,9 @@ Database connection changes require verification with a real, isolated PostgreSQ
 **Why:** Mock clients accepted a full connection URI in `PGDATABASE`, while actual libpq clients treated it as a database name and failed immediately after successful provisioning.
 
 **How to apply:** Keep credentials out of process arguments; verify actual connection, dump and restore behaviour using a temporary private cluster rather than the shared application database.
+
+Missing or outdated Node/pnpm should be handled with a private Rejista toolchain, not by upgrading shared runtime installations.
+
+**Why:** The user's VPS has other apps, and its older Node blocked installation. Private runtimes preserve those apps while keeping the requested one-command setup.
+
+**How to apply:** Pass the selected runtime explicitly through privileged user switches and service configuration; retain checksum verification and avoid shared package-manager configuration changes.
