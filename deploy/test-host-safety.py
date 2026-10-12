@@ -1,6 +1,9 @@
 """Mocked shared-host regression tests: no real services, ports or root files modified."""
 import pathlib
 import subprocess
+import tempfile
+import shlex
+import os
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -69,10 +72,104 @@ select_api_port {port}''', ok=False)
 MIGRATIONS_STARTED=1; CUTOVER_STARTED=1; DEPLOY_SUCCESS=0
 systemctl() { echo "SERVICE $*"; }
 nginx() { :; }; rm() { :; }; cp() { :; }; ln() { :; }
-recover_on_exit''')
+recover_on_exit''', ok=False)
         self.assertIn("SERVICE stop rejista-api", out)
         self.assertNotIn("SERVICE start rejista-api", out)
         self.assertNotIn("SERVICE restart rejista-api", out)
+
+    def test_failed_second_port_probe_does_not_claim_free(self):
+        self.shell('''stopped=0
+port_listeners() { if [[ $stopped == 1 ]]; then return 2; fi; echo 'LISTEN pid=42'; }
+rejista_pid() { [[ $1 == 42 ]]; }
+systemctl() { stopped=1; }
+stop_owned_port 8080''', ok=False)
+
+    def test_recovery_survives_inherited_error_trap(self):
+        out = self.shell('''RECOVERY=/nonexistent-recovery; PREVIOUS=""; APP_ROOT=/opt/rejista
+MIGRATIONS_STARTED=1; CUTOVER_STARTED=1; DEPLOY_SUCCESS=0
+trap 'echo RECURSIVE_TRAP; exit 97' ERR
+systemctl() { echo "SERVICE $*"; [[ "$*" != "stop rejista-api" ]]; }
+restore_snapshot_file() { echo RESTORING; return 1; }
+nginx() { :; }; rm() { :; }; ln() { :; }
+recover_on_exit''', ok=False)
+        self.assertNotIn("RECURSIVE_TRAP", out)
+        self.assertEqual(out.count("RESTORING"), 5)
+        self.assertNotIn("SERVICE start rejista-api", out)
+
+    def test_restore_actual_file_and_permissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            dest = pathlib.Path(directory) / "settings"
+            snapshot = pathlib.Path(directory) / "snapshot"
+            saved = pathlib.Path(str(snapshot) + str(dest))
+            saved.parent.mkdir(parents=True)
+            saved.write_text("old settings\n")
+            saved.chmod(0o640)
+            dest.write_text("new settings\n")
+            self.shell(f'restore_snapshot_file {shlex.quote(str(snapshot))} {shlex.quote(str(dest))}')
+            self.assertEqual(dest.read_text(), "old settings\n")
+            self.assertEqual(dest.stat().st_mode & 0o777, 0o640)
+            self.assertFalse(list(dest.parent.glob(".rejista-restore.*")))
+
+    def test_restore_actual_symlink_without_modifying_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            dest = pathlib.Path(directory) / "enabled-site"
+            target = pathlib.Path(directory) / "other-site"
+            target.write_text("do not touch")
+            dest.write_text("new configuration")
+            snapshot = pathlib.Path(directory) / "snapshot"
+            saved = pathlib.Path(str(snapshot) + str(dest))
+            saved.parent.mkdir(parents=True)
+            saved.symlink_to(target)
+            self.shell(f'restore_snapshot_file {shlex.quote(str(snapshot))} {shlex.quote(str(dest))}')
+            self.assertTrue(dest.is_symlink())
+            self.assertEqual(os.readlink(dest), str(target))
+            self.assertEqual(target.read_text(), "do not touch")
+
+    def test_copy_failure_preserves_live_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            dest = pathlib.Path(directory) / "settings"
+            snapshot = pathlib.Path(directory) / "snapshot"
+            saved = pathlib.Path(str(snapshot) + str(dest))
+            saved.parent.mkdir(parents=True)
+            saved.write_text("backup")
+            dest.write_text("keep current until backup copied")
+            self.shell(f'cp() {{ return 1; }}; restore_snapshot_file {shlex.quote(str(snapshot))} {shlex.quote(str(dest))}', ok=False)
+            self.assertEqual(dest.read_text(), "keep current until backup copied")
+            self.assertFalse(list(dest.parent.glob(".rejista-restore.*")))
+
+    def test_new_file_removed_without_touching_neighbor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            dest = pathlib.Path(directory) / "new-site"
+            neighbor = pathlib.Path(directory) / "unrelated-site"
+            dest.write_text("new")
+            neighbor.write_text("other app")
+            self.shell(f'restore_snapshot_file {shlex.quote(directory + "/empty-snapshot")} {shlex.quote(str(dest))}')
+            self.assertFalse(dest.exists())
+            self.assertEqual(neighbor.read_text(), "other app")
+
+    def test_atomic_settings_preserves_permissions_and_removes_duplicates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "settings"
+            path.write_text("PORT=8080\nOTHER=keep\nPORT=9999\n")
+            path.chmod(0o640)
+            self.shell(f'atomic_env_set {shlex.quote(str(path))} PORT 8081')
+            self.assertEqual(path.read_text(), "PORT=8081\nOTHER=keep\n")
+            self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+
+    def test_atomic_settings_write_failure_keeps_original(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "settings"
+            path.write_text("PORT=8080\n")
+            self.shell(f'awk() {{ return 1; }}; atomic_env_set {shlex.quote(str(path))} PORT 8081', ok=False)
+            self.assertEqual(path.read_text(), "PORT=8080\n")
+            self.assertFalse(list(path.parent.glob(".rejista-env.*")))
+
+    def test_atomic_settings_rejects_multiline_injection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "settings"
+            path.write_text("PORT=8080\n")
+            self.shell(f"atomic_env_set {shlex.quote(str(path))} PORT $'8081\\nHOST=0.0.0.0'", ok=False)
+            self.assertEqual(path.read_text(), "PORT=8080\n")
 
 
 if __name__ == "__main__":

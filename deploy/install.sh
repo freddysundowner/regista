@@ -93,14 +93,7 @@ trap 'die "Failed at line $LINENO. Stopping; check the preceding error."' ERR
 env_get() { [[ -f $ENV_FILE ]] && awk -v k="$1" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }' "$ENV_FILE" || true; }
 # Sets KEY=VALUE in the env file, replacing an existing or commented-out line, or appending it.
 env_set() {
-  local key=$1 value=$2 tmp
-  tmp=$(mktemp)
-  KEY="$key" VALUE="$value" awk '
-    BEGIN { k = ENVIRON["KEY"]; v = ENVIRON["VALUE"] }
-    !done && (index($0, k "=") == 1 || index($0, "# " k "=") == 1) { print k "=" v; done = 1; next }
-    { print }
-    END { if (!done) print k "=" v }' "$ENV_FILE" > "$tmp"
-  cat "$tmp" > "$ENV_FILE"; rm -f "$tmp"
+  atomic_env_set "$ENV_FILE" "$1" "$2"
 }
 # Runs a command as the app user with the settings loaded and pnpm's store shared between releases.
 as_app() { sudo -u "$APP_USER" -H env HOME="$APP_ROOT" npm_config_store_dir="$APP_ROOT/.pnpm-store" CI=true "$APP_ROOT/bin/rejista-env" "$@"; }
@@ -111,7 +104,9 @@ render() { # render TEMPLATE > file, replacing __KEYS__
 # --- 0. Checks ---------------------------------------------------------------------------------------------------------
 [[ $EUID -eq 0 ]] || die "Run as root: sudo $0"
 umask 077
-exec 9>/run/lock/rejista-deploy.lock
+[[ ! -L /run/rejista-installer ]] || die "Unsafe installer lock directory."
+install -d -m 700 -o root -g root /run/rejista-installer
+exec 9>/run/rejista-installer/deploy.lock
 flock -n 9 || die "Another Rejista deployment or rollback is running."
 [[ -f $REPO_DIR/pnpm-workspace.yaml && -d $REPO_DIR/artifacts/api-server ]] || die "Run this from the Rejista project folder (deploy/install.sh inside it)."
 . /etc/os-release
@@ -308,6 +303,7 @@ umask 077
 # --- 5. Database migrations and job schedules --------------------------------------------------------------------------
 # Database identity check: empty DB for a new install, known Rejista tables for updates.
 DB_CONNECTION=$(libpq_database_url "$(env_get DATABASE_URL)")
+export PGCONNECT_TIMEOUT=10
 DB_TABLES=$(PGDATABASE="$DB_CONNECTION" psql -X -w -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>/dev/null)
 if [[ $FIRST_INSTALL == 1 && $DB_TABLES != 0 ]]; then die "First installation requires an empty, dedicated database."; fi
 if [[ $FIRST_INSTALL == 0 ]]; then
@@ -325,7 +321,7 @@ API_PORT=$(select_api_port "$API_PORT") || die "No port available before migrati
 stop_owned_port "$API_PORT" || die "API port changed ownership."
 install -d -m 700 "$ENV_DIR/backups"
 BACKUP="$ENV_DIR/backups/$(basename "$RELEASE").dump"
-PGDATABASE="$DB_CONNECTION" pg_dump --format=custom --file="$BACKUP" || die "Database backup failed. No migration was started."
+PGDATABASE="$DB_CONNECTION" pg_dump --lock-wait-timeout=30s --format=custom --file="$BACKUP" || die "Database backup failed. No migration was started."
 pg_restore --list "$BACKUP" >/dev/null || die "Backup archive is unreadable."
 pg_restore --file=/dev/null "$BACKUP" || die "Backup data could not be read completely."
 printf '%s\n' "$BACKUP" > "$RECOVERY/database-backup"

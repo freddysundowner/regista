@@ -1,5 +1,23 @@
 #!/usr/bin/env bash
 # These checks fail closed. A process name alone is never proof of ownership.
+atomic_env_set() {
+  local file=$1 key=$2 value=$3 temp
+  [[ $key =~ ^[A-Z_][A-Z0-9_]*$ && $value != *$'\n'* && $value != *$'\r'* && ! -L $file ]] || return 1
+  temp=$(mktemp "$(dirname "$file")/.rejista-env.XXXXXXXX") || return 1
+  if ! KEY="$key" VALUE="$value" awk '
+    BEGIN { k = ENVIRON["KEY"]; v = ENVIRON["VALUE"] }
+    index($0, k "=") == 1 || index($0, "# " k "=") == 1 {
+      if (!done) print k "=" v; done = 1; next
+    }
+    { print }
+    END { if (!done) print k "=" v }' "$file" > "$temp"; then
+    rm -f "$temp"; return 1
+  fi
+  if ! chmod --reference="$file" "$temp" || ! chown --reference="$file" "$temp" || ! mv -Tf "$temp" "$file"; then
+    rm -f "$temp"; return 1
+  fi
+}
+
 port_listeners() { ss -H -ltnp "sport = :$1"; }
 rejista_pid() {
   local pid=$1 uid cwd
@@ -36,7 +54,8 @@ stop_owned_port() {
   own_listeners "$text" || { echo "Port ownership changed; refusing to stop another application." >&2; return 1; }
   # systemd stops/kills only this unit, including its verified processes.
   systemctl stop rejista-api
-  [[ -z $(port_listeners "$1") ]]
+  text=$(port_listeners "$1") || return 1
+  [[ -z $text ]]
 }
 
 host_preflight() {
@@ -89,7 +108,7 @@ host_preflight() {
   for path in /etc/systemd/system/rejista-api.service /etc/nginx/sites-available/rejista.conf /etc/nginx/sites-enabled/rejista.conf /etc/nginx/snippets/rejista-headers.conf; do
     [[ ! -e $path && ! -L $path || $managed == 1 ]] || die "Unowned configuration collision: $path"
   done
-  for path in "$ENV_FILE" /etc/systemd/system/rejista-api.service /etc/nginx/sites-available/rejista.conf /etc/nginx/snippets/rejista-headers.conf; do
+  for path in "$APP_ROOT/bin" "$APP_ROOT/releases" "$APP_ROOT/.pnpm-store" "$APP_ROOT/.cache" "$APP_ROOT/.local" "$STORAGE_DIR" "$ENV_DIR/backups" "$ENV_FILE" /etc/systemd/system/rejista-api.service /etc/nginx/sites-available/rejista.conf /etc/nginx/snippets/rejista-headers.conf; do
     [[ ! -L $path ]] || die "Refusing to overwrite symlink: $path"
   done
   [[ ! -L /etc/nginx/sites-enabled/rejista.conf || $(readlink -f /etc/nginx/sites-enabled/rejista.conf) == /etc/nginx/sites-available/rejista.conf ]] || die "Rejista nginx link points to another site."
@@ -118,6 +137,17 @@ for index in range(1, len(parts), 2):
 PY
 }
 
+restore_snapshot_file() {
+  local snapshot=$1 path=$2 temp
+  if [[ -e $snapshot$path || -L $snapshot$path ]]; then
+    temp=$(mktemp "$(dirname "$path")/.rejista-restore.XXXXXXXX") || return 1
+    if ! cp -a --remove-destination -T "$snapshot$path" "$temp"; then rm -f "$temp"; return 1; fi
+    if ! mv -Tf "$temp" "$path"; then rm -f "$temp"; return 1; fi
+  else
+    rm -f "$path" || return 1
+  fi
+}
+
 begin_recovery() {
   RECOVERY=$(mktemp -d /var/tmp/rejista-recovery.XXXXXXXX)
   chmod 700 "$RECOVERY"
@@ -138,23 +168,31 @@ begin_recovery() {
   trap 'exit 143' TERM
 }
 recover_on_exit() {
-  local status=$? path
+  local status=$? path failed=0
   [[ ${DEPLOY_SUCCESS:-0} == 1 ]] && return
+  # set +e alone does not disable an inherited ERR trap.
+  trap - ERR EXIT INT TERM
   set +e
-  if [[ ${CUTOVER_STARTED:-0} == 1 || ${MIGRATIONS_STARTED:-0} == 1 ]]; then systemctl stop rejista-api; fi
+  if [[ ${CUTOVER_STARTED:-0} == 1 || ${MIGRATIONS_STARTED:-0} == 1 ]]; then systemctl stop rejista-api || failed=1; fi
   for path in /etc/rejista/rejista.env /etc/systemd/system/rejista-api.service /etc/nginx/sites-available/rejista.conf /etc/nginx/sites-enabled/rejista.conf /etc/nginx/snippets/rejista-headers.conf; do
-    rm -f "$path"
-    [[ ! -e $RECOVERY$path && ! -L $RECOVERY$path ]] || cp -a "$RECOVERY$path" "$path"
+    restore_snapshot_file "$RECOVERY" "$path" || failed=1
   done
-  if [[ -n $PREVIOUS && -d $PREVIOUS ]]; then ln -sfn "$PREVIOUS" "$APP_ROOT/current"; else rm -f "$APP_ROOT/current"; fi
-  systemctl daemon-reload
-  [[ ${WAS_ENABLED:-0} == 1 ]] || systemctl disable rejista-api
-  nginx -t -q && systemctl reload nginx
-  echo "Deployment failed. Configuration restored. Recovery snapshot: $RECOVERY" >&2
+  if [[ -n $PREVIOUS && -d $PREVIOUS ]]; then
+    ln -sfn "$PREVIOUS" "$APP_ROOT/current" || failed=1
+  else rm -f "$APP_ROOT/current" || failed=1; fi
+  systemctl daemon-reload || failed=1
+  if [[ ${WAS_ENABLED:-0} != 1 ]]; then systemctl disable rejista-api || failed=1; fi
+  if nginx -t -q; then systemctl reload nginx || failed=1; else failed=1; fi
+  if [[ $failed == 0 ]]; then
+    echo "Deployment failed. Configuration restored. Recovery snapshot: $RECOVERY" >&2
+  else
+    echo "RECOVERY INCOMPLETE. Some files or services could not be restored. Inspect $RECOVERY and the preceding errors. Do not restart blindly." >&2
+  fi
   if [[ $MIGRATIONS_STARTED == 1 ]]; then
     echo "API left stopped: database may have changed. Inspect backup and schema before restarting. No automatic database restore was attempted." >&2
-  elif [[ ${CUTOVER_STARTED:-0} == 1 && -n $PREVIOUS ]]; then
-    systemctl start rejista-api
+  elif [[ $failed == 0 && ${CUTOVER_STARTED:-0} == 1 && -n $PREVIOUS ]]; then
+    systemctl start rejista-api || echo "Previous API could not restart; manual recovery required." >&2
   fi
-  exit "${status:-1}"
+  (( status != 0 )) || status=1
+  exit "$status"
 }

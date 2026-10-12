@@ -45,6 +45,7 @@ ss() { :; }
                 'dpkg-query() { echo "installed postgresql-14"; }',
                 'pgrep() { [[ $2 == postgres ]]; }',
                 'ss() { echo "LISTEN 0 128 127.0.0.1:5432 0.0.0.0:*"; }',
+                'ss() { return 1; }',
                 'command() { return 0; }',
             ):
                 self.run_shell(base + mock + f'; postgres_present "{root}"')

@@ -236,6 +236,28 @@ power loss also leaves this marker, preventing a blind retry.
 Manual code rollback requires `--schema-compatible` after verifying the target
 code supports the current schema. It does not undo database changes.
 
+## Local safety checks
+
+Run from the repository root:
+
+```bash
+bash -n deploy/*.sh
+python3 deploy/test-postgres-checks.py
+python3 deploy/test-host-safety.py
+python3 deploy/test-installer-flow.py
+```
+
+The flow suite executes the installer's control flow in a temporary filesystem
+with simulated system services and database commands. It covers first setup,
+updates, and failures during build, backup, migration, service restart and nginx
+configuration. File restoration tests use real files, symlinks and permissions.
+It never installs packages or contacts a VPS. These tests do not exercise real
+systemd/nginx/PostgreSQL integration.
+
+Settings are replaced atomically. Recovery disables the normal error trap so
+one failed recovery operation does not prevent the remaining attempts; failures
+are reported as **RECOVERY INCOMPLETE**, not as successful restoration.
+
 ## More detail
 
 [docs/self-hosting.md](../docs/self-hosting.md) is the reference: every installer option, what is installed where,

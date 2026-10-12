@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Read-only checks, shared with the installer tests. Never install or start services here.
 postgres_present() {
-  local root=${1:-} packages directory entries
+  local root=${1:-} packages directory entries listeners
   packages=$(dpkg-query -W -f='${db:Status-Status} ${binary:Package}\n' 'postgresql*' 2>/dev/null || true)
   if grep -Eq '^installed postgresql(-[0-9]+)?(:[^ ]+)?$' <<< "$packages"; then return 0; fi
   command -v postgres >/dev/null 2>&1 && return 0
@@ -14,7 +14,8 @@ postgres_present() {
   pgrep -x postgres >/dev/null 2>&1 && return 0
   pgrep -x postmaster >/dev/null 2>&1 && return 0
   # A container or custom installation may not have packages or standard data directories.
-  if ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -E ':5432$' >/dev/null; then return 0; fi
+  listeners=$(ss -H -ltn 2>/dev/null) || return 0
+  if awk '{print $4}' <<< "$listeners" | grep -E ':5432$' >/dev/null; then return 0; fi
   return 1
 }
 

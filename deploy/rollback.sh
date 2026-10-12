@@ -6,7 +6,9 @@
 set -Eeuo pipefail
 APP_ROOT=/opt/rejista
 [[ $EUID -eq 0 ]] || { echo "Run as root: sudo $0"; exit 1; }
-exec 9>/run/lock/rejista-deploy.lock
+[[ ! -L /run/rejista-installer ]] || { echo "Unsafe installer lock directory."; exit 1; }
+install -d -m 700 -o root -g root /run/rejista-installer
+exec 9>/run/rejista-installer/deploy.lock
 flock -n 9 || { echo "Another deployment or rollback is running."; exit 1; }
 [[ ${1:-} == --schema-compatible ]] || { echo "Verify the current database schema supports the target release, then use --schema-compatible [release]. Database/configuration rollback is not automatic."; exit 1; }
 shift
@@ -14,6 +16,7 @@ shift
 . "$(dirname "${BASH_SOURCE[0]}")/host-safety.sh"
 
 current=$(readlink -f "$APP_ROOT/current")
+[[ -L $APP_ROOT/current && $current == "$APP_ROOT"/releases/* && -f $current/artifacts/api-server/dist/index.mjs ]] || { echo "Current release cannot be safely restored."; exit 1; }
 if [[ -n ${1:-} ]]; then
   [[ $1 =~ ^[A-Za-z0-9-]+$ ]] || { echo "Invalid release name."; exit 1; }
   target=$APP_ROOT/releases/$1
@@ -25,8 +28,16 @@ fi
 port=$(awk -F= '$1=="PORT"{print $2}' /etc/rejista/rejista.env); port=${port:-8080}
 listeners=$(port_listeners "$port")
 [[ -z $listeners ]] || own_listeners "$listeners" || { echo "Port belongs to another service. Run installer to select a new port."; exit 1; }
-restore() { ln -sfn "$current" "$APP_ROOT/current"; systemctl restart rejista-api || true; }
+restore() {
+  trap - ERR INT TERM
+  if ! ln -sfn "$current" "$APP_ROOT/current" || ! systemctl restart rejista-api; then
+    echo "Recovery incomplete. Previous release could not be restarted; manual recovery required." >&2
+    return 1
+  fi
+}
 trap restore ERR
+trap 'restore; exit 130' INT
+trap 'restore; exit 143' TERM
 
 echo "Switching from $(basename "$current") to $(basename "$target")"
 ln -sfn "$target" "$APP_ROOT/current.new" && mv -Tf "$APP_ROOT/current.new" "$APP_ROOT/current"
