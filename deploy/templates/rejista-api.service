@@ -13,6 +13,7 @@ WorkingDirectory=__APP_ROOT__/current/artifacts/api-server
 EnvironmentFile=/etc/rejista/rejista.env
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
+Environment="PATH=__RUNTIME_PATH__"
 ExecStart=__NODE_BIN__ --enable-source-maps dist/index.mjs
 Restart=always
 RestartSec=5

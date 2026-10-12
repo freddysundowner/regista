@@ -10,6 +10,18 @@ ROOT = pathlib.Path(__file__).resolve().parent
 
 
 class HostSafety(unittest.TestCase):
+    def test_service_gets_private_database_client_path(self):
+        source = (ROOT / "install.sh").read_text()
+        render = "render() {" + source.split("render() {", 1)[1].split("\n}", 1)[0] + "\n}"
+        out = self.shell(render + f'''
+DOMAIN=fixture.example; APP_ROOT=/opt/rejista; API_PORT=8083
+NODE_BIN=/opt/rejista-toolchain/node-24/bin/node
+RUNTIME_PATH=/opt/rejista-postgres/pgsql/bin:/usr/bin
+render "{ROOT}/templates/rejista-api.service"
+''')
+        self.assertIn('Environment="PATH=/opt/rejista-postgres/pgsql/bin:/usr/bin"', out)
+        self.assertNotIn("__RUNTIME_PATH__", out)
+
     def shell(self, code, ok=True):
         result = subprocess.run(["bash", "-c", f'set -euo pipefail; source "{ROOT}/host-safety.sh";\n' + code],
                                 capture_output=True, text=True)

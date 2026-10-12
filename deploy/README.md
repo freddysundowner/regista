@@ -187,6 +187,30 @@ systemctl status rejista-api
 
 ## Existing PostgreSQL / shared VPS
 
+For an older shared PostgreSQL server, use one command:
+
+```bash
+bash deploy/install.sh --private-postgres
+```
+
+This builds the latest PostgreSQL 16 source release in `/opt/rejista-postgres`,
+using existing gcc, make, perl, tar and Python tools (no APT changes). Allow
+several minutes, at least 1 GB of free disk for the build, and memory for another
+database service. The separate `rejista-postgres` service listens on loopback
+only, starting at an available port from 5433. Its data and socket directories
+are separate from the shared server. The shared service is never restarted.
+
+This option supports first installation, including an interrupted first install
+with a valid recovery snapshot, not a running application's database migration.
+It retains a dump of the old Rejista database, restores into an empty private
+database in one transaction, and checks table row counts before switching the
+saved connection. Original data and recovery settings are retained. No databases
+are dropped, and a nonempty destination is never overwritten. If copying fails,
+preserve both databases and the backup for inspection. The failed-install marker
+is retired only after verification and recovery settings restoration.
+
+Subsequent updates use `bash deploy/install.sh` without this option.
+
 On an existing PostgreSQL server, run the single installer:
 
 ```bash
@@ -277,6 +301,7 @@ python3 deploy/test-installer-flow.py
 python3 deploy/test-create-database.py
 python3 deploy/test-postgres-client.py
 python3 deploy/test-runtime.py
+REJISTA_TEST_PG12_BIN=/path/to/postgresql-12/bin python3 deploy/test-private-postgres.py
 ```
 
 The flow suite executes the installer's control flow in a temporary filesystem
@@ -290,6 +315,11 @@ The PostgreSQL client suite additionally starts a separate temporary PostgreSQL
 cluster (when local binaries are available), with a private Unix socket and no
 TCP listener. It checks the real connection, backup and restore path without
 using the workspace or VPS database.
+
+The private PostgreSQL test copies a real temporary PG12 database to PG16,
+executes the actual job-queue installer, and checks failed-first-install settings
+recovery using a real private database. Systemd/user management are simulated;
+it uses existing PostgreSQL binaries rather than compiling a release.
 
 Settings are replaced atomically. Recovery disables the normal error trap so
 one failed recovery operation does not prevent the remaining attempts; failures

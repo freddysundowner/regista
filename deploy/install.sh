@@ -42,6 +42,7 @@ TEMPLATES=$REPO_DIR/deploy/templates
 DEFAULT_DOMAIN=skultab.com
 DOMAIN="" EMAIL="" DB_URL="" MODE="" SSL=1 FIREWALL=0 LOCAL_DB=0 ASSUME_YES=0 NAME=""
 ADOPT_EXISTING=0
+PRIVATE_POSTGRES=0
 
 usage() {
   cat <<EOF
@@ -55,6 +56,7 @@ Usage: sudo $0 [options]
   --db-url-file FILE Read the database URL from a root-only file (avoids shell history)
   --adopt-existing   Explicitly adopt a verified installation made by the old installer
   --install-postgres Explicitly install PostgreSQL on a fresh server (refuses existing installations)
+  --private-postgres Build isolated PostgreSQL 16 and copy Rejista's database (first install only)
   --mode MODE        hosted (default) or standalone
   --no-ssl           Serve plain HTTP only (testing; banks and payment providers need HTTPS)
   --no-firewall      Leave the firewall alone
@@ -72,6 +74,7 @@ while [[ $# -gt 0 ]]; do
     --db-url) DB_URL=${2:?}; shift 2 ;;
     --db-url-file) [[ $(stat -c '%u:%a' "${2:?}") == 0:600 ]] || { echo "Database URL file must be root-owned, mode 600."; exit 1; }; DB_URL=$(cat "$2"); shift 2 ;;
     --install-postgres) LOCAL_DB=1; shift ;;
+    --private-postgres) PRIVATE_POSTGRES=1; shift ;;
     --adopt-existing) ADOPT_EXISTING=1; shift ;;
     --mode) MODE=${2:?}; shift 2 ;;
     --no-ssl) SSL=0; shift ;;
@@ -98,7 +101,7 @@ env_set() {
 # Runs a command as the app user with the settings loaded and pnpm's store shared between releases.
 as_app() { sudo -u "$APP_USER" -H env PATH="$RUNTIME_PATH" HOME="$APP_ROOT" npm_config_store_dir="$APP_ROOT/.pnpm-store" CI=true "$APP_ROOT/bin/rejista-env" "$@"; }
 render() { # render TEMPLATE > file, replacing __KEYS__
-  sed -e "s|__DOMAIN__|$DOMAIN|g" -e "s|__APP_ROOT__|$APP_ROOT|g" -e "s|__API_PORT__|$API_PORT|g" -e "s|__NODE_BIN__|$NODE_BIN|g" "$1"
+  sed -e "s|__DOMAIN__|$DOMAIN|g" -e "s|__APP_ROOT__|$APP_ROOT|g" -e "s|__API_PORT__|$API_PORT|g" -e "s|__NODE_BIN__|$NODE_BIN|g" -e "s|__RUNTIME_PATH__|$RUNTIME_PATH|g" "$1"
 }
 
 # --- 0. Checks ---------------------------------------------------------------------------------------------------------
@@ -116,6 +119,17 @@ OS_SUPPORTED=$( . /etc/os-release; [[ ${ID:-} == ubuntu || ${ID:-} == debian || 
 FIRST_INSTALL=0; [[ -f $ENV_FILE ]] || FIRST_INSTALL=1
 # Before swap, apt, users, files or services are changed, decide database ownership.
 . "$REPO_DIR/deploy/postgres-checks.sh"
+if [[ $PRIVATE_POSTGRES == 1 ]]; then
+  [[ $LOCAL_DB == 0 && -z $DB_URL ]] || die "--private-postgres cannot be combined with database selection or server-install flags."
+  . "$REPO_DIR/deploy/host-safety.sh"
+  . "$REPO_DIR/deploy/private-postgres.sh"
+  setup_private_postgres
+  FIRST_INSTALL=0; [[ -f $ENV_FILE ]] || FIRST_INSTALL=1
+fi
+# Prefer this app's private client tools on subsequent deployments too.
+if [[ -f /opt/rejista-postgres/installer-owned && -x /opt/rejista-postgres/pgsql/bin/pg_dump ]]; then
+  export PATH="/opt/rejista-postgres/pgsql/bin:$PATH"
+fi
 SELECTED_DB_URL=$DB_URL
 if [[ $FIRST_INSTALL -eq 0 && -z $SELECTED_DB_URL ]]; then SELECTED_DB_URL=$(env_get DATABASE_URL); fi
 if [[ $LOCAL_DB == 0 && -z $SELECTED_DB_URL && $FIRST_INSTALL == 1 ]]; then
@@ -181,6 +195,11 @@ if [[ $FIRST_INSTALL -eq 1 && $ASSUME_YES -eq 0 && -r /dev/tty && -t 1 ]]; then
 fi
 # With no domain given at all (first run, no questions asked), the default is used.
 if [[ -z $DOMAIN && $FIRST_INSTALL -eq 1 ]]; then DOMAIN=$DEFAULT_DOMAIN; fi
+if [[ $SSL == 1 && -z $EMAIL && ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]]; then
+  EMAIL=$(env_get PROVIDER_CONTACT_EMAIL)
+  if [[ -z $EMAIL && -r /dev/tty && -t 1 ]]; then EMAIL=$(ask "Email for the HTTPS certificate" ""); fi
+  [[ $EMAIL =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] || die "Pass --email for the HTTPS certificate."
+fi
 [[ -n $DOMAIN ]] || die "Could not work out the domain. Pass --domain NAME."
 [[ $DOMAIN =~ ^[A-Za-z0-9.-]+$ ]] || die "Invalid domain: $DOMAIN"
 if [[ $SSL -eq 1 && $FIRST_INSTALL -eq 1 && -z $EMAIL ]]; then die "--email is required for the SSL certificate (or use --no-ssl)."; fi
@@ -188,6 +207,7 @@ SCHEME=https; [[ $SSL -eq 1 ]] || SCHEME=http
 . "$REPO_DIR/deploy/host-safety.sh"
 . "$REPO_DIR/deploy/runtime.sh"
 ensure_runtime
+[[ $RUNTIME_PATH =~ ^[A-Za-z0-9/_:.+-]+$ ]] || die "Runtime PATH contains characters unsafe for service configuration."
 host_preflight
 NODE_BIN=$(command -v node)
 [[ $NODE_BIN =~ ^/[A-Za-z0-9/_.-]+$ ]] || die "Node must have a safe absolute executable path."
@@ -280,6 +300,7 @@ else
 fi
 env_set PORT "$API_PORT"
 env_set HOST 127.0.0.1
+[[ -z $EMAIL ]] || env_set PROVIDER_CONTACT_EMAIL "$EMAIL"
 chown root:"$APP_USER" "$ENV_FILE"; chmod 640 "$ENV_FILE"
 cp -p "$ENV_FILE" "$RECOVERY/proposed.env"
 for key in APP_BASE_URL DATABASE_URL SESSION_SECRET ENCRYPTION_KEY UPLOAD_DIR; do
@@ -415,7 +436,7 @@ cat <<EOF
     Update:      copy the new code here, then: sudo $REPO_DIR/deploy/install.sh
     Roll back:   verify database compatibility, then sudo $REPO_DIR/deploy/rollback.sh --schema-compatible
 EOF
-if [[ $FIRST_INSTALL -eq 1 ]]; then
+if [[ $FIRST_INSTALL -eq 1 || ${FIRST_SETUP_PENDING:-0} == 1 ]]; then
   cat <<EOF
 
     First-time setup: open $SCHEME://$DOMAIN and use this setup token when asked:
