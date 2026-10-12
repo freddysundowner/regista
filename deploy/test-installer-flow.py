@@ -6,6 +6,7 @@ This is not a substitute for a real systemd/nginx/PostgreSQL deployment test.
 """
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -15,7 +16,7 @@ import unittest
 HERE = pathlib.Path(__file__).resolve().parent
 
 DISPATCH = r'''
-import os, sys, pathlib, json, shutil
+import os, sys, pathlib, json, shutil, re
 name = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
 root = pathlib.Path(os.environ["FIXTURE_ROOT"])
@@ -63,7 +64,14 @@ elif name == "pnpm":
             target = pathlib.Path(p); target.parent.mkdir(parents=True, exist_ok=True); target.write_text("built")
 elif name == "psql":
     text = " ".join(args)
-    print("160010" if "server_version_num" in text else "1" if "_prisma_migrations" in text else "0")
+    if "-Atqc" not in args and "--version" not in args:
+        sql = sys.stdin.read()
+        marker = re.search(r"COMMENT ON DATABASE rejista IS '([^']+)'", sql)
+        if marker: (root / "db-marker").write_text(marker[1])
+    elif "shobj_description" in text:
+        print("rejista:" + (root / "db-marker").read_text())
+    else:
+        print("160010" if "server_version_num" in text else "1" if "_prisma_migrations" in text else "0")
 elif name == "pg_dump":
     if "--version" in args: print("pg_dump (PostgreSQL) 16.4")
     else:
@@ -91,7 +99,7 @@ else:
 
 
 class InstallerFlow(unittest.TestCase):
-    def run_flow(self, failure="", update=False):
+    def run_flow(self, failure="", update=False, automatic=""):
         with tempfile.TemporaryDirectory(prefix="rejista-flow-") as directory:
             root = pathlib.Path(directory)
             repo = root / "repo"
@@ -100,20 +108,22 @@ class InstallerFlow(unittest.TestCase):
             (repo / "artifacts/api-server").mkdir(parents=True)
             (repo / "pnpm-workspace.yaml").write_text("packages: []")
             for path in ("etc/nginx/sites-available", "etc/nginx/sites-enabled", "etc/nginx/snippets",
-                         "etc/systemd/system", "var/tmp", "run", "bin"):
+                         "etc/systemd/system", "var/tmp", "var/run/postgresql", "run", "bin", "root"):
                 (root / path).mkdir(parents=True, exist_ok=True)
             (root / "etc/os-release").write_text("ID=ubuntu\nVERSION_CODENAME=jammy\n")
             neighbor = root / "etc/nginx/sites-enabled/other-app.conf"
             neighbor.write_text("other app must survive")
             for path in deploy.glob("*.sh"):
                 text = path.read_text()
-                for prefix in ("/etc/", "/opt/", "/var/", "/run/"):
-                    text = text.replace(prefix, str(root) + prefix)
+                text = re.sub(r"/(?:etc|opt|var|run|root)/", lambda match: str(root) + match[0], text)
                 if path.name == "install.sh":
                     text = text.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]')
+                    text = text.replace("== 0:600", f"== {os.getuid()}:600")
                     text = text.replace("\nhost_preflight\n", "\n: # preflight tested separately\n")
                 if path.name == "host-safety.sh":
                     text += '\nport_listeners() { :; }\nown_listeners() { return 0; }\nrejista_pid() { return 0; }\n'
+                if path.name == "create-database.sh":
+                    text = text.replace('[[ $EUID == 0 ]]', '[[ 1 == 1 ]]')
                 path.write_text(text)
             dispatcher = root / "bin/dispatcher"
             dispatcher.write_text(f"#!{sys.executable}\n" + DISPATCH)
@@ -131,8 +141,12 @@ class InstallerFlow(unittest.TestCase):
                 old_env = (root / "etc/rejista/rejista.env").read_bytes()
                 old_release = os.readlink(root / "opt/rejista/current")
                 (root / "migration-started").unlink()
-            result = subprocess.run(["bash", str(deploy / "install.sh"), "--yes", "--no-ssl",
-                                     "--db-url", "postgresql://fixture/rejista"], env=env,
+            if automatic == "saved":
+                saved = root / "root/rejista-db-url"
+                saved.write_text("postgresql://rejista:fixture@127.0.0.1/rejista\n")
+                saved.chmod(0o600)
+            options = [] if automatic or update else ["--db-url", "postgresql://fixture/rejista"]
+            result = subprocess.run(["bash", str(deploy / "install.sh"), "--yes", "--no-ssl"] + options, env=env,
                                     capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode == 0, not failure, result.stdout + result.stderr)
             self.assertEqual(neighbor.read_text(), "other app must survive")
@@ -162,6 +176,8 @@ class InstallerFlow(unittest.TestCase):
     def test_nginx_failure(self): self.run_flow("nginx")
     def test_update_backup_failure_recovers_old_app(self): self.run_flow("backup", update=True)
     def test_update_migration_failure_preserves_settings_leaves_stopped(self): self.run_flow("migration", update=True)
+    def test_one_command_reuses_saved_connection(self): self.run_flow(automatic="saved")
+    def test_one_command_creates_database_and_continues(self): self.run_flow(automatic="create")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 class PostgresSafetyTests(unittest.TestCase):
     def run_shell(self, code, ok=True):
         result = subprocess.run(
-            ["bash", "-c", f'set -euo pipefail; source "{ROOT}/postgres-checks.sh";\n' + code],
+            ["bash", "-c", f'set -euo pipefail; source "{ROOT}/postgres-checks.sh";\npostgres_client() {{ "$@"; }}\n' + code],
             capture_output=True, text=True,
         )
         self.assertEqual(result.returncode == 0, ok, result.stdout + result.stderr)

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Read-only checks, shared with the installer tests. Never install or start services here.
+POSTGRES_CLIENT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/postgres-client.py"
+postgres_client() { python3 "$POSTGRES_CLIENT" "$@"; }
 postgres_present() {
   local root=${1:-} packages directory entries listeners
   packages=$(dpkg-query -W -f='${db:Status-Status} ${binary:Package}\n' 'postgresql*' 2>/dev/null || true)
@@ -53,10 +55,11 @@ libpq_database_url() {
 
 check_existing_database() {
   local url=$1 server dump major
+  command -v python3 >/dev/null || { echo "Python 3 is required to safely read the database connection URL." >&2; return 1; }
   command -v psql >/dev/null && command -v pg_dump >/dev/null \
     || { echo "Install the PostgreSQL client tools matching your existing server (psql and pg_dump), then retry. The installer will not change PostgreSQL packages." >&2; return 1; }
   # Environment, not command arguments; suppress provider errors that could expose the URL.
-  server=$(PGDATABASE="$(libpq_database_url "$url")" PGCONNECT_TIMEOUT=10 psql -X -w -Atqc 'SHOW server_version_num' 2>/dev/null) \
+  server=$(PGDATABASE="$(libpq_database_url "$url")" PGCONNECT_TIMEOUT=10 postgres_client psql -X -w -Atqc 'SHOW server_version_num' 2>/dev/null) \
     || { echo "Cannot connect to the selected database. Check the database URL, access and installed client tools. No database changes were made." >&2; return 1; }
   [[ $server =~ ^[0-9]+$ ]] || { echo "Could not verify PostgreSQL server version." >&2; return 1; }
   dump=$(pg_dump --version 2>/dev/null) || return 1

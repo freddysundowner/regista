@@ -22,7 +22,11 @@ for tool in psql sudo openssl flock; do command -v "$tool" >/dev/null || die "Re
 [[ ! -e $OUTPUT && ! -L $OUTPUT ]] || die "$OUTPUT already exists. Nothing was changed. Use it with install.sh --db-url-file if it belongs to this installation."
 [[ ! -L /run/rejista-installer ]] || die "Unsafe installer lock directory."
 install -d -o root -g root -m 700 /run/rejista-installer
-exec 9>/run/rejista-installer/deploy.lock
+if [[ ${REJISTA_PARENT_LOCK:-0} == 1 ]]; then
+  [[ $(readlink /proc/$$/fd/9) == /run/rejista-installer/deploy.lock ]] || die "Invalid inherited deployment lock."
+else
+  exec 9>/run/rejista-installer/deploy.lock
+fi
 flock -n 9 || die "Another Rejista installer or database setup is running."
 [[ ! -e $OUTPUT && ! -L $OUTPUT ]] || die "Connection file appeared while acquiring the lock."
 admin() { sudo -u postgres env PGCONNECT_TIMEOUT=10 psql -X -w -v ON_ERROR_STOP=1 -h "$SOCKET" -p "$PORT" -d postgres "$@"; }

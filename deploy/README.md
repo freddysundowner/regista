@@ -177,15 +177,19 @@ systemctl status rejista-api
 
 ## Existing PostgreSQL / shared VPS
 
-If the existing PostgreSQL server does not yet have a Rejista database/login:
+On an existing PostgreSQL server, run the single installer:
 
 ```bash
-bash deploy/create-database.sh
-bash deploy/install.sh --db-url-file /root/rejista-db-url
+bash deploy/install.sh
 ```
 
-Run as root. The setup script uses the existing local `postgres` account through
-its Unix socket, defaults to port 5432, and accepts `--port` / `--socket-dir`.
+Run as root. The installer reuses its saved settings or `/root/rejista-db-url`.
+If neither exists, it calls its database setup helper automatically and continues
+installation. There is no separate database command to run.
+The helper uses the existing local `postgres` account through
+its Unix socket and defaults to port 5432. For a nonstandard PostgreSQL port/socket,
+the helper can still be invoked explicitly with `--port` / `--socket-dir`, or
+supply `--db-url-file` to the installer for an existing connection.
 It creates only the `rejista` role and database, refuses existing names, leaves
 PostgreSQL packages/services/authentication rules alone, and verifies TCP access.
 Credentials are saved mode 600 without printing the password. If creation stops
@@ -261,6 +265,7 @@ python3 deploy/test-postgres-checks.py
 python3 deploy/test-host-safety.py
 python3 deploy/test-installer-flow.py
 python3 deploy/test-create-database.py
+python3 deploy/test-postgres-client.py
 ```
 
 The flow suite executes the installer's control flow in a temporary filesystem
@@ -269,6 +274,11 @@ updates, and failures during build, backup, migration, service restart and nginx
 configuration. File restoration tests use real files, symlinks and permissions.
 It never installs packages or contacts a VPS. These tests do not exercise real
 systemd/nginx/PostgreSQL integration.
+
+The PostgreSQL client suite additionally starts a separate temporary PostgreSQL
+cluster (when local binaries are available), with a private Unix socket and no
+TCP listener. It checks the real connection, backup and restore path without
+using the workspace or VPS database.
 
 Settings are replaced atomically. Recovery disables the normal error trap so
 one failed recovery operation does not prevent the remaining attempts; failures

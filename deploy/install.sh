@@ -117,6 +117,17 @@ FIRST_INSTALL=0; [[ -f $ENV_FILE ]] || FIRST_INSTALL=1
 . "$REPO_DIR/deploy/postgres-checks.sh"
 SELECTED_DB_URL=$DB_URL
 if [[ $FIRST_INSTALL -eq 0 && -z $SELECTED_DB_URL ]]; then SELECTED_DB_URL=$(env_get DATABASE_URL); fi
+if [[ $LOCAL_DB == 0 && -z $SELECTED_DB_URL && $FIRST_INSTALL == 1 ]]; then
+  if [[ ! -e /root/rejista-db-url ]]; then
+    info "No saved Rejista connection. Checking existing PostgreSQL and creating a dedicated database if absent."
+    # The parent already holds the shared deployment lock; give the helper this
+    # same inherited descriptor rather than acquiring the lock twice.
+    REJISTA_PARENT_LOCK=1 bash "$REPO_DIR/deploy/create-database.sh"
+  fi
+  [[ -f /root/rejista-db-url && ! -L /root/rejista-db-url && $(stat -c '%u:%a' /root/rejista-db-url) == 0:600 ]] || die "Saved database connection must be a root-owned, mode-600 regular file."
+  SELECTED_DB_URL=$(cat /root/rejista-db-url)
+fi
+DB_URL=$SELECTED_DB_URL
 postgres_plan "$FIRST_INSTALL" "$LOCAL_DB" "$SELECTED_DB_URL" || die "Database safety check failed."
 if [[ $LOCAL_DB -eq 0 ]]; then
   check_existing_database "$SELECTED_DB_URL" || die "Existing database check failed."
@@ -304,10 +315,10 @@ umask 077
 # Database identity check: empty DB for a new install, known Rejista tables for updates.
 DB_CONNECTION=$(libpq_database_url "$(env_get DATABASE_URL)")
 export PGCONNECT_TIMEOUT=10
-DB_TABLES=$(PGDATABASE="$DB_CONNECTION" psql -X -w -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>/dev/null)
+DB_TABLES=$(PGDATABASE="$DB_CONNECTION" postgres_client psql -X -w -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>/dev/null)
 if [[ $FIRST_INSTALL == 1 && $DB_TABLES != 0 ]]; then die "First installation requires an empty, dedicated database."; fi
 if [[ $FIRST_INSTALL == 0 ]]; then
-  DB_IDENTITY=$(PGDATABASE="$DB_CONNECTION" psql -X -w -Atqc "SELECT count(*) FROM \"_prisma_migrations\" WHERE migration_name='20260501000000_phase1' AND finished_at IS NOT NULL" 2>/dev/null) || die "Selected database is not a recognized Rejista database."
+  DB_IDENTITY=$(PGDATABASE="$DB_CONNECTION" postgres_client psql -X -w -Atqc "SELECT count(*) FROM \"_prisma_migrations\" WHERE migration_name='20260501000000_phase1' AND finished_at IS NOT NULL" 2>/dev/null) || die "Selected database is not a recognized Rejista database."
   [[ $DB_IDENTITY == 1 ]] || die "Rejista baseline migration not found in the selected database."
 fi
 # Stop only the verified Rejista service before schema changes.
@@ -321,7 +332,7 @@ API_PORT=$(select_api_port "$API_PORT") || die "No port available before migrati
 stop_owned_port "$API_PORT" || die "API port changed ownership."
 install -d -m 700 "$ENV_DIR/backups"
 BACKUP="$ENV_DIR/backups/$(basename "$RELEASE").dump"
-PGDATABASE="$DB_CONNECTION" pg_dump --lock-wait-timeout=30s --format=custom --file="$BACKUP" || die "Database backup failed. No migration was started."
+PGDATABASE="$DB_CONNECTION" postgres_client pg_dump --lock-wait-timeout=30s --format=custom --file="$BACKUP" || die "Database backup failed. No migration was started."
 pg_restore --list "$BACKUP" >/dev/null || die "Backup archive is unreadable."
 pg_restore --file=/dev/null "$BACKUP" || die "Backup data could not be read completely."
 printf '%s\n' "$BACKUP" > "$RECOVERY/database-backup"
