@@ -3,14 +3,14 @@
 #
 # First install (run from the project folder on the server). With no options it asks a few questions:
 # the domain (skultab.com unless you type another), your email, the product name and whether to set up HTTPS.
-#   sudo ./deploy/install.sh
+#   sudo ./deploy/install.sh --install-postgres  # fresh server only
 # The same without questions:
-#   sudo ./deploy/install.sh --domain skultab.com --email you@example.com --yes
+#   sudo ./deploy/install.sh --domain skultab.com --email you@example.com --yes --install-postgres
 # Update to the code now in this folder (settings are remembered, nothing is asked):
 #   sudo ./deploy/install.sh
 #
 # What it does, every run:
-#   1. installs Node 24, pnpm, PostgreSQL 16, nginx and certbot (only what is missing)
+#   1. installs Node 24, pnpm, nginx and certbot; PostgreSQL only with explicit --install-postgres
 #   2. creates the "rejista" system user and the folders below
 #   3. first run only: creates the database and /etc/rejista/rejista.env with fresh secrets
 #   4. copies this code into a new release folder, installs dependencies, builds the API and the web app
@@ -33,7 +33,6 @@ ENV_FILE=$ENV_DIR/rejista.env
 DATA_DIR=/var/lib/rejista
 STORAGE_DIR=$DATA_DIR/storage
 NODE_MAJOR=24
-PG_MAJOR=16
 PNPM_VERSION=10.32.1
 API_PORT=8080
 KEEP_RELEASES=5
@@ -41,7 +40,7 @@ REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TEMPLATES=$REPO_DIR/deploy/templates
 
 DEFAULT_DOMAIN=skultab.com
-DOMAIN="" EMAIL="" DB_URL="" MODE="" SSL=1 FIREWALL=1 LOCAL_DB=1 ASSUME_YES=0 NAME=""
+DOMAIN="" EMAIL="" DB_URL="" MODE="" SSL=1 FIREWALL=1 LOCAL_DB=0 ASSUME_YES=0 NAME=""
 
 usage() {
   cat <<EOF
@@ -52,6 +51,7 @@ Usage: sudo $0 [options]
   --name NAME        Product name shown everywhere (default: Rejista)
   --yes              First run: do not ask anything; use the options given and the defaults
   --db-url URL       Use an existing PostgreSQL database instead of installing one locally
+  --install-postgres Explicitly install PostgreSQL on a fresh server (refuses existing installations)
   --mode MODE        hosted (default) or standalone
   --no-ssl           Serve plain HTTP only (testing; banks and payment providers need HTTPS)
   --no-firewall      Leave the firewall alone
@@ -66,7 +66,8 @@ while [[ $# -gt 0 ]]; do
     --email) EMAIL=${2:?}; shift 2 ;;
     --name) NAME=${2:?}; shift 2 ;;
     --yes|-y) ASSUME_YES=1; shift ;;
-    --db-url) DB_URL=${2:?}; LOCAL_DB=0; shift 2 ;;
+    --db-url) DB_URL=${2:?}; shift 2 ;;
+    --install-postgres) LOCAL_DB=1; shift ;;
     --mode) MODE=${2:?}; shift 2 ;;
     --no-ssl) SSL=0; shift ;;
     --no-firewall) FIREWALL=0; shift ;;
@@ -81,7 +82,7 @@ log()  { printf '\n\033[1;32m==>\033[0m \033[1m%s\033[0m\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
 warn() { printf '\033[1;33mWARNING:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-trap 'die "Failed at line $LINENO: $BASH_COMMAND"' ERR
+trap 'die "Failed at line $LINENO. Stopping; check the preceding error."' ERR
 
 # Reads KEY from the env file (empty if missing). Values are taken literally: no quotes, no shell expansion.
 env_get() { [[ -f $ENV_FILE ]] && awk -v k="$1" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }' "$ENV_FILE" || true; }
@@ -109,6 +110,16 @@ render() { # render TEMPLATE > file, replacing __KEYS__
 [[ ${ID:-} == ubuntu || ${ID:-} == debian || ${ID_LIKE:-} == *debian* ]] || die "Supported on Ubuntu and Debian only (found ${PRETTY_NAME:-unknown})."
 
 FIRST_INSTALL=0; [[ -f $ENV_FILE ]] || FIRST_INSTALL=1
+# Before swap, apt, users, files or services are changed, decide database ownership.
+. "$REPO_DIR/deploy/postgres-checks.sh"
+SELECTED_DB_URL=$DB_URL
+if [[ $FIRST_INSTALL -eq 0 && -z $SELECTED_DB_URL ]]; then SELECTED_DB_URL=$(env_get DATABASE_URL); fi
+postgres_plan "$FIRST_INSTALL" "$LOCAL_DB" "$SELECTED_DB_URL" || die "Database safety check failed."
+if [[ $LOCAL_DB -eq 0 ]]; then
+  check_existing_database "$SELECTED_DB_URL" || die "Existing database check failed."
+  info "Using the selected database. PostgreSQL packages, services, roles and passwords will not be managed."
+  info "Rejista migrations will run on this database; it must be dedicated to Rejista."
+fi
 if [[ -z $DOMAIN && $FIRST_INSTALL -eq 0 ]]; then
   DOMAIN=$(env_get APP_BASE_URL | sed -E 's#^https?://##; s#/.*$##')
 fi
@@ -178,18 +189,12 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq ca-certificates curl gnupg rsync openssl nginx certbot ufw sudo >/dev/null
 
-# PostgreSQL from the PostgreSQL project's own repository, so pg_dump (used for backups) matches the server.
-if [[ ! -f /etc/apt/sources.list.d/pgdg.list ]]; then
-  install -d /usr/share/postgresql-common/pgdg
-  curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-  echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-  apt-get update -qq
-fi
-if [[ $LOCAL_DB -eq 1 && $FIRST_INSTALL -eq 1 ]] || [[ $FIRST_INSTALL -eq 0 && $(env_get DATABASE_URL) == *@127.0.0.1* ]]; then
-  apt-get install -y -qq "postgresql-$PG_MAJOR" >/dev/null
+# Never add or rewrite PostgreSQL repositories or install clients on an existing server.
+if [[ $LOCAL_DB -eq 1 && $FIRST_INSTALL -eq 1 ]]; then
+  postgres_present && die "PostgreSQL appeared since preflight; refusing installation."
+  apt-get install -y -qq postgresql postgresql-client >/dev/null
   systemctl enable --now postgresql >/dev/null
 fi
-apt-get install -y -qq "postgresql-client-$PG_MAJOR" >/dev/null
 
 # Node.js from NodeSource, and pnpm pinned to the version the lockfile was made with.
 if ! command -v node >/dev/null || [[ $(node -p 'process.versions.node.split(".")[0]') -lt $NODE_MAJOR ]]; then
@@ -227,13 +232,15 @@ if [[ $FIRST_INSTALL -eq 1 ]]; then
   log "Database"
   if [[ $LOCAL_DB -eq 1 ]]; then
     DB_PASS=$(openssl rand -hex 24)
-    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$APP_USER'" | grep -q 1; then
-      sudo -u postgres psql -q -c "ALTER ROLE $APP_USER WITH LOGIN PASSWORD '$DB_PASS'"
-    else
-      sudo -u postgres psql -q -c "CREATE ROLE $APP_USER WITH LOGIN PASSWORD '$DB_PASS'"
-    fi
-    sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='rejista'" | grep -q 1 \
-      || sudo -u postgres psql -q -c "CREATE DATABASE rejista OWNER $APP_USER ENCODING 'UTF8' TEMPLATE template0"
+    # Refuse name collisions, including leftovers after an interrupted installation.
+    # Never take over a role/database or reset someone else's password.
+    COLLISIONS=$(sudo -u postgres psql -X -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -d postgres -tAc \
+      "SELECT (SELECT count(*) FROM pg_roles WHERE rolname='$APP_USER') + (SELECT count(*) FROM pg_database WHERE datname='rejista')")
+    [[ ${COLLISIONS//[[:space:]]/} == 0 ]] || die "The rejista role or database already exists. Use --db-url with its existing credentials; nothing was overwritten."
+    sudo -u postgres psql -X -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -d postgres -q \
+      -c "CREATE ROLE $APP_USER WITH LOGIN PASSWORD '$DB_PASS'"
+    sudo -u postgres psql -X -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -d postgres -q \
+      -c "CREATE DATABASE rejista OWNER $APP_USER ENCODING 'UTF8' TEMPLATE template0"
     DB_URL="postgresql://$APP_USER:$DB_PASS@127.0.0.1:5432/rejista"
     info "Local database 'rejista' ready"
   else

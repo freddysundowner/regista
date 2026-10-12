@@ -8,3 +8,4 @@
 - [Messaging ownership](messaging-ownership.md) — platform defaults with school overrides; preserve explicit payer selection and verify provider contracts before sending.
 - [Navigation naming](navigation-naming.md) — one consistent name per page; central Subscriptions; sidebar collapse must survive restarts.
 - [Request completion](request-completion.md) — user has objected to explanations replacing requested changes; verify implementation before calling work complete.
+- [Shared VPS database safety](vps-database-safety.md) — other apps use PostgreSQL on the VPS; setup must not take over their server or credentials.

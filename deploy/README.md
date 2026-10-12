@@ -37,10 +37,10 @@ git clone YOUR_REPOSITORY_URL /root/rejista
 
 ## 3. Run the installer
 
-On the server:
+On a **fresh server without PostgreSQL**, explicitly request a new database server:
 
 ```bash
-cd /root/rejista && sudo ./deploy/install.sh
+cd /root/rejista && sudo ./deploy/install.sh --install-postgres
 ```
 
 On the first run it asks a few questions. Press Enter to keep the answer shown in brackets.
@@ -58,7 +58,7 @@ It then shows a summary, warns you if the domain does not point at this server y
 To skip the questions (for example in a script):
 
 ```bash
-sudo ./deploy/install.sh --domain skultab.com --email you@example.com --yes
+sudo ./deploy/install.sh --domain skultab.com --email you@example.com --yes --install-postgres
 ```
 
 The install takes five to ten minutes. When it finishes it prints the site address and a **setup token**.
@@ -158,11 +158,33 @@ systemctl status rejista-api
 | Out of memory during the build | Use a server with at least 2 GB of memory. The script adds a 2 GB swap file when there is less than 3 GB and no swap. |
 | Lost the setup token | It is `SETUP_TOKEN` in `/etc/rejista/rejista.env`. |
 
+## Existing PostgreSQL / shared VPS
+
+Use `--db-url` with a **dedicated Rejista database and account** provisioned by your
+database administrator. Do not point it at another application's database: Rejista
+still applies its own schema migrations to the database you select.
+
+The installer checks connectivity and verifies that `pg_dump` can back up the server.
+Install compatible `psql` and `pg_dump` client tools yourself if they are missing.
+It does not install, upgrade, enable or restart PostgreSQL in this mode, nor does it
+change database users' passwords. Updates reuse the saved connection automatically.
+
+`--install-postgres` is refused if PostgreSQL packages, binaries, configuration/data
+files, running processes or a listener on port 5432 are detected. It is also refused
+on updates and cannot be combined with `--db-url`. After an interrupted first setup,
+use the existing database credentials rather than trying to install another server.
+Role/database name collisions stop setup; they are never overwritten.
+
+No PostgreSQL APT repositories are added or rewritten. New installations use the
+packages available from your configured repositories. An existing broken repository
+(such as an obsolete `focal-pgdg` entry) must be repaired by the server administrator
+before APT can run; this installer does not silently change shared repository settings.
+
 ## What the installer sets up
 
-- Node.js 24, pnpm, PostgreSQL 16, nginx and certbot
+- Node.js 24, pnpm, nginx and certbot; PostgreSQL only with `--install-postgres`
 - A `rejista` system user that runs the system with no shell and no access outside its own folders
-- The database, with a generated password
+- A new database with a generated password only for an explicitly requested new PostgreSQL installation
 - The API as a service that restarts by itself and starts on boot
 - nginx in front, serving the web app and passing `/api/` to the API
 - A Let's Encrypt certificate that renews itself
