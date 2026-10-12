@@ -12,7 +12,8 @@ Group=rejista
 WorkingDirectory=__APP_ROOT__/current/artifacts/api-server
 EnvironmentFile=/etc/rejista/rejista.env
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node --enable-source-maps dist/index.mjs
+Environment=HOST=127.0.0.1
+ExecStart=__NODE_BIN__ --enable-source-maps dist/index.mjs
 Restart=always
 RestartSec=5
 TimeoutStopSec=30

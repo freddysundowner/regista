@@ -5,11 +5,12 @@ postgres_present() {
   packages=$(dpkg-query -W -f='${db:Status-Status} ${binary:Package}\n' 'postgresql*' 2>/dev/null || true)
   if grep -Eq '^installed postgresql(-[0-9]+)?(:[^ ]+)?$' <<< "$packages"; then return 0; fi
   command -v postgres >/dev/null 2>&1 && return 0
-  for directory in "$root/etc/postgresql" "$root/var/lib/postgresql" "$root/usr/lib/postgresql"; do
+  for directory in "$root/etc/postgresql" "$root/var/lib/postgresql"; do
     [[ -d $directory ]] || continue
     entries=$(find "$directory" -mindepth 1 -print -quit 2>/dev/null) || return 0
     [[ -z $entries ]] || return 0
   done
+  compgen -G "$root/usr/lib/postgresql/*/bin/postgres" >/dev/null && return 0
   pgrep -x postgres >/dev/null 2>&1 && return 0
   pgrep -x postmaster >/dev/null 2>&1 && return 0
   # A container or custom installation may not have packages or standard data directories.

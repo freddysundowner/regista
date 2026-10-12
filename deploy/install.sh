@@ -10,13 +10,13 @@
 #   sudo ./deploy/install.sh
 #
 # What it does, every run:
-#   1. installs Node 24, pnpm, nginx and certbot; PostgreSQL only with explicit --install-postgres
+#   1. checks existing tools without changing shared packages; PostgreSQL only with explicit --install-postgres
 #   2. creates the "rejista" system user and the folders below
 #   3. first run only: creates the database and /etc/rejista/rejista.env with fresh secrets
 #   4. copies this code into a new release folder, installs dependencies, builds the API and the web app
 #   5. applies database migrations and installs the background job schedules
-#   6. switches /opt/rejista/current to the new release and restarts the API; rolls back if it fails its health check
-#   7. writes the nginx site, gets or renews the Let's Encrypt certificate, and opens the firewall for web traffic
+#   6. switches the release and checks ownership-aware API health; restores config on failure
+#   7. configures only Rejista's nginx site; never changes the firewall or shared renewal hooks
 #
 # Layout:
 #   /opt/rejista/releases/<time>   one folder per build (the last few are kept for rollback)
@@ -40,7 +40,8 @@ REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TEMPLATES=$REPO_DIR/deploy/templates
 
 DEFAULT_DOMAIN=skultab.com
-DOMAIN="" EMAIL="" DB_URL="" MODE="" SSL=1 FIREWALL=1 LOCAL_DB=0 ASSUME_YES=0 NAME=""
+DOMAIN="" EMAIL="" DB_URL="" MODE="" SSL=1 FIREWALL=0 LOCAL_DB=0 ASSUME_YES=0 NAME=""
+ADOPT_EXISTING=0
 
 usage() {
   cat <<EOF
@@ -51,11 +52,13 @@ Usage: sudo $0 [options]
   --name NAME        Product name shown everywhere (default: Rejista)
   --yes              First run: do not ask anything; use the options given and the defaults
   --db-url URL       Use an existing PostgreSQL database instead of installing one locally
+  --db-url-file FILE Read the database URL from a root-only file (avoids shell history)
+  --adopt-existing   Explicitly adopt a verified installation made by the old installer
   --install-postgres Explicitly install PostgreSQL on a fresh server (refuses existing installations)
   --mode MODE        hosted (default) or standalone
   --no-ssl           Serve plain HTTP only (testing; banks and payment providers need HTTPS)
   --no-firewall      Leave the firewall alone
-  --keep N           Releases to keep for rollback (default $KEEP_RELEASES)
+  --keep N           Compatibility option; releases are now retained for manual cleanup
   -h, --help         Show this help
 EOF
 }
@@ -67,7 +70,9 @@ while [[ $# -gt 0 ]]; do
     --name) NAME=${2:?}; shift 2 ;;
     --yes|-y) ASSUME_YES=1; shift ;;
     --db-url) DB_URL=${2:?}; shift 2 ;;
+    --db-url-file) [[ $(stat -c '%u:%a' "${2:?}") == 0:600 ]] || { echo "Database URL file must be root-owned, mode 600."; exit 1; }; DB_URL=$(cat "$2"); shift 2 ;;
     --install-postgres) LOCAL_DB=1; shift ;;
+    --adopt-existing) ADOPT_EXISTING=1; shift ;;
     --mode) MODE=${2:?}; shift 2 ;;
     --no-ssl) SSL=0; shift ;;
     --no-firewall) FIREWALL=0; shift ;;
@@ -100,11 +105,14 @@ env_set() {
 # Runs a command as the app user with the settings loaded and pnpm's store shared between releases.
 as_app() { sudo -u "$APP_USER" -H env HOME="$APP_ROOT" npm_config_store_dir="$APP_ROOT/.pnpm-store" CI=true "$APP_ROOT/bin/rejista-env" "$@"; }
 render() { # render TEMPLATE > file, replacing __KEYS__
-  sed -e "s|__DOMAIN__|$DOMAIN|g" -e "s|__APP_ROOT__|$APP_ROOT|g" -e "s|__API_PORT__|$API_PORT|g" "$1"
+  sed -e "s|__DOMAIN__|$DOMAIN|g" -e "s|__APP_ROOT__|$APP_ROOT|g" -e "s|__API_PORT__|$API_PORT|g" -e "s|__NODE_BIN__|$NODE_BIN|g" "$1"
 }
 
 # --- 0. Checks ---------------------------------------------------------------------------------------------------------
 [[ $EUID -eq 0 ]] || die "Run as root: sudo $0"
+umask 077
+exec 9>/run/lock/rejista-deploy.lock
+flock -n 9 || die "Another Rejista deployment or rollback is running."
 [[ -f $REPO_DIR/pnpm-workspace.yaml && -d $REPO_DIR/artifacts/api-server ]] || die "Run this from the Rejista project folder (deploy/install.sh inside it)."
 . /etc/os-release
 [[ ${ID:-} == ubuntu || ${ID:-} == debian || ${ID_LIKE:-} == *debian* ]] || die "Supported on Ubuntu and Debian only (found ${PRETTY_NAME:-unknown})."
@@ -170,48 +178,42 @@ if [[ -z $DOMAIN && $FIRST_INSTALL -eq 1 ]]; then DOMAIN=$DEFAULT_DOMAIN; fi
 [[ $DOMAIN =~ ^[A-Za-z0-9.-]+$ ]] || die "Invalid domain: $DOMAIN"
 if [[ $SSL -eq 1 && $FIRST_INSTALL -eq 1 && -z $EMAIL ]]; then die "--email is required for the SSL certificate (or use --no-ssl)."; fi
 SCHEME=https; [[ $SSL -eq 1 ]] || SCHEME=http
+. "$REPO_DIR/deploy/host-safety.sh"
+host_preflight
+NODE_BIN=$(command -v node)
+[[ $NODE_BIN =~ ^/[A-Za-z0-9/_.-]+$ ]] || die "Node must have a safe absolute executable path."
+API_PORT=$(env_get PORT); API_PORT=${API_PORT:-8080}
+API_PORT=$(select_api_port "$API_PORT") || die "Could not select an API port safely."
+info "Selected API port: $API_PORT"
 
 log "Installing Rejista for $SCHEME://$DOMAIN"
 info "Source: $REPO_DIR"
 if [[ $FIRST_INSTALL -eq 1 ]]; then info "First install"; else info "Update (settings kept in $ENV_FILE)"; fi
 
 # --- 1. System packages ------------------------------------------------------------------------------------------------
-# Small servers run out of memory building the web app: add 2 GB of swap when there is little RAM and none yet.
-if [[ $(awk '/MemTotal/ { print int($2 / 1024) }' /proc/meminfo) -lt 3000 && -z $(swapon --noheadings 2>/dev/null) ]]; then
-  log "Adding a 2 GB swap file (low memory)"
-  fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
-  chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
-  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-fi
-
-log "System packages"
+# Shared-server mode: never modify swap, firewall or global runtime packages.
+log "Using existing system tools"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg rsync openssl nginx certbot ufw sudo >/dev/null
 
 # Never add or rewrite PostgreSQL repositories or install clients on an existing server.
 if [[ $LOCAL_DB -eq 1 && $FIRST_INSTALL -eq 1 ]]; then
   postgres_present && die "PostgreSQL appeared since preflight; refusing installation."
+  apt-get update -qq
   apt-get install -y -qq postgresql postgresql-client >/dev/null
   systemctl enable --now postgresql >/dev/null
 fi
 
-# Node.js from NodeSource, and pnpm pinned to the version the lockfile was made with.
-if ! command -v node >/dev/null || [[ $(node -p 'process.versions.node.split(".")[0]') -lt $NODE_MAJOR ]]; then
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - >/dev/null
-  apt-get install -y -qq nodejs >/dev/null
-fi
-if [[ $(pnpm -v 2>/dev/null || true) != "$PNPM_VERSION" ]]; then
-  npm install -g --silent "pnpm@$PNPM_VERSION"
-fi
 info "node $(node -v), pnpm $(pnpm -v), $(psql --version | head -1)"
 
 # --- 2. User and folders -----------------------------------------------------------------------------------------------
 log "User and folders"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --home-dir "$APP_ROOT" --shell /usr/sbin/nologin "$APP_USER"
-install -d -o "$APP_USER" -g "$APP_USER" -m 755 "$APP_ROOT" "$APP_ROOT/releases" "$APP_ROOT/bin"
+install -d -o root -g root -m 755 "$APP_ROOT" "$APP_ROOT/releases" "$APP_ROOT/bin"
+install -d -o "$APP_USER" -g "$APP_USER" -m 750 "$APP_ROOT/.pnpm-store" "$APP_ROOT/.cache" "$APP_ROOT/.local"
 install -d -o "$APP_USER" -g "$APP_USER" -m 750 "$DATA_DIR" "$STORAGE_DIR"
 install -d -o root -g "$APP_USER" -m 750 "$ENV_DIR"
+touch "$ENV_DIR/installer-owned"
+begin_recovery
 install -d -m 755 /var/www/certbot
 # Loads the settings file and runs a command with them; also handy for admins:
 #   sudo -u rejista /opt/rejista/bin/rejista-env <command>
@@ -225,6 +227,7 @@ while IFS= read -r line || [[ -n $line ]]; do
 done < /etc/rejista/rejista.env
 exec "$@"
 EOF
+chown root:root "$APP_ROOT/bin/rejista-env"
 chmod 755 "$APP_ROOT/bin/rejista-env"
 
 # --- 3. Database and settings (first run only) -------------------------------------------------------------------------
@@ -232,15 +235,16 @@ if [[ $FIRST_INSTALL -eq 1 ]]; then
   log "Database"
   if [[ $LOCAL_DB -eq 1 ]]; then
     DB_PASS=$(openssl rand -hex 24)
+    printf 'postgresql://%s:%s@127.0.0.1:5432/rejista\n' "$APP_USER" "$DB_PASS" > "$RECOVERY/new-database-url"
     # Refuse name collisions, including leftovers after an interrupted installation.
     # Never take over a role/database or reset someone else's password.
     COLLISIONS=$(sudo -u postgres psql -X -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -d postgres -tAc \
       "SELECT (SELECT count(*) FROM pg_roles WHERE rolname='$APP_USER') + (SELECT count(*) FROM pg_database WHERE datname='rejista')")
     [[ ${COLLISIONS//[[:space:]]/} == 0 ]] || die "The rejista role or database already exists. Use --db-url with its existing credentials; nothing was overwritten."
-    sudo -u postgres psql -X -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -d postgres -q \
-      -c "CREATE ROLE $APP_USER WITH LOGIN PASSWORD '$DB_PASS'"
-    sudo -u postgres psql -X -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -d postgres -q \
-      -c "CREATE DATABASE rejista OWNER $APP_USER ENCODING 'UTF8' TEMPLATE template0"
+    sudo -u postgres psql -X -v ON_ERROR_STOP=1 -h /var/run/postgresql -p 5432 -d postgres -q <<SQL
+CREATE ROLE $APP_USER WITH LOGIN PASSWORD '$DB_PASS';
+CREATE DATABASE rejista OWNER $APP_USER ENCODING 'UTF8' TEMPLATE template0;
+SQL
     DB_URL="postgresql://$APP_USER:$DB_PASS@127.0.0.1:5432/rejista"
     info "Local database 'rejista' ready"
   else
@@ -265,7 +269,10 @@ else
   if [[ -n $NAME ]]; then env_set APP_NAME "$NAME"; fi
   if [[ -n $DB_URL ]]; then env_set DATABASE_URL "$DB_URL"; fi
 fi
+env_set PORT "$API_PORT"
+env_set HOST 127.0.0.1
 chown root:"$APP_USER" "$ENV_FILE"; chmod 640 "$ENV_FILE"
+cp -p "$ENV_FILE" "$RECOVERY/proposed.env"
 for key in APP_BASE_URL DATABASE_URL SESSION_SECRET ENCRYPTION_KEY UPLOAD_DIR; do
   [[ -n $(env_get "$key") ]] || die "$key is empty in $ENV_FILE"
 done
@@ -273,10 +280,12 @@ done
 API_PORT=$(env_get PORT); API_PORT=${API_PORT:-8080}
 
 # --- 4. New release: copy, install, build ------------------------------------------------------------------------------
-RELEASE=$APP_ROOT/releases/$(date +%Y%m%d-%H%M%S)
+RELEASE=$(mktemp -d "$APP_ROOT/releases/$(date +%Y%m%d-%H%M%S)-XXXXXXXX")
+chmod 755 "$RELEASE"
+umask 022
 log "Building release $(basename "$RELEASE")"
 # Code only: no git history, dependencies, builds, local settings or local uploads.
-rsync -a --delete \
+rsync -a \
   --exclude '.git/' --exclude 'node_modules/' --exclude 'dist/' --exclude '*.tsbuildinfo' \
   --exclude '.env' --exclude '.env.*' --exclude '/artifacts/api-server/storage/' \
   --exclude '.local/' --exclude '.cache/' --exclude 'screenshots/' --exclude 'reports/' \
@@ -294,9 +303,34 @@ sudo -u "$APP_USER" -H env HOME="$APP_ROOT" NODE_ENV=production PORT=5173 BASE_P
   pnpm --filter @workspace/school-management run build >/dev/null
 [[ -f $RELEASE/artifacts/api-server/dist/index.mjs ]] || die "API build missing"
 [[ -f $RELEASE/artifacts/school-management/dist/public/index.html ]] || die "Web build missing"
+umask 077
 
 # --- 5. Database migrations and job schedules --------------------------------------------------------------------------
-log "Database migrations"
+# Database identity check: empty DB for a new install, known Rejista tables for updates.
+DB_CONNECTION=$(libpq_database_url "$(env_get DATABASE_URL)")
+DB_TABLES=$(PGDATABASE="$DB_CONNECTION" psql -X -w -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema')" 2>/dev/null)
+if [[ $FIRST_INSTALL == 1 && $DB_TABLES != 0 ]]; then die "First installation requires an empty, dedicated database."; fi
+if [[ $FIRST_INSTALL == 0 ]]; then
+  DB_IDENTITY=$(PGDATABASE="$DB_CONNECTION" psql -X -w -Atqc "SELECT count(*) FROM \"_prisma_migrations\" WHERE migration_name='20260501000000_phase1' AND finished_at IS NOT NULL" 2>/dev/null) || die "Selected database is not a recognized Rejista database."
+  [[ $DB_IDENTITY == 1 ]] || die "Rejista baseline migration not found in the selected database."
+fi
+# Stop only the verified Rejista service before schema changes.
+if systemctl is-active --quiet rejista-api; then
+  MAIN_PID=$(systemctl show rejista-api -p MainPID --value)
+  rejista_pid "$MAIN_PID" || die "Cannot verify running Rejista process."
+  CUTOVER_STARTED=1
+  systemctl stop rejista-api
+fi
+API_PORT=$(select_api_port "$API_PORT") || die "No port available before migration."
+stop_owned_port "$API_PORT" || die "API port changed ownership."
+install -d -m 700 "$ENV_DIR/backups"
+BACKUP="$ENV_DIR/backups/$(basename "$RELEASE").dump"
+PGDATABASE="$DB_CONNECTION" pg_dump --format=custom --file="$BACKUP" || die "Database backup failed. No migration was started."
+pg_restore --list "$BACKUP" >/dev/null || die "Backup archive is unreadable."
+pg_restore --file=/dev/null "$BACKUP" || die "Backup data could not be read completely."
+printf '%s\n' "$BACKUP" > "$RECOVERY/database-backup"
+MIGRATIONS_STARTED=1
+log "Database migrations (backup: $BACKUP)"
 as_app pnpm --filter @workspace/db exec prisma migrate deploy
 log "Background job schedules"
 as_app pnpm --filter @workspace/api-server run jobs:install >/dev/null
@@ -305,33 +339,27 @@ as_app pnpm --filter @workspace/api-server run jobs:install >/dev/null
 log "Starting the API"
 render "$TEMPLATES/rejista-api.service" > /etc/systemd/system/rejista-api.service
 systemctl daemon-reload
-PREVIOUS=""
-if [[ -L $APP_ROOT/current ]]; then PREVIOUS=$(readlink -f "$APP_ROOT/current"); fi
+CUTOVER_STARTED=1
+API_PORT=$(select_api_port "$API_PORT") || die "No safe port at cutover."
+env_set PORT "$API_PORT"
+stop_owned_port "$API_PORT" || die "Cannot free Rejista port safely."
 ln -sfn "$RELEASE" "$APP_ROOT/current.new" && mv -Tf "$APP_ROOT/current.new" "$APP_ROOT/current"
 systemctl enable rejista-api >/dev/null 2>&1
 systemctl restart rejista-api
 
 healthy=0
 for _ in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:$API_PORT/api/healthz" >/dev/null 2>&1; then healthy=1; break; fi
+  if systemctl is-active --quiet rejista-api && own_listeners "$(port_listeners "$API_PORT")" && curl -fsS "http://127.0.0.1:$API_PORT/api/healthz" >/dev/null 2>&1; then healthy=1; break; fi
   sleep 2
 done
 if [[ $healthy -ne 1 ]]; then
   warn "The new release did not pass its health check. Last log lines:"
   journalctl -u rejista-api -n 30 --no-pager >&2 || true
-  if [[ -n $PREVIOUS && -d $PREVIOUS && $PREVIOUS != "$RELEASE" ]]; then
-    ln -sfn "$PREVIOUS" "$APP_ROOT/current.new" && mv -Tf "$APP_ROOT/current.new" "$APP_ROOT/current"
-    systemctl restart rejista-api
-    die "Rolled back to $(basename "$PREVIOUS"). Database migrations from this run stay applied."
-  fi
   die "The API did not start. See: journalctl -u rejista-api -e"
 fi
 info "API healthy on 127.0.0.1:$API_PORT"
 
-# Keep the newest releases only (never the live one).
-ls -1dt "$APP_ROOT"/releases/*/ 2>/dev/null | tail -n +"$((KEEP_RELEASES + 1))" | while read -r old; do
-  [[ $(readlink -f "$old") == $(readlink -f "$APP_ROOT/current") ]] || rm -rf "$old"
-done
+# Keep releases for explicit administrator cleanup; never delete during deployment.
 
 # --- 7. nginx, SSL and firewall ----------------------------------------------------------------------------------------
 log "nginx"
@@ -341,10 +369,9 @@ write_site() { # write_site TEMPLATE
   # Passed through the environment: awk -v rejects multi-line values on some systems.
   render "$1" | BLOCK="$LOCATIONS" awk '{ if ($0 ~ /__APP_LOCATIONS__/) print ENVIRON["BLOCK"]; else print }' > /etc/nginx/sites-available/rejista.conf
   ln -sfn /etc/nginx/sites-available/rejista.conf /etc/nginx/sites-enabled/rejista.conf
-  rm -f /etc/nginx/sites-enabled/default
   nginx -t -q && systemctl reload nginx
 }
-systemctl enable --now nginx >/dev/null 2>&1
+systemctl is-active --quiet nginx || die "Start nginx explicitly before deploying."
 CERT=/etc/letsencrypt/live/$DOMAIN/fullchain.pem
 if [[ $SSL -eq 1 ]]; then
   if [[ ! -f $CERT ]]; then
@@ -356,25 +383,15 @@ if [[ $SSL -eq 1 ]]; then
       || die "Certificate request failed. Check that $DOMAIN resolves to this server and port 80 is open, then re-run."
   fi
   write_site "$TEMPLATES/nginx-https.conf"
-  # Renewals run from certbot's timer; reload nginx after each so it serves the new certificate.
-  install -d /etc/letsencrypt/renewal-hooks/deploy
-  printf '#!/bin/sh\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-  chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-  systemctl enable --now certbot.timer >/dev/null 2>&1 || true
+  info "Certificate renewal scheduling is managed by the server administrator; shared hooks were not changed."
 else
   write_site "$TEMPLATES/nginx-http.conf"
   warn "Serving plain HTTP. Banks and payment providers will not send notifications until HTTPS is set up."
 fi
 
-if [[ $FIREWALL -eq 1 ]]; then
-  log "Firewall"
-  ufw allow OpenSSH >/dev/null
-  # Keep the port this SSH session uses open too, in case SSH runs on a non-standard port.
-  if [[ -n ${SSH_CONNECTION:-} ]]; then ufw allow "${SSH_CONNECTION##* }/tcp" >/dev/null; fi
-  ufw allow 'Nginx Full' >/dev/null
-  ufw --force enable >/dev/null
-  info "Open: SSH, HTTP, HTTPS. The API (port $API_PORT) and PostgreSQL stay private."
-fi
+info "Firewall unchanged. The administrator must allow the site's HTTP/HTTPS ports."
+DEPLOY_SUCCESS=1
+rm -f "$ENV_DIR/deploy-in-progress"
 
 # --- Done --------------------------------------------------------------------------------------------------------------
 if curl -fsS "$SCHEME://$DOMAIN/api/healthz" >/dev/null 2>&1; then PUBLIC=ok; else PUBLIC="not reachable yet (check DNS)"; fi
@@ -386,7 +403,7 @@ cat <<EOF
     Files:       $STORAGE_DIR
     Logs:        journalctl -u rejista-api -f
     Update:      copy the new code here, then: sudo $REPO_DIR/deploy/install.sh
-    Roll back:   sudo $REPO_DIR/deploy/rollback.sh
+    Roll back:   verify database compatibility, then sudo $REPO_DIR/deploy/rollback.sh --schema-compatible
 EOF
 if [[ $FIRST_INSTALL -eq 1 ]]; then
   cat <<EOF

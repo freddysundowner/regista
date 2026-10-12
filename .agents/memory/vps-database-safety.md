@@ -8,3 +8,7 @@ The user says other software on their VPS uses PostgreSQL. Treat it as a shared 
 **Why:** The user objected to automatic installation potentially disrupting those applications.
 
 **How to apply:** Require explicit permission for new server installation. Existing PostgreSQL versions, services, accounts and passwords must not be taken over or changed by Rejista setup. Use an explicitly selected, dedicated application database; do not silently rewrite shared repositories to work around installation errors.
+
+Occupied API ports must advance to the next available port for other apps. Stop and reuse a port only when the listener is verifiably Rejista's own service.
+
+**Why:** The user explicitly requested this port behaviour and protection of other software on the shared VPS.

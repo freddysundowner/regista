@@ -6,7 +6,7 @@ One script installs everything and is also how you update later. This guide walk
 
 | | |
 |---|---|
-| **Server** | A VPS running Ubuntu 22.04 or 24.04, or Debian 12. 2 GB of memory is enough (the script adds swap on small servers); 2 CPU cores and 40 GB of disk is a comfortable start. |
+| **Server** | A VPS running Ubuntu 22.04 or 24.04, or Debian 12. Provide enough memory for builds (or configure swap yourself); 2 CPU cores and 40 GB of disk is a comfortable start. |
 | **Access** | SSH access as `root`, or a user who can run `sudo`. |
 | **Domain** | A domain name. The installer suggests `skultab.com`; type another when it asks. |
 | **Email** | An address for certificate expiry notices from Let's Encrypt. |
@@ -36,6 +36,23 @@ git clone YOUR_REPOSITORY_URL /root/rejista
 ```
 
 ## 3. Run the installer
+
+**Shared-server safety:** install the required tools yourself first: Node 24+,
+pnpm 10.32.1, running nginx, curl, rsync, openssl, sudo, Python 3, util-linux
+(flock), iproute2 (ss), and PostgreSQL client tools. For automatic certificate
+issuance, certbot is also required. The installer no longer updates shared
+packages/runtimes, creates swap, changes UFW, or removes nginx's default site.
+
+For an existing database, prefer a root-owned mode-600 file containing only its
+connection URL, and pass `--db-url-file /root/rejista-db-url` rather than putting
+a password in shell history. The database must be empty on first installation
+and dedicated to this application. Updates verify Rejista's baseline migration.
+The file is read without shell evaluation.
+
+For a working deployment created by the older installer, use `--adopt-existing`
+once after checking that its Rejista account, release folders, settings and
+service really belong to this app. The installer validates those identifiers
+before marking it managed; conflicting or incomplete installations are rejected.
 
 On a **fresh server without PostgreSQL**, explicitly request a new database server:
 
@@ -114,7 +131,7 @@ Nothing is asked the second time. It builds the new version beside the old one, 
 To go back to the previous version by hand:
 
 ```bash
-sudo ./deploy/rollback.sh
+sudo ./deploy/rollback.sh --schema-compatible
 ```
 
 Database changes are not undone by a rollback.
@@ -124,7 +141,7 @@ Database changes are not undone by a rollback.
 | Path | What |
 |---|---|
 | `/opt/rejista/current` | The version that is live |
-| `/opt/rejista/releases/` | The last five versions, kept for rollback |
+| `/opt/rejista/releases/` | Unique release folders, retained until explicitly cleaned up |
 | `/etc/rejista/rejista.env` | Settings and secrets |
 | `/var/lib/rejista/storage` | Uploaded files, generated documents and nightly database backups |
 
@@ -152,10 +169,10 @@ systemctl status rejista-api
 
 | Problem | What to check |
 |---|---|
-| "Certificate request failed" | The domain's A record does not point at this server yet, or port 80 is blocked by the provider's firewall. Fix it and run the installer again. |
+| "Certificate request failed" | Check DNS and port 80, then inspect the recovery snapshot and deployment marker before retrying. If migrations started, resolve database/code compatibility first. |
 | The site does not open | `systemctl status nginx` and `systemctl status rejista-api`. The installer's last lines say whether the site was reachable. |
 | "The API did not start" | `journalctl -u rejista-api -e` shows the reason, usually a missing or mistyped setting. |
-| Out of memory during the build | Use a server with at least 2 GB of memory. The script adds a 2 GB swap file when there is less than 3 GB and no swap. |
+| Out of memory during the build | Provide enough RAM or configure swap explicitly. The installer never creates or formats swap files. |
 | Lost the setup token | It is `SETUP_TOKEN` in `/etc/rejista/rejista.env`. |
 
 ## Existing PostgreSQL / shared VPS
@@ -182,13 +199,42 @@ before APT can run; this installer does not silently change shared repository se
 
 ## What the installer sets up
 
-- Node.js 24, pnpm, nginx and certbot; PostgreSQL only with `--install-postgres`
+- Existing Node.js 24+, pnpm and nginx are required; PostgreSQL installation is opt-in
 - A `rejista` system user that runs the system with no shell and no access outside its own folders
 - A new database with a generated password only for an explicitly requested new PostgreSQL installation
 - The API as a service that restarts by itself and starts on boot
 - nginx in front, serving the web app and passing `/api/` to the API
 - A Let's Encrypt certificate that renews itself
-- A firewall that leaves only SSH, HTTP and HTTPS open
+- Firewall and shared certificate-renewal hooks are left unchanged
+
+## Port selection and recovery
+
+The API tries its saved port (8080 on first install), then the next port if another
+app owns it. Rejista ownership requires its service cgroup, system account and
+release working directory; a process name is insufficient. Only that service is
+stopped to reuse a port. The selected port is saved and used by nginx. The API
+binds to loopback on the VPS, not the public network interface.
+
+Deployment and rollback take the same exclusive lock. Release directories have
+unique names and are not automatically deleted (`--keep` is retained only for
+command compatibility). Root owns the installer helper and release links.
+
+Before migrations, a private full database dump is saved under
+`/etc/rejista/backups/` and read back with pg_restore (not restored into a live DB).
+This checks the archive, not a complete disaster-recovery restore rehearsal.
+Rejista is stopped during backup/migration; other applications are not stopped.
+
+Configuration snapshots are root-only under `/var/tmp/rejista-recovery.*`.
+The path is recorded in `/etc/rejista/deploy-in-progress`. On failure, configuration
+and the previous code link are restored. If migrations began, the API stays stopped:
+an administrator must inspect schema compatibility or deliberately restore the
+backup. A dump is never automatically restored over a live database. Proposed
+settings (including newly generated credentials) remain in the protected snapshot.
+Do not remove the in-progress marker until recovery is complete. A hard kill or
+power loss also leaves this marker, preventing a blind retry.
+
+Manual code rollback requires `--schema-compatible` after verifying the target
+code supports the current schema. It does not undo database changes.
 
 ## More detail
 
