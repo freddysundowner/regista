@@ -84,7 +84,14 @@ Edit it with `sudo nano /etc/rejista/rejista.env`. The installer fills in the da
 | `KCB_PUBLIC_KEY` | Verifies KCB payment notifications, if you use KCB. |
 | `APP_NAME` | The product name, if you want to change it later. |
 
-After changing the file, run the installer again so the change takes effect:
+After changing the file, restart the system so it picks the change up:
+
+```bash
+sudo systemctl restart rejista-api
+```
+
+`APP_NAME` and `GOOGLE_SITE_VERIFICATION` are the exception: they are built into the web pages, so after changing
+either of them run the installer again instead:
 
 ```bash
 cd /root/rejista && sudo ./deploy/install.sh
@@ -160,6 +167,11 @@ systemctl status rejista-api
 - nginx in front, serving the web app and passing `/api/` to the API
 - A Let's Encrypt certificate that renews itself
 - A firewall that leaves only SSH, HTTP and HTTPS open
+
+## More detail
+
+[docs/self-hosting.md](../docs/self-hosting.md) is the reference: every installer option, what is installed where,
+backups, and suggestions for running it day to day.
 
 ## Not covered
 
