@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 # Private runtimes only; never change /usr/bin, global npm packages or APT.
+private_npm() {
+  local stage=$1 cache=$2
+  shift 2
+  # npm tracks config files by path and refuses to load one path twice.
+  : > "$stage/user.npmrc"
+  : > "$stage/global.npmrc"
+  (umask 022; npm_config_cache="$cache" \
+    npm_config_userconfig="$stage/user.npmrc" \
+    npm_config_globalconfig="$stage/global.npmrc" npm "$@")
+}
+
 ensure_runtime() {
   local root=${1:-/opt/rejista-toolchain} arch stage archive sum node_dir path
   for path in "$root" "$root/node-$NODE_MAJOR" "$root/pnpm-$PNPM_VERSION" "$root/cache"; do
@@ -42,8 +53,7 @@ ensure_runtime() {
     install -d -m 755 -o root -g root "$root" "$root/cache"
     stage=$(mktemp -d "$root/.pnpm.XXXXXXXX")
     info "Installing private pnpm $PNPM_VERSION (global pnpm is unchanged)."
-    (umask 022; npm_config_cache="$root/cache" npm_config_userconfig=/dev/null npm_config_globalconfig=/dev/null \
-      npm install --prefix "$stage" --global --ignore-scripts --no-audit --no-fund "pnpm@$PNPM_VERSION") || die "Private pnpm installation failed. Staging files: $stage"
+    private_npm "$stage" "$root/cache" install --prefix "$stage" --global --ignore-scripts --no-audit --no-fund "pnpm@$PNPM_VERSION" || die "Private pnpm installation failed. Staging files: $stage"
     chmod 755 "$stage"
     [[ $("$stage/bin/pnpm" -v) == "$PNPM_VERSION" ]] || die "Private pnpm verification failed."
     mv -T "$stage" "$root/pnpm-$PNPM_VERSION"

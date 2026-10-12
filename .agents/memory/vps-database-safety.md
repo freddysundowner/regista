@@ -29,4 +29,4 @@ Missing or outdated Node/pnpm should be handled with a private Rejista toolchain
 
 **Why:** The user's VPS has other apps, and its older Node blocked installation. Private runtimes preserve those apps while keeping the requested one-command setup.
 
-**How to apply:** Pass the selected runtime explicitly through privileged user switches and service configuration; retain checksum verification and avoid shared package-manager configuration changes.
+**How to apply:** Pass the selected runtime explicitly through privileged user switches and service configuration; retain checksum verification and avoid shared package-manager configuration changes. Validate configuration with real npm as well as mocks: mocked installation missed npm rejecting the same config path for both user and global settings.

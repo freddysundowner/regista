@@ -4,6 +4,7 @@ import io
 import os
 import pathlib
 import shlex
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -14,6 +15,25 @@ HERE = pathlib.Path(__file__).resolve().parent
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_real_npm_uses_distinct_private_config_files(self):
+        if not shutil.which("npm"):
+            self.skipTest("npm is not available")
+        with tempfile.TemporaryDirectory() as directory:
+            stage = pathlib.Path(directory)
+            # Real npm, no download/install: validate the same configuration
+            # loader and global prefix used by the production installation.
+            script = f'''set -euo pipefail
+source "{HERE}/runtime.sh"
+private_npm {shlex.quote(directory)} {shlex.quote(directory + "/cache")} \
+--prefix {shlex.quote(directory)} --global config get userconfig globalconfig prefix
+'''
+            result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual([line.split("=", 1)[-1] for line in result.stdout.strip().splitlines()], [
+                str(stage / "user.npmrc"), str(stage / "global.npmrc"), directory])
+            self.assertEqual((stage / "user.npmrc").read_text(), "")
+            self.assertEqual((stage / "global.npmrc").read_text(), "")
+
     def scenario(self, mismatch=False):
         with tempfile.TemporaryDirectory() as directory:
             base = pathlib.Path(directory)
